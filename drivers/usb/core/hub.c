@@ -26,6 +26,7 @@
 #include <linux/mutex.h>
 #include <linux/random.h>
 #include <linux/pm_qos.h>
+#include <linux/usb/suspend.h>
 
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
@@ -3040,6 +3041,7 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	int		port1 = udev->portnum;
 	int		status;
 	bool		really_suspend = true;
+	struct		usb_hcd *hcd = bus_to_hcd(hub->hdev->bus);
 
 	usb_lock_port(port_dev);
 
@@ -3128,6 +3130,11 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 			/* device has up to 10 msec to fully suspend */
 			msleep(10);
 		}
+
+		if (!hub->hdev->parent)
+			usb_suspend_phy(hcd->primary_hcd->susphy,
+						udev->speed, true);
+
 		usb_set_device_state(udev, USB_STATE_SUSPENDED);
 	}
 
@@ -4482,6 +4489,8 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 	if (retval)
 		goto fail;
 
+	usb_suspend_phy(hcd->primary_hcd->susphy, udev->speed, false);
+
 	/*
 	 * Some superspeed devices have finished the link training process
 	 * and attached to a superspeed hub port, but the device descriptor
@@ -4643,6 +4652,10 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 		if (hcd->usb_phy && !hdev->parent)
 			usb_phy_notify_disconnect(hcd->usb_phy, udev->speed);
 		usb_disconnect(&port_dev->child);
+
+		if (!hdev->parent && !(portstatus & USB_PORT_STAT_CONNECTION))
+			usb_suspend_phy(hcd->primary_hcd->susphy,
+						udev->speed, true);
 	}
 
 	/* We can forget about a "removed" device when there's a physical
