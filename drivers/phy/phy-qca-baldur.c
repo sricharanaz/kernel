@@ -88,6 +88,21 @@ static inline u32 qca_baldur_hs_read(void __iomem *base, u32 offset)
 	return val;
 }
 
+static int qca_baldur_phy_read(struct phy *x, u32 reg)
+{
+	struct qca_baldur_hs_phy *phy = phy_get_drvdata(x);
+
+	return qca_baldur_hs_read(phy->base, reg);
+}
+
+static int qca_baldur_phy_write(struct phy *x, u32 val, u32 reg)
+{
+	struct qca_baldur_hs_phy *phy = phy_get_drvdata(x);
+
+	qca_baldur_hs_write(phy->base, reg, val);
+	return 0;
+}
+
 static int qca_baldur_hs_phy_init(struct phy *x)
 {
 	struct qca_baldur_hs_phy	*phy = phy_get_drvdata(x);
@@ -176,6 +191,8 @@ MODULE_DEVICE_TABLE(of, qca_baldur_hs_id_table);
 static const struct phy_ops ops = {
 	.init           = qca_baldur_hs_phy_init,
 	.exit           = qca_baldur_hs_phy_shutdown,
+	.read		= qca_baldur_phy_read,
+	.write		= qca_baldur_phy_write,
 	.owner          = THIS_MODULE,
 };
 

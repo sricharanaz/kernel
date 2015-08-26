@@ -876,6 +876,10 @@ struct dwc3 {
 
 	unsigned		enable_usb2susphy_quirk:1;
 	struct usb_susphy	susphy;
+
+	unsigned		enable_usb2_host_discon_quirk:1;
+	u32			phy_misc_reg;
+	u32			phy_host_disc_on;
 };
 
 /* -------------------------------------------------------------------------- */
