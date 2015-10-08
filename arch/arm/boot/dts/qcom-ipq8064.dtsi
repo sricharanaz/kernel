@@ -1050,6 +1050,7 @@
 				phy-names = "usb2-phy", "usb3-phy";
 				tx-fifo-resize;
 				dr_mode = "host";
+				snps,dis_u3_susphy_quirk;
 			};
 		};
 
@@ -1093,6 +1094,7 @@
 				phy-names = "usb2-phy", "usb3-phy";
 				tx-fifo-resize;
 				dr_mode = "host";
+				snps,dis_u3_susphy_quirk;
 			};
 		};
 
