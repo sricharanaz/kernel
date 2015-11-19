@@ -2612,6 +2612,7 @@ static struct sdhci_ops sdhci_msm_ops = {
 	.set_bus_width = sdhci_set_bus_width,
 	.reset = sdhci_msm_reset,
 	.platform_init = sdhci_msm_init,
+	.toggle_cdr = sdhci_msm_toggle_cdr,
 };
 
 static void sdhci_set_default_hw_caps(struct sdhci_msm_host *msm_host,
