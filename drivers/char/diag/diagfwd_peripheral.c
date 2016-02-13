@@ -437,7 +437,7 @@ int diagfwd_peripheral_init(void)
 			fwd_info->inited = 1;
 			fwd_info->read_bytes = 0;
 			fwd_info->write_bytes = 0;
-			spin_lock_init(&fwd_info->buf_lock);
+			mutex_init(&fwd_info->buf_mutex);
 			mutex_init(&fwd_info->data_mutex);
 		}
 	}
@@ -452,7 +452,7 @@ int diagfwd_peripheral_init(void)
 			fwd_info->ch_open = 0;
 			fwd_info->read_bytes = 0;
 			fwd_info->write_bytes = 0;
-			spin_lock_init(&fwd_info->buf_lock);
+			mutex_init(&fwd_info->buf_mutex);
 			mutex_init(&fwd_info->data_mutex);
 			/*
 			 * This state shouldn't be set for Control channels
@@ -999,7 +999,6 @@ static void diagfwd_queue_read(struct diagfwd_info *fwd_info)
 
 void diagfwd_buffers_init(struct diagfwd_info *fwd_info)
 {
-	unsigned long flags;
 
 	if (!fwd_info)
 		return;
@@ -1010,10 +1009,10 @@ void diagfwd_buffers_init(struct diagfwd_info *fwd_info)
 		return;
 	}
 
-	spin_lock_irqsave(&fwd_info->buf_lock, flags);
+	mutex_lock(&fwd_info->buf_mutex);
 	if (!fwd_info->buf_1) {
 		fwd_info->buf_1 = kzalloc(sizeof(struct diagfwd_buf_t),
-					  GFP_ATOMIC);
+					  GFP_KERNEL);
 		if (!fwd_info->buf_1)
 			goto err;
 		kmemleak_not_leak(fwd_info->buf_1);
@@ -1021,7 +1020,7 @@ void diagfwd_buffers_init(struct diagfwd_info *fwd_info)
 	if (!fwd_info->buf_1->data) {
 		fwd_info->buf_1->data = kzalloc(PERIPHERAL_BUF_SZ +
 					APF_DIAG_PADDING,
-					GFP_ATOMIC);
+					GFP_KERNEL);
 		if (!fwd_info->buf_1->data)
 			goto err;
 		fwd_info->buf_1->len = PERIPHERAL_BUF_SZ;
@@ -1033,7 +1032,7 @@ void diagfwd_buffers_init(struct diagfwd_info *fwd_info)
 	if (fwd_info->type == TYPE_DATA) {
 		if (!fwd_info->buf_2) {
 			fwd_info->buf_2 = kzalloc(sizeof(struct diagfwd_buf_t),
-					      GFP_ATOMIC);
+					      GFP_KERNEL);
 			if (!fwd_info->buf_2)
 				goto err;
 			kmemleak_not_leak(fwd_info->buf_2);
@@ -1042,7 +1041,7 @@ void diagfwd_buffers_init(struct diagfwd_info *fwd_info)
 		if (!fwd_info->buf_2->data) {
 			fwd_info->buf_2->data = kzalloc(PERIPHERAL_BUF_SZ +
 							APF_DIAG_PADDING,
-						    GFP_ATOMIC);
+						    GFP_KERNEL);
 			if (!fwd_info->buf_2->data)
 				goto err;
 			fwd_info->buf_2->len = PERIPHERAL_BUF_SZ;
@@ -1058,7 +1057,7 @@ void diagfwd_buffers_init(struct diagfwd_info *fwd_info)
 				fwd_info->buf_1->data_raw =
 					kzalloc(PERIPHERAL_BUF_SZ +
 						APF_DIAG_PADDING,
-						GFP_ATOMIC);
+						GFP_KERNEL);
 				if (!fwd_info->buf_1->data_raw)
 					goto err;
 				fwd_info->buf_1->len_raw = PERIPHERAL_BUF_SZ;
@@ -1068,7 +1067,7 @@ void diagfwd_buffers_init(struct diagfwd_info *fwd_info)
 				fwd_info->buf_2->data_raw =
 					kzalloc(PERIPHERAL_BUF_SZ +
 						APF_DIAG_PADDING,
-						GFP_ATOMIC);
+						GFP_KERNEL);
 				if (!fwd_info->buf_2->data_raw)
 					goto err;
 				fwd_info->buf_2->len_raw = PERIPHERAL_BUF_SZ;
@@ -1082,7 +1081,7 @@ void diagfwd_buffers_init(struct diagfwd_info *fwd_info)
 		if (!fwd_info->buf_1->data_raw) {
 			fwd_info->buf_1->data_raw = kzalloc(PERIPHERAL_BUF_SZ +
 						APF_DIAG_PADDING,
-							GFP_ATOMIC);
+							GFP_KERNEL);
 			if (!fwd_info->buf_1->data_raw)
 				goto err;
 			fwd_info->buf_1->len_raw = PERIPHERAL_BUF_SZ;
@@ -1090,11 +1089,11 @@ void diagfwd_buffers_init(struct diagfwd_info *fwd_info)
 		}
 	}
 
-	spin_unlock_irqrestore(&fwd_info->buf_lock, flags);
+	mutex_unlock(&fwd_info->buf_mutex);
 	return;
 
 err:
-	spin_unlock_irqrestore(&fwd_info->buf_lock, flags);
+	mutex_unlock(&fwd_info->buf_mutex);
 	diagfwd_buffers_exit(fwd_info);
 
 	return;
@@ -1102,12 +1101,11 @@ err:
 
 static void diagfwd_buffers_exit(struct diagfwd_info *fwd_info)
 {
-	unsigned long flags;
 
 	if (!fwd_info)
 		return;
 
-	spin_lock_irqsave(&fwd_info->buf_lock, flags);
+	mutex_lock(&fwd_info->buf_mutex);
 	if (fwd_info->buf_1) {
 		kfree(fwd_info->buf_1->data);
 		fwd_info->buf_1->data = NULL;
@@ -1124,6 +1122,6 @@ static void diagfwd_buffers_exit(struct diagfwd_info *fwd_info)
 		kfree(fwd_info->buf_2);
 		fwd_info->buf_2 = NULL;
 	}
-	spin_unlock_irqrestore(&fwd_info->buf_lock, flags);
+	mutex_unlock(&fwd_info->buf_mutex);
 }
 
