@@ -214,7 +214,7 @@ static void dci_chk_handshake(unsigned long data)
 {
 	int index = (int)data;
 
-	if (index < 0 || index > NUM_DCI_PROC)
+	if (index < 0 || index >= NUM_DCI_PROC)
 		return;
 
 	queue_work(driver->diag_dci_wq,
