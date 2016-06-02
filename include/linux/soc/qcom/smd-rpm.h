@@ -1,7 +1,7 @@
 #ifndef __QCOM_SMD_RPM_H__
 #define __QCOM_SMD_RPM_H__
 
-struct qcom_smd_rpm;
+struct qcom_rpmsg_rpm;
 
 #define QCOM_SMD_RPM_ACTIVE_STATE        0
 #define QCOM_SMD_RPM_SLEEP_STATE         1
@@ -27,9 +27,8 @@ struct qcom_smd_rpm;
 #define QCOM_SMD_RPM_SPDM	0x63707362
 #define QCOM_SMD_RPM_VSA	0x00617376
 
-int qcom_rpm_smd_write(struct qcom_smd_rpm *rpm,
-		       int state,
-		       u32 resource_type, u32 resource_id,
-		       void *buf, size_t count);
-
+int qcom_rpm_rpmsg_write(struct qcom_rpmsg_rpm *rpm,
+			 int state,
+			 u32 resource_type, u32 resource_id,
+			 void *buf, size_t count);
 #endif
