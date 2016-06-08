@@ -31,7 +31,7 @@
 #include <linux/jiffies.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
-#include <linux/rpmsg.h>
+#include <linux/virtio_rpmsg.h>
 #include <linux/mutex.h>
 
 /**
@@ -72,41 +72,26 @@ struct virtproc_info {
 	struct rpmsg_endpoint *ns_ept;
 };
 
-/**
- * struct rpmsg_channel_info - internal channel info representation
- * @name: name of service
- * @src: local address
- * @dst: destination address
- */
-struct rpmsg_channel_info {
-	char name[RPMSG_NAME_SIZE];
-	u32 src;
-	u32 dst;
-};
-
-#define to_rpmsg_channel(d) container_of(d, struct rpmsg_channel, dev)
-#define to_rpmsg_driver(d) container_of(d, struct rpmsg_driver, drv)
-
-/*
- * We're allocating buffers of 512 bytes each for communications. The
- * number of buffers will be computed from the number of buffers supported
- * by the vring, upto a maximum of 512 buffers (256 in each direction).
- *
- * Each buffer will have 16 bytes for the msg header and 496 bytes for
- * the payload.
- *
- * This will utilize a maximum total space of 256KB for the buffers.
- *
- * We might also want to add support for user-provided buffers in time.
- * This will allow bigger buffer size flexibility, and can also be used
- * to achieve zero-copy messaging.
- *
- * Note that these numbers are purely a decision of this driver - we
- * can change this without changing anything in the firmware of the remote
- * processor.
- */
-#define MAX_RPMSG_NUM_BUFS	(512)
-#define RPMSG_BUF_SIZE		(512)
+ /*
+  * We're allocating buffers of 512 bytes each for communications. The
+  * number of buffers will be computed from the number of buffers supported
+  * by the vring, upto a maximum of 512 buffers (256 in each direction).
+  *
+  * Each buffer will have 16 bytes for the msg header and 496 bytes for
+  * the payload.
+  *
+  * This will utilize a maximum total space of 256KB for the buffers.
+  *
+  * We might also want to add support for user-provided buffers in time.
+  * This will allow bigger buffer size flexibility, and can also be used
+  * to achieve zero-copy messaging.
+  *
+  * Note that these numbers are purely a decision of this driver - we
+  * can change this without changing anything in the firmware of the remote
+  * processor.
+  */
+#define MAX_RPMSG_NUM_BUFS     (512)
+#define RPMSG_BUF_SIZE         (512)
 
 /*
  * Local addresses are dynamically allocated on-demand.
@@ -118,23 +103,6 @@ struct rpmsg_channel_info {
 /* Address 53 is reserved for advertising remote services */
 #define RPMSG_NS_ADDR			(53)
 
-/* sysfs show configuration fields */
-#define rpmsg_show_attr(field, path, format_string)			\
-static ssize_t								\
-field##_show(struct device *dev,					\
-			struct device_attribute *attr, char *buf)	\
-{									\
-	struct rpmsg_channel *rpdev = to_rpmsg_channel(dev);		\
-									\
-	return sprintf(buf, format_string, rpdev->path);		\
-}
-
-/* for more info, see Documentation/ABI/testing/sysfs-bus-rpmsg */
-rpmsg_show_attr(name, id.name, "%s\n");
-rpmsg_show_attr(src, src, "0x%x\n");
-rpmsg_show_attr(dst, dst, "0x%x\n");
-rpmsg_show_attr(announce, announce ? "true" : "false", "%s\n");
-
 /*
  * Unique (and free running) index for rpmsg devices.
  *
@@ -142,53 +110,6 @@ rpmsg_show_attr(announce, announce ? "true" : "false", "%s\n");
  * to change if/when we want to.
  */
 static unsigned int rpmsg_dev_index;
-
-static ssize_t modalias_show(struct device *dev,
-			     struct device_attribute *attr, char *buf)
-{
-	struct rpmsg_channel *rpdev = to_rpmsg_channel(dev);
-
-	return sprintf(buf, RPMSG_DEVICE_MODALIAS_FMT "\n", rpdev->id.name);
-}
-
-static struct device_attribute rpmsg_dev_attrs[] = {
-	__ATTR_RO(name),
-	__ATTR_RO(modalias),
-	__ATTR_RO(dst),
-	__ATTR_RO(src),
-	__ATTR_RO(announce),
-	__ATTR_NULL
-};
-
-/* rpmsg devices and drivers are matched using the service name */
-static inline int rpmsg_id_match(const struct rpmsg_channel *rpdev,
-				  const struct rpmsg_device_id *id)
-{
-	return strncmp(id->name, rpdev->id.name, RPMSG_NAME_SIZE) == 0;
-}
-
-/* match rpmsg channel and rpmsg driver */
-static int rpmsg_dev_match(struct device *dev, struct device_driver *drv)
-{
-	struct rpmsg_channel *rpdev = to_rpmsg_channel(dev);
-	struct rpmsg_driver *rpdrv = to_rpmsg_driver(drv);
-	const struct rpmsg_device_id *ids = rpdrv->id_table;
-	unsigned int i;
-
-	for (i = 0; ids[i].name[0]; i++)
-		if (rpmsg_id_match(rpdev, &ids[i]))
-			return 1;
-
-	return 0;
-}
-
-static int rpmsg_uevent(struct device *dev, struct kobj_uevent_env *env)
-{
-	struct rpmsg_channel *rpdev = to_rpmsg_channel(dev);
-
-	return add_uevent_var(env, "MODALIAS=" RPMSG_DEVICE_MODALIAS_FMT,
-					rpdev->id.name);
-}
 
 /**
  * __ept_release() - deallocate an rpmsg endpoint
@@ -304,7 +225,9 @@ free_ept:
 struct rpmsg_endpoint *rpmsg_create_ept(struct rpmsg_channel *rpdev,
 				rpmsg_rx_cb_t cb, void *priv, u32 addr)
 {
-	return __rpmsg_create_ept(rpdev->vrp, rpdev, cb, priv, addr);
+	struct rpmsg_channel_virtio *ch_virt = rpdev->channel;
+
+	return __rpmsg_create_ept(ch_virt->vrp, rpdev, cb, priv, addr);
 }
 EXPORT_SYMBOL(rpmsg_create_ept);
 
@@ -343,46 +266,43 @@ __rpmsg_destroy_ept(struct virtproc_info *vrp, struct rpmsg_endpoint *ept)
  */
 void rpmsg_destroy_ept(struct rpmsg_endpoint *ept)
 {
-	__rpmsg_destroy_ept(ept->rpdev->vrp, ept);
+	struct rpmsg_channel_virtio *ch_virt = ept->rpdev->channel;
+
+	__rpmsg_destroy_ept(ch_virt->vrp, ept);
 }
 EXPORT_SYMBOL(rpmsg_destroy_ept);
 
-/*
- * when an rpmsg driver is probed with a channel, we seamlessly create
- * it an endpoint, binding its rx callback to a unique local rpmsg
- * address.
- *
- * if we need to, we also announce about this channel to the remote
- * processor (needed in case the driver is exposing an rpmsg service).
- */
-static int rpmsg_dev_probe(struct device *dev)
+static int virtio_dev_pre_init(void *channel)
 {
-	struct rpmsg_channel *rpdev = to_rpmsg_channel(dev);
+	struct rpmsg_channel *rpdev = channel;
 	struct rpmsg_driver *rpdrv = to_rpmsg_driver(rpdev->dev.driver);
-	struct virtproc_info *vrp = rpdev->vrp;
+	struct rpmsg_channel_virtio *ch_virt = rpdev->channel;
 	struct rpmsg_endpoint *ept;
-	int err;
 
 	ept = rpmsg_create_ept(rpdev, rpdrv->callback, NULL, rpdev->src);
 	if (!ept) {
-		dev_err(dev, "failed to create endpoint\n");
-		err = -ENOMEM;
-		goto out;
+		dev_err(&rpdev->dev, "failed to create endpoint\n");
+		return -ENOMEM;
 	}
 
-	rpdev->ept = ept;
+	ch_virt->ept = ept;
 	rpdev->src = ept->addr;
 
-	err = rpdrv->probe(rpdev);
-	if (err) {
-		dev_err(dev, "%s: failed: %d\n", __func__, err);
-		rpmsg_destroy_ept(ept);
-		goto out;
-	}
+	return 0;
+}
+
+static int virtio_dev_post_init(void *channel, int err)
+{
+	struct rpmsg_channel *rpdev = channel;
+	struct rpmsg_channel_virtio *ch_virt = rpdev->channel;
+	struct virtproc_info *vrp = ch_virt->vrp;
+
+	if (err)
+		rpmsg_destroy_ept(ch_virt->ept);
 
 	/* need to tell remote processor's name service about this channel ? */
 	if (rpdev->announce &&
-			virtio_has_feature(vrp->vdev, VIRTIO_RPMSG_F_NS)) {
+	    virtio_has_feature(vrp->vdev, VIRTIO_RPMSG_F_NS) && !err) {
 		struct rpmsg_ns_msg nsm;
 
 		strncpy(nsm.name, rpdev->id.name, RPMSG_NAME_SIZE);
@@ -391,23 +311,23 @@ static int rpmsg_dev_probe(struct device *dev)
 
 		err = rpmsg_sendto(rpdev, &nsm, sizeof(nsm), RPMSG_NS_ADDR);
 		if (err)
-			dev_err(dev, "failed to announce service %d\n", err);
+			dev_err(&rpdev->dev, "failed to announce service %d\n",
+				err);
 	}
 
-out:
 	return err;
 }
 
-static int rpmsg_dev_remove(struct device *dev)
+static int virtio_dev_pre_rem(void *channel)
 {
-	struct rpmsg_channel *rpdev = to_rpmsg_channel(dev);
-	struct rpmsg_driver *rpdrv = to_rpmsg_driver(rpdev->dev.driver);
-	struct virtproc_info *vrp = rpdev->vrp;
+	struct rpmsg_channel *rpdev = channel;
+	struct rpmsg_channel_virtio *ch_virt = rpdev->channel;
+	struct virtproc_info *vrp = ch_virt->vrp;
 	int err = 0;
 
 	/* tell remote processor's name service we're removing this channel */
 	if (rpdev->announce &&
-			virtio_has_feature(vrp->vdev, VIRTIO_RPMSG_F_NS)) {
+		virtio_has_feature(vrp->vdev, VIRTIO_RPMSG_F_NS)) {
 		struct rpmsg_ns_msg nsm;
 
 		strncpy(nsm.name, rpdev->id.name, RPMSG_NAME_SIZE);
@@ -416,57 +336,43 @@ static int rpmsg_dev_remove(struct device *dev)
 
 		err = rpmsg_sendto(rpdev, &nsm, sizeof(nsm), RPMSG_NS_ADDR);
 		if (err)
-			dev_err(dev, "failed to announce service %d\n", err);
+			dev_err(&rpdev->dev, "failed to announce service %d\n",
+				err);
 	}
-
-	rpdrv->remove(rpdev);
-
-	rpmsg_destroy_ept(rpdev->ept);
 
 	return err;
 }
 
-static struct bus_type rpmsg_bus = {
-	.name		= "rpmsg",
-	.match		= rpmsg_dev_match,
-	.dev_attrs	= rpmsg_dev_attrs,
-	.uevent		= rpmsg_uevent,
-	.probe		= rpmsg_dev_probe,
-	.remove		= rpmsg_dev_remove,
-};
-
-/**
- * __register_rpmsg_driver() - register an rpmsg driver with the rpmsg bus
- * @rpdrv: pointer to a struct rpmsg_driver
- * @owner: owning module/driver
- *
- * Returns 0 on success, and an appropriate error value on failure.
- */
-int __register_rpmsg_driver(struct rpmsg_driver *rpdrv, struct module *owner)
+static void virtio_dev_post_rem(void *channel)
 {
-	rpdrv->drv.bus = &rpmsg_bus;
-	rpdrv->drv.owner = owner;
-	return driver_register(&rpdrv->drv);
+	struct rpmsg_channel *rpdev = channel;
+	struct rpmsg_channel_virtio *ch_virt = rpdev->channel;
+
+	rpmsg_destroy_ept(ch_virt->ept);
 }
-EXPORT_SYMBOL(__register_rpmsg_driver);
 
-/**
- * unregister_rpmsg_driver() - unregister an rpmsg driver from the rpmsg bus
- * @rpdrv: pointer to a struct rpmsg_driver
- *
- * Returns 0 on success, and an appropriate error value on failure.
- */
-void unregister_rpmsg_driver(struct rpmsg_driver *rpdrv)
+static int virtio_send(struct rpmsg_channel *rpdev, const void *data, int len,
+		       bool wait)
 {
-	driver_unregister(&rpdrv->drv);
+	struct rpmsg_channel_virtio *ch_virt = rpdev->channel;
+
+	return rpmsg_send_offchannel_raw(rpdev, rpdev->src, rpdev->dst,
+					 data, len, wait);
 }
-EXPORT_SYMBOL(unregister_rpmsg_driver);
 
-static void rpmsg_release_device(struct device *dev)
+static int virtio_sendto(struct rpmsg_channel *rpdev, int dst, const void *data,
+			 int len, bool wait)
 {
-	struct rpmsg_channel *rpdev = to_rpmsg_channel(dev);
+	struct rpmsg_channel_virtio *ch_virt = rpdev->channel;
 
-	kfree(rpdev);
+	return rpmsg_send_offchannel_raw(rpdev, rpdev->src, dst,
+					 data, len, wait);
+}
+
+static int virtio_sendoff(struct rpmsg_channel *rpdev, int src, int dst,
+			  const void *data, int len, bool wait)
+{
+	return rpmsg_send_offchannel_raw(rpdev, src, dst, data, len, wait);
 }
 
 /*
@@ -474,10 +380,11 @@ static void rpmsg_release_device(struct device *dev)
  * this is used to make sure we're not creating rpmsg devices for channels
  * that already exist.
  */
-static int rpmsg_channel_match(struct device *dev, void *data)
+static int virtio_rpmsg_channel_match(struct device *dev, void *data)
 {
 	struct rpmsg_channel_info *chinfo = data;
 	struct rpmsg_channel *rpdev = to_rpmsg_channel(dev);
+	struct rpmsg_channel_virtio *ch_virt = rpdev->channel;
 
 	if (chinfo->src != RPMSG_ADDR_ANY && chinfo->src != rpdev->src)
 		return 0;
@@ -497,30 +404,33 @@ static int rpmsg_channel_match(struct device *dev, void *data)
  * this function will be used to create both static and dynamic
  * channels.
  */
-static struct rpmsg_channel *rpmsg_create_channel(struct virtproc_info *vrp,
-				struct rpmsg_channel_info *chinfo)
+static int rpmsg_init_virtio_channel(struct rpmsg_channel *rpdev,
+			      void *ptr,
+			      struct rpmsg_channel_info *chinfo)
 {
-	struct rpmsg_channel *rpdev;
+	struct virtproc_info *vrp = ptr;
 	struct device *tmp, *dev = &vrp->vdev->dev;
-	int ret;
+	struct rpmsg_channel_virtio *ch_virt;
 
 	/* make sure a similar channel doesn't already exist */
-	tmp = device_find_child(dev, chinfo, rpmsg_channel_match);
+	tmp = device_find_child(dev, chinfo, virtio_rpmsg_channel_match);
 	if (tmp) {
 		/* decrement the matched device's refcount back */
 		put_device(tmp);
 		dev_err(dev, "channel %s:%x:%x already exist\n",
 				chinfo->name, chinfo->src, chinfo->dst);
-		return NULL;
+		return -EEXIST;
 	}
 
-	rpdev = kzalloc(sizeof(struct rpmsg_channel), GFP_KERNEL);
-	if (!rpdev) {
-		pr_err("kzalloc failed\n");
-		return NULL;
-	}
+	ch_virt = kzalloc(sizeof(struct rpmsg_channel_virtio *), GFP_KERNEL);
+	if (!ch_virt)
+		return -ENOMEM;
 
-	rpdev->vrp = vrp;
+	rpdev->channel = ch_virt;
+	rpdev->send = virtio_send;
+	rpdev->sendto = virtio_sendto;
+	rpdev->sendoff = virtio_sendoff;
+	ch_virt->vrp = vrp;
 	rpdev->src = chinfo->src;
 	rpdev->dst = chinfo->dst;
 
@@ -530,42 +440,10 @@ static struct rpmsg_channel *rpmsg_create_channel(struct virtproc_info *vrp,
 	 */
 	rpdev->announce = rpdev->src != RPMSG_ADDR_ANY ? true : false;
 
-	strncpy(rpdev->id.name, chinfo->name, RPMSG_NAME_SIZE);
-
 	/* very simple device indexing plumbing which is enough for now */
 	dev_set_name(&rpdev->dev, "rpmsg%d", rpmsg_dev_index++);
 
 	rpdev->dev.parent = &vrp->vdev->dev;
-	rpdev->dev.bus = &rpmsg_bus;
-	rpdev->dev.release = rpmsg_release_device;
-
-	ret = device_register(&rpdev->dev);
-	if (ret) {
-		dev_err(dev, "device_register failed: %d\n", ret);
-		put_device(&rpdev->dev);
-		return NULL;
-	}
-
-	return rpdev;
-}
-
-/*
- * find an existing channel using its name + address properties,
- * and destroy it
- */
-static int rpmsg_destroy_channel(struct virtproc_info *vrp,
-					struct rpmsg_channel_info *chinfo)
-{
-	struct virtio_device *vdev = vrp->vdev;
-	struct device *dev;
-
-	dev = device_find_child(&vdev->dev, chinfo, rpmsg_channel_match);
-	if (!dev)
-		return -EINVAL;
-
-	device_unregister(dev);
-
-	put_device(dev);
 
 	return 0;
 }
@@ -685,9 +563,10 @@ static void rpmsg_downref_sleepers(struct virtproc_info *vrp)
  * Returns 0 on success and an appropriate error value on failure.
  */
 int rpmsg_send_offchannel_raw(struct rpmsg_channel *rpdev, u32 src, u32 dst,
-					void *data, int len, bool wait)
+			      const void *data, int len, bool wait)
 {
-	struct virtproc_info *vrp = rpdev->vrp;
+	struct rpmsg_channel_virtio *ch_virt = rpdev->channel;
+	struct virtproc_info *vrp = ch_virt->vrp;
 	struct device *dev = &rpdev->dev;
 	struct scatterlist sg;
 	struct rpmsg_hdr *msg;
@@ -780,8 +659,10 @@ out:
 }
 EXPORT_SYMBOL(rpmsg_send_offchannel_raw);
 
-static int rpmsg_recv_single(struct virtproc_info *vrp, struct device *dev,
-			     struct rpmsg_hdr *msg, unsigned int len)
+static int virtio_rpmsg_recv_single(struct virtproc_info *vrp,
+				    struct device *dev,
+				    struct rpmsg_hdr *msg,
+				    unsigned int len)
 {
 	struct rpmsg_endpoint *ept;
 	struct scatterlist sg;
@@ -843,7 +724,7 @@ static int rpmsg_recv_single(struct virtproc_info *vrp, struct device *dev,
 }
 
 /* called when an rx buffer is used, and it's time to digest a message */
-static void rpmsg_recv_done(struct virtqueue *rvq)
+static void virtio_rpmsg_recv_done(struct virtqueue *rvq)
 {
 	struct virtproc_info *vrp = rvq->vdev->priv;
 	struct device *dev = &rvq->vdev->dev;
@@ -858,7 +739,7 @@ static void rpmsg_recv_done(struct virtqueue *rvq)
 	}
 
 	while (msg) {
-		err = rpmsg_recv_single(vrp, dev, msg, len);
+		err = virtio_rpmsg_recv_single(vrp, dev, msg, len);
 		if (err)
 			break;
 
@@ -881,7 +762,7 @@ static void rpmsg_recv_done(struct virtqueue *rvq)
  * Normally, though, we suppress this "tx complete" interrupt in order to
  * avoid the incurred overhead.
  */
-static void rpmsg_xmit_done(struct virtqueue *svq)
+static void virtio_rpmsg_xmit_done(struct virtqueue *svq)
 {
 	struct virtproc_info *vrp = svq->vdev->priv;
 
@@ -892,11 +773,10 @@ static void rpmsg_xmit_done(struct virtqueue *svq)
 }
 
 /* invoked when a name service announcement arrives */
-static void rpmsg_ns_cb(struct rpmsg_channel *rpdev, void *data, int len,
-							void *priv, u32 src)
+static void virtio_rpmsg_ns_cb(struct rpmsg_channel *rpdev, void *data,
+			       int len, void *priv, u32 src)
 {
 	struct rpmsg_ns_msg *msg = data;
-	struct rpmsg_channel *newch;
 	struct rpmsg_channel_info chinfo;
 	struct virtproc_info *vrp = priv;
 	struct device *dev = &vrp->vdev->dev;
@@ -932,21 +812,31 @@ static void rpmsg_ns_cb(struct rpmsg_channel *rpdev, void *data, int len,
 	strncpy(chinfo.name, msg->name, sizeof(chinfo.name));
 	chinfo.src = RPMSG_ADDR_ANY;
 	chinfo.dst = msg->addr;
+	chinfo.chinit = rpmsg_init_virtio_channel;
+	chinfo.pre_init = virtio_dev_pre_init;
+	chinfo.post_init = virtio_dev_post_init;
+	chinfo.pre_rem = virtio_dev_pre_rem;
+	chinfo.post_rem = virtio_dev_post_rem;
 
 	if (msg->flags & RPMSG_NS_DESTROY) {
-		ret = rpmsg_destroy_channel(vrp, &chinfo);
+		dev = device_find_child(dev, &chinfo,
+					virtio_rpmsg_channel_match);
+		if (!dev)
+			dev_err(dev, "rpmsg_dev not found:");
+
+		ret = rpmsg_destroy_channel(rpdev);
 		if (ret)
 			dev_err(dev, "rpmsg_destroy_channel failed: %d\n", ret);
 	} else {
-		newch = rpmsg_create_channel(vrp, &chinfo);
-		if (!newch)
+		ret = rpmsg_create_channel(vrp, chinfo);
+		if (!ret)
 			dev_err(dev, "rpmsg_create_channel failed\n");
 	}
 }
 
-static int rpmsg_probe(struct virtio_device *vdev)
+static int virtio_rpmsg_probe(struct virtio_device *vdev)
 {
-	vq_callback_t *vq_cbs[] = { rpmsg_recv_done, rpmsg_xmit_done };
+	vq_callback_t *vq_cbs[] = { virtio_rpmsg_recv_done, virtio_rpmsg_xmit_done };
 	static const char * const names[] = { "input", "output" };
 	struct virtqueue *vqs[2];
 	struct virtproc_info *vrp;
@@ -1024,7 +914,7 @@ static int rpmsg_probe(struct virtio_device *vdev)
 	/* if supported by the remote processor, enable the name service */
 	if (virtio_has_feature(vdev, VIRTIO_RPMSG_F_NS)) {
 		/* a dedicated endpoint handles the name service msgs */
-		vrp->ns_ept = __rpmsg_create_ept(vrp, NULL, rpmsg_ns_cb,
+		vrp->ns_ept = __rpmsg_create_ept(vrp, NULL, virtio_rpmsg_ns_cb,
 						vrp, RPMSG_NS_ADDR);
 		if (!vrp->ns_ept) {
 			dev_err(&vdev->dev, "failed to create the ns ept\n");
@@ -1064,14 +954,14 @@ free_vrp:
 	return err;
 }
 
-static int rpmsg_remove_device(struct device *dev, void *data)
+static int virtio_rpmsg_remove_device(struct device *dev, void *data)
 {
 	device_unregister(dev);
 
 	return 0;
 }
 
-static void rpmsg_remove(struct virtio_device *vdev)
+static void virtio_rpmsg_remove(struct virtio_device *vdev)
 {
 	struct virtproc_info *vrp = vdev->priv;
 	size_t total_buf_space = vrp->num_bufs * RPMSG_BUF_SIZE;
@@ -1079,7 +969,8 @@ static void rpmsg_remove(struct virtio_device *vdev)
 
 	vdev->config->reset(vdev);
 
-	ret = device_for_each_child(&vdev->dev, NULL, rpmsg_remove_device);
+	ret = device_for_each_child(&vdev->dev, NULL,
+				    virtio_rpmsg_remove_device);
 	if (ret)
 		dev_warn(&vdev->dev, "can't remove rpmsg device: %d\n", ret);
 
@@ -1111,36 +1002,27 @@ static struct virtio_driver virtio_ipc_driver = {
 	.driver.name	= KBUILD_MODNAME,
 	.driver.owner	= THIS_MODULE,
 	.id_table	= id_table,
-	.probe		= rpmsg_probe,
-	.remove		= rpmsg_remove,
+	.probe		= virtio_rpmsg_probe,
+	.remove		= virtio_rpmsg_remove,
 };
 
-static int __init rpmsg_init(void)
+static int __init virtio_rpmsg_init(void)
 {
 	int ret;
 
-	ret = bus_register(&rpmsg_bus);
-	if (ret) {
-		pr_err("failed to register rpmsg bus: %d\n", ret);
-		return ret;
-	}
-
 	ret = register_virtio_driver(&virtio_ipc_driver);
-	if (ret) {
+	if (ret)
 		pr_err("failed to register virtio driver: %d\n", ret);
-		bus_unregister(&rpmsg_bus);
-	}
 
 	return ret;
 }
-subsys_initcall(rpmsg_init);
+postcore_initcall(virtio_rpmsg_init);
 
-static void __exit rpmsg_fini(void)
+static void __exit virtio_rpmsg_fini(void)
 {
 	unregister_virtio_driver(&virtio_ipc_driver);
-	bus_unregister(&rpmsg_bus);
 }
-module_exit(rpmsg_fini);
+module_exit(virtio_rpmsg_fini);
 
 MODULE_DEVICE_TABLE(virtio, id_table);
 MODULE_DESCRIPTION("Virtio-based remote processor messaging bus");

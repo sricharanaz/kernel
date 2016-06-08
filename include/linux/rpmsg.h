@@ -41,115 +41,69 @@
 #include <linux/kref.h>
 #include <linux/mutex.h>
 
-/* The feature bitmap for virtio rpmsg */
-#define VIRTIO_RPMSG_F_NS	0 /* RP supports name service notifications */
-
-/**
- * struct rpmsg_hdr - common header for all rpmsg messages
- * @src: source address
- * @dst: destination address
- * @reserved: reserved for future use
- * @len: length of payload (in bytes)
- * @flags: message flags
- * @data: @len bytes of message payload data
- *
- * Every message sent(/received) on the rpmsg bus begins with this header.
- */
-struct rpmsg_hdr {
-	u32 src;
-	u32 dst;
-	u32 reserved;
-	u16 len;
-	u16 flags;
-	u8 data[0];
-} __packed;
-
-/**
- * struct rpmsg_ns_msg - dynamic name service announcement message
- * @name: name of remote service that is published
- * @addr: address of remote service that is published
- * @flags: indicates whether service is created or destroyed
- *
- * This message is sent across to publish a new service, or announce
- * about its removal. When we receive these messages, an appropriate
- * rpmsg channel (i.e device) is created/destroyed. In turn, the ->probe()
- * or ->remove() handler of the appropriate rpmsg driver will be invoked
- * (if/as-soon-as one is registered).
- */
-struct rpmsg_ns_msg {
-	char name[RPMSG_NAME_SIZE];
-	u32 addr;
-	u32 flags;
-} __packed;
-
-/**
- * enum rpmsg_ns_flags - dynamic name service announcement flags
- *
- * @RPMSG_NS_CREATE: a new remote service was just created
- * @RPMSG_NS_DESTROY: a known remote service was just destroyed
- */
-enum rpmsg_ns_flags {
-	RPMSG_NS_CREATE		= 0,
-	RPMSG_NS_DESTROY	= 1,
-};
-
-#define RPMSG_ADDR_ANY		0xFFFFFFFF
-
-struct virtproc_info;
+#define to_rpmsg_channel(d) container_of(d, struct rpmsg_channel, dev)
+#define to_rpmsg_driver(d) container_of(d, struct rpmsg_driver, drv)
 
 /**
  * rpmsg_channel - devices that belong to the rpmsg bus are called channels
- * @vrp: the remote processor this channel belongs to
+ * @channel: Pointer to channel type specific structure
  * @dev: the device struct
+ * @send: Channel specific transmit function
+ * @pre_init: callback before calling the channel probe
+ * @post_init: callback after calling the channel probe
+ * @pre_rem: callback before calling channel remove
+ * @post_rem: callback after calling channel remove
+ * @priv: Pointer to private data that clients use
  * @id: device id (used to match between rpmsg drivers and devices)
- * @src: local address
- * @dst: destination address
- * @ept: the rpmsg endpoint of this channel
+ * @src: local address, not all channel provides will need this
+ * @dst: destination address, not all channel provides will need this
  * @announce: if set, rpmsg will announce the creation/removal of this channel
  */
 struct rpmsg_channel {
-	struct virtproc_info *vrp;
+	void *channel;
 	struct device dev;
+	int (*send) (struct rpmsg_channel *rpdev, const void *data, int len,
+		     bool wait);
+	int (*sendto) (struct rpmsg_channel *rpdev, int dst, const void *data,
+		       int len, bool wait);
+	int (*sendoff) (struct rpmsg_channel *rpdev, int src, int dst,
+			const void *data, int len, bool wait);
+	int (*pre_init) (void *);
+	int (*post_init) (void *, int);
+	int (*pre_rem) (void *);
+	void (*post_rem) (void *);
+	void *priv;
 	struct rpmsg_device_id id;
 	u32 src;
 	u32 dst;
-	struct rpmsg_endpoint *ept;
 	bool announce;
 };
 
-typedef void (*rpmsg_rx_cb_t)(struct rpmsg_channel *, void *, int, void *, u32);
-
 /**
- * struct rpmsg_endpoint - binds a local rpmsg address to its user
- * @rpdev: rpmsg channel device
- * @refcount: when this drops to zero, the ept is deallocated
- * @cb: rx callback handler
- * @cb_lock: must be taken before accessing/changing @cb
- * @addr: local rpmsg address
- * @priv: private data for the driver's use
- *
- * In essence, an rpmsg endpoint represents a listener on the rpmsg bus, as
- * it binds an rpmsg address with an rx callback handler.
- *
- * Simple rpmsg drivers shouldn't use this struct directly, because
- * things just work: every rpmsg driver provides an rx callback upon
- * registering to the bus, and that callback is then bound to its rpmsg
- * address when the driver is probed. When relevant inbound messages arrive
- * (i.e. messages which their dst address equals to the src address of
- * the rpmsg channel), the driver's handler is invoked to process it.
- *
- * More complicated drivers though, that do need to allocate additional rpmsg
- * addresses, and bind them to different rx callbacks, must explicitly
- * create additional endpoints by themselves (see rpmsg_create_ept()).
+ * struct rpmsg_channel_info - internal channel info representation
+ * @chinit: callback to do channel specific initialisation.
+ * @pre_init: callback to be called before channel probe
+ * @post_init: callback to be called after channel probe
+ * @pre_rem: callback to be called before channel remove
+ * @post_rem: callback to be called after channel remove
+ * @name: name of service
+ * @src: local address
+ * @dst: destination address
  */
-struct rpmsg_endpoint {
-	struct rpmsg_channel *rpdev;
-	struct kref refcount;
-	rpmsg_rx_cb_t cb;
-	struct mutex cb_lock;
-	u32 addr;
-	void *priv;
+struct rpmsg_channel_info {
+	int (*chinit) (struct rpmsg_channel *rpdev,
+		       void *ptr,
+		       struct rpmsg_channel_info *chinfo);
+	int (*pre_init) (void *);
+	int (*post_init) (void *, int);
+	int (*pre_rem) (void *);
+	void (*post_rem) (void *);
+	char name[RPMSG_NAME_SIZE];
+	u32 src;
+	u32 dst;
 };
+
+typedef void (*rpmsg_rx_cb_t)(struct rpmsg_channel *, void *, int, void *, u32);
 
 /**
  * struct rpmsg_driver - rpmsg driver struct
@@ -171,15 +125,11 @@ int register_rpmsg_device(struct rpmsg_channel *dev);
 void unregister_rpmsg_device(struct rpmsg_channel *dev);
 int __register_rpmsg_driver(struct rpmsg_driver *drv, struct module *owner);
 void unregister_rpmsg_driver(struct rpmsg_driver *drv);
-void rpmsg_destroy_ept(struct rpmsg_endpoint *);
-struct rpmsg_endpoint *rpmsg_create_ept(struct rpmsg_channel *,
-				rpmsg_rx_cb_t cb, void *priv, u32 addr);
-int
-rpmsg_send_offchannel_raw(struct rpmsg_channel *, u32, u32, void *, int, bool);
 
 /* use a macro to avoid include chaining to get THIS_MODULE */
 #define register_rpmsg_driver(drv) \
 	__register_rpmsg_driver(drv, THIS_MODULE)
+
 
 /**
  * module_rpmsg_driver() - Helper macro for registering an rpmsg driver
@@ -212,9 +162,7 @@ rpmsg_send_offchannel_raw(struct rpmsg_channel *, u32, u32, void *, int, bool);
  */
 static inline int rpmsg_send(struct rpmsg_channel *rpdev, void *data, int len)
 {
-	u32 src = rpdev->src, dst = rpdev->dst;
-
-	return rpmsg_send_offchannel_raw(rpdev, src, dst, data, len, true);
+	return rpdev->send(rpdev, data, len, true);
 }
 
 /**
@@ -238,9 +186,7 @@ static inline int rpmsg_send(struct rpmsg_channel *rpdev, void *data, int len)
 static inline
 int rpmsg_sendto(struct rpmsg_channel *rpdev, void *data, int len, u32 dst)
 {
-	u32 src = rpdev->src;
-
-	return rpmsg_send_offchannel_raw(rpdev, src, dst, data, len, true);
+	return rpdev->sendto(rpdev, dst, data, len, true);
 }
 
 /**
@@ -267,7 +213,7 @@ static inline
 int rpmsg_send_offchannel(struct rpmsg_channel *rpdev, u32 src, u32 dst,
 							void *data, int len)
 {
-	return rpmsg_send_offchannel_raw(rpdev, src, dst, data, len, true);
+	return rpdev->sendoff(rpdev, src, dst, data, len, true);
 }
 
 /**
@@ -289,9 +235,7 @@ int rpmsg_send_offchannel(struct rpmsg_channel *rpdev, u32 src, u32 dst,
 static inline
 int rpmsg_trysend(struct rpmsg_channel *rpdev, void *data, int len)
 {
-	u32 src = rpdev->src, dst = rpdev->dst;
-
-	return rpmsg_send_offchannel_raw(rpdev, src, dst, data, len, false);
+	return rpdev->send(rpdev, data, len, false);
 }
 
 /**
@@ -314,9 +258,7 @@ int rpmsg_trysend(struct rpmsg_channel *rpdev, void *data, int len)
 static inline
 int rpmsg_trysendto(struct rpmsg_channel *rpdev, void *data, int len, u32 dst)
 {
-	u32 src = rpdev->src;
-
-	return rpmsg_send_offchannel_raw(rpdev, src, dst, data, len, false);
+	return rpdev->sendto(rpdev, dst, data, len, false);
 }
 
 /**
@@ -340,9 +282,18 @@ int rpmsg_trysendto(struct rpmsg_channel *rpdev, void *data, int len, u32 dst)
  */
 static inline
 int rpmsg_trysend_offchannel(struct rpmsg_channel *rpdev, u32 src, u32 dst,
-							void *data, int len)
+			     void *data, int len)
 {
-	return rpmsg_send_offchannel_raw(rpdev, src, dst, data, len, false);
+	return rpdev->sendoff(rpdev, src, dst, data, len, false);
 }
+
+/**
+ * rpmsg_create_channel() - Create a new rpmsg channel
+ * @chptr: Channel specific pointer passed to the channel init callback
+ * @chinfo: Channel specific details
+ */
+int rpmsg_create_channel(void *chptr, struct rpmsg_channel_info chinfo);
+
+int rpmsg_destroy_channel(struct rpmsg_channel *rpdev);
 
 #endif /* _LINUX_RPMSG_H */
