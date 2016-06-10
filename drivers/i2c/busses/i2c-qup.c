@@ -627,8 +627,8 @@ static void qup_i2c_bam_cb(void *data)
 }
 
 static int qup_sg_set_buf(struct scatterlist *sg, void *buf,
-			  struct qup_i2c_tag *tg, unsigned int buflen,
-			  struct qup_i2c_dev *qup, int map, int dir)
+			  unsigned int buflen, struct qup_i2c_dev *qup,
+			  int dir)
 {
 	int ret;
 
@@ -636,9 +636,6 @@ static int qup_sg_set_buf(struct scatterlist *sg, void *buf,
 	ret = dma_map_sg(qup->dev, sg, 1, dir);
 	if (!ret)
 		return -EINVAL;
-
-	if (!map)
-		sg_dma_address(sg) = tg->addr + ((u8 *)buf - tg->start);
 
 	return 0;
 }
@@ -714,16 +711,15 @@ static int qup_i2c_bam_do_xfer(struct qup_i2c_dev *qup, struct i2c_msg *msg,
 				/* scratch buf to read the start and len tags */
 				ret = qup_sg_set_buf(&qup->brx.sg[rx_buf++],
 						     &qup->brx.tag.start[0],
-						     &qup->brx.tag,
-						     2, qup, 0, 0);
+						     2, qup, DMA_FROM_DEVICE);
 
 				if (ret)
 					return ret;
 
 				ret = qup_sg_set_buf(&qup->brx.sg[rx_buf++],
 						     &msg->buf[limit * i],
-						     NULL, tlen, qup,
-						     1, DMA_FROM_DEVICE);
+						     tlen, qup,
+						     DMA_FROM_DEVICE);
 				if (ret)
 					return ret;
 
@@ -732,7 +728,7 @@ static int qup_i2c_bam_do_xfer(struct qup_i2c_dev *qup, struct i2c_msg *msg,
 			}
 			ret = qup_sg_set_buf(&qup->btx.sg[tx_buf++],
 					     &qup->start_tag.start[off],
-					     &qup->start_tag, len, qup, 0, 0);
+					     len, qup, DMA_TO_DEVICE);
 			if (ret)
 				return ret;
 
@@ -740,8 +736,7 @@ static int qup_i2c_bam_do_xfer(struct qup_i2c_dev *qup, struct i2c_msg *msg,
 			/* scratch buf to read the BAM EOT and FLUSH tags */
 			ret = qup_sg_set_buf(&qup->brx.sg[rx_buf++],
 					     &qup->brx.tag.start[0],
-					     &qup->brx.tag, 2,
-					     qup, 0, 0);
+					     2, qup, DMA_FROM_DEVICE);
 			if (ret)
 				return ret;
 		} else {
@@ -754,17 +749,15 @@ static int qup_i2c_bam_do_xfer(struct qup_i2c_dev *qup, struct i2c_msg *msg,
 				qup->blk.data_len -= tlen;
 
 				ret = qup_sg_set_buf(&qup->btx.sg[tx_buf++],
-						     tags,
-						     &qup->start_tag, len,
-						     qup, 0, 0);
+						     tags, len,
+						     qup, DMA_TO_DEVICE);
 				if (ret)
 					return ret;
 
 				tx_len += len;
 				ret = qup_sg_set_buf(&qup->btx.sg[tx_buf++],
 						     &msg->buf[limit * i],
-						     NULL, tlen, qup, 1,
-						     DMA_TO_DEVICE);
+						     tlen, qup, DMA_TO_DEVICE);
 				if (ret)
 					return ret;
 				i++;
@@ -783,8 +776,7 @@ static int qup_i2c_bam_do_xfer(struct qup_i2c_dev *qup, struct i2c_msg *msg,
 							QUP_BAM_FLUSH_STOP;
 				ret = qup_sg_set_buf(&qup->btx.sg[tx_buf++],
 						     &qup->btx.tag.start[0],
-						     &qup->btx.tag, len,
-						     qup, 0, 0);
+						     len, qup, DMA_TO_DEVICE);
 				if (ret)
 					return ret;
 				tx_nents += 1;
@@ -1486,27 +1478,21 @@ static int qup_i2c_probe(struct platform_device *pdev)
 
 		/* 2 tag bytes for each block + 5 for start, stop tags */
 		size = blocks * 2 + 5;
-		qup->dpool = dma_pool_create("qup_i2c-dma-pool", &pdev->dev,
-					     size, 4, 0);
 
-		qup->start_tag.start = dma_pool_alloc(qup->dpool, GFP_KERNEL,
-						      &qup->start_tag.addr);
+		qup->start_tag.start = devm_kzalloc(&pdev->dev,
+						    size, GFP_KERNEL);
 		if (!qup->start_tag.start) {
 			ret = -ENOMEM;
 			goto fail_dma;
 		}
 
-		qup->brx.tag.start = dma_pool_alloc(qup->dpool,
-						    GFP_KERNEL,
-						    &qup->brx.tag.addr);
+		qup->brx.tag.start = devm_kzalloc(&pdev->dev, 2, GFP_KERNEL);
 		if (!qup->brx.tag.start) {
 			ret = -ENOMEM;
 			goto fail_dma;
 		}
 
-		qup->btx.tag.start = dma_pool_alloc(qup->dpool,
-						    GFP_KERNEL,
-						    &qup->btx.tag.addr);
+		qup->btx.tag.start = devm_kzalloc(&pdev->dev, 2, GFP_KERNEL);
 		if (!qup->btx.tag.start) {
 			ret = -ENOMEM;
 			goto fail_dma;
@@ -1654,13 +1640,6 @@ static int qup_i2c_remove(struct platform_device *pdev)
 	struct qup_i2c_dev *qup = platform_get_drvdata(pdev);
 
 	if (qup->is_dma) {
-		dma_pool_free(qup->dpool, qup->start_tag.start,
-			      qup->start_tag.addr);
-		dma_pool_free(qup->dpool, qup->brx.tag.start,
-			      qup->brx.tag.addr);
-		dma_pool_free(qup->dpool, qup->btx.tag.start,
-			      qup->btx.tag.addr);
-		dma_pool_destroy(qup->dpool);
 		dma_release_channel(qup->btx.dma);
 		dma_release_channel(qup->brx.dma);
 	}
