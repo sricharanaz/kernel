@@ -373,6 +373,24 @@ fail:
 	return -ENOMEM;
 }
 
+static uint32_t diag_translate_kernel_to_user_mask(uint32_t peripheral_mask)
+{
+	uint32_t ret = 0;
+
+	if (peripheral_mask & MD_PERIPHERAL_MASK(APPS_DATA))
+		ret |= DIAG_CON_APSS;
+	if (peripheral_mask & MD_PERIPHERAL_MASK(PERIPHERAL_MODEM))
+		ret |= DIAG_CON_MPSS;
+	if (peripheral_mask & MD_PERIPHERAL_MASK(PERIPHERAL_LPASS))
+		ret |= DIAG_CON_LPASS;
+	if (peripheral_mask & MD_PERIPHERAL_MASK(PERIPHERAL_WCNSS))
+		ret |= DIAG_CON_WCNSS;
+	if (peripheral_mask & MD_PERIPHERAL_MASK(PERIPHERAL_SENSORS))
+		ret |= DIAG_CON_SENSORS;
+
+	return ret;
+}
+
 void diag_clear_masks(struct diag_md_session_t *info)
 {
 	int ret;
@@ -392,24 +410,6 @@ void diag_clear_masks(struct diag_md_session_t *info)
 			sizeof(cmd_disable_event_mask), info);
 	DIAG_LOG(DIAG_DEBUG_PERIPHERALS,
 	"diag:%s: masks cleared successfully\n", __func__);
-}
-
-static uint32_t diag_translate_kernel_to_user_mask(uint32_t peripheral_mask)
-{
-	uint32_t ret = 0;
-
-	if (peripheral_mask & MD_PERIPHERAL_MASK(APPS_DATA))
-		ret |= DIAG_CON_APSS;
-	if (peripheral_mask & MD_PERIPHERAL_MASK(PERIPHERAL_MODEM))
-		ret |= DIAG_CON_MPSS;
-	if (peripheral_mask & MD_PERIPHERAL_MASK(PERIPHERAL_LPASS))
-		ret |= DIAG_CON_LPASS;
-	if (peripheral_mask & MD_PERIPHERAL_MASK(PERIPHERAL_WCNSS))
-		ret |= DIAG_CON_WCNSS;
-	if (peripheral_mask & MD_PERIPHERAL_MASK(PERIPHERAL_SENSORS))
-		ret |= DIAG_CON_SENSORS;
-
-	return ret;
 }
 
 static void diag_close_logging_process(const int pid)
