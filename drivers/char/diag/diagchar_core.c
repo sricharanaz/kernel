@@ -3498,6 +3498,7 @@ fail:
 	diag_masks_exit();
 	diag_remote_exit();
 	return -1;
+
 }
 
 static struct of_device_id diag_table[] = {
