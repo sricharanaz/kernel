@@ -457,6 +457,22 @@ static int __init qcom_scm_init(void)
 }
 subsys_initcall(qcom_scm_init);
 
+int qcom_scm_tcsr(u32 svc_id, u32 cmd_id, struct qcom_scm_tcsr_req *tcsr_cmd)
+{
+	int ret;
+
+	ret = qcom_scm_clk_enable();
+	if (ret)
+		return ret;
+
+	ret = __qcom_scm_tcsr(__scm->dev, svc_id, cmd_id, tcsr_cmd);
+
+	qcom_scm_clk_disable();
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_scm_tcsr);
+
 int qcom_scm_dload(u32 svc_id, u32 cmd_id, void *cmd_buf)
 {
 	int ret;

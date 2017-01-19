@@ -735,6 +735,17 @@ int __qcom_scm_pas_mss_reset(struct device *dev, bool reset)
 	return ret ? : le32_to_cpu(out);
 }
 
+int __qcom_scm_tcsr(struct device *dev, u32 svc_id, u32 cmd_id,
+			struct qcom_scm_tcsr_req *tcsr_cmd)
+{
+	long ret;
+
+	ret = qcom_scm_call(dev, svc_id, cmd_id, tcsr_cmd,
+				sizeof(*tcsr_cmd), NULL, 0);
+
+	return ret;
+}
+
 int __qcom_scm_dload(struct device *dev, u32 svc_id, u32 cmd_id, void *cmd_buf)
 {
 	long ret;

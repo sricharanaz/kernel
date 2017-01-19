@@ -13,8 +13,21 @@
 #ifndef __QCOM_SCM_H
 #define __QCOM_SCM_H
 
+struct qcom_scm_tcsr_req {
+	u32 mask;
+	u32 status;
+	u16 tcsr_reg;
+	u16 set;
+};
+
+
 extern int qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus);
 extern int qcom_scm_set_warm_boot_addr(void *entry, const cpumask_t *cpus);
+
+#define SCM_SVC_INFO                   0x6
+#define SCM_GSBI_ADM_MUX_SEL_CMD       0x5
+extern int qcom_scm_tcsr(u32 svc_id, u32 cmd_id,
+			struct qcom_scm_tcsr_req *tcsr_cmd);
 
 #define QCOM_SCM_HDCP_MAX_REQ_CNT	5
 
