@@ -862,9 +862,9 @@ static int adm_dma_probe(struct platform_device *pdev)
 	/* configure client interfaces */
 	writel(ADM_CI_RANGE_START(0x40) | ADM_CI_RANGE_END(0xb0) |
 		ADM_CI_BURST_8_WORDS, adev->regs + ADM_CI_CONF(0));
-	writel(ADM_CI_RANGE_START(0x2a) | ADM_CI_RANGE_END(0x2c) |
+	writel(ADM_CI_RANGE_START(0x12) | ADM_CI_RANGE_END(0x14) |
 		ADM_CI_BURST_8_WORDS, adev->regs + ADM_CI_CONF(1));
-	writel(ADM_CI_RANGE_START(0x12) | ADM_CI_RANGE_END(0x28) |
+	writel(ADM_CI_RANGE_START(0x15) | ADM_CI_RANGE_END(0x28) |
 		ADM_CI_BURST_8_WORDS, adev->regs + ADM_CI_CONF(2));
 	writel(ADM_GP_CTL_LP_EN | ADM_GP_CTL_LP_CNT(0xf),
 		adev->regs + ADM_GP_CTL);
