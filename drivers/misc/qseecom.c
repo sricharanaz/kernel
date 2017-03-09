@@ -430,10 +430,13 @@ static int tzapp_test(void *input, void *output, int input_len, int option)
 					&resp, sizeof(resp));
 	}
 
-	dma_unmap_single(NULL, msgreq->data,
-				input_len, DMA_TO_DEVICE);
-	dma_unmap_single(NULL, msgreq->data2,
-				input_len, DMA_FROM_DEVICE);
+	if (option != 1) {
+		dma_unmap_single(NULL, msgreq->data,
+					input_len, DMA_TO_DEVICE);
+		dma_unmap_single(NULL, msgreq->data2,
+					input_len, DMA_FROM_DEVICE);
+
+	}
 
 	if (!ret1) {
 		dma_unmap_single(NULL, send_data_req.req_ptr,
