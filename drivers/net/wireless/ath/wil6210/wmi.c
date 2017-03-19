@@ -572,12 +572,13 @@ static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 						GFP_KERNEL);
 			goto out;
 		} else {
-			cfg80211_connect_result(ndev, evt->bssid,
+			 cfg80211_connect_result(ndev, evt->bssid,
 						assoc_req_ie, assoc_req_ielen,
 						assoc_resp_ie, assoc_resp_ielen,
 						WLAN_STATUS_SUCCESS,
 						GFP_KERNEL);
 		}
+		wil->bss = NULL;
 	} else if ((wdev->iftype == NL80211_IFTYPE_AP) ||
 		   (wdev->iftype == NL80211_IFTYPE_P2P_GO)) {
 		if (rc) {
