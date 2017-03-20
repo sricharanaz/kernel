@@ -542,7 +542,7 @@ static inline void msm_cm_dll_set_freq(struct sdhci_host *host)
 		mclk_freq = 5;
 	else if (host->clock <= 187000000)
 		mclk_freq = 6;
-	else if (host->clock <= 200000000)
+	else
 		mclk_freq = 7;
 
 	writel_relaxed(((readl_relaxed(host->ioaddr + CORE_DLL_CONFIG)
