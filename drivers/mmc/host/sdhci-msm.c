@@ -1595,6 +1595,9 @@ struct sdhci_msm_pltfm_data *sdhci_msm_populate_pdata(struct device *dev,
 	pdata->largeaddressbus =
 		of_property_read_bool(np, "qcom,large-address-bus");
 
+	pdata->disable_aggressive_pm =
+		of_property_read_bool(np, "qcom,disable-aggressive-pm");
+
 	if (of_get_property(np, "qcom,core_3_0v_support", NULL))
 		pdata->core_3_0v_support = true;
 
@@ -3056,7 +3059,6 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	/* Set host capabilities */
 	msm_host->mmc->caps |= msm_host->pdata->mmc_bus_width;
 	msm_host->mmc->caps |= msm_host->pdata->caps;
-	msm_host->mmc->caps |= MMC_CAP_AGGRESSIVE_PM;
 	msm_host->mmc->caps |= MMC_CAP_WAIT_WHILE_BUSY;
 	msm_host->mmc->caps2 |= msm_host->pdata->caps2;
 	msm_host->mmc->caps2 |= MMC_CAP2_BOOTPART_NOACC;
@@ -3065,6 +3067,9 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 
 	if (msm_host->pdata->nonremovable)
 		msm_host->mmc->caps |= MMC_CAP_NONREMOVABLE;
+
+	if (!msm_host->pdata->disable_aggressive_pm)
+		msm_host->mmc->caps |= MMC_CAP_AGGRESSIVE_PM;
 
 	init_completion(&msm_host->pwr_irq_completion);
 
