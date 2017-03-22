@@ -301,7 +301,7 @@
 	nss0: nss@40000000 {
 		compatible = "qcom,nss";
 		interrupts = <0 377 0x1>, <0 378 0x1>, <0 379 0x1>, <0 380 0x1>,
-			     <0 381 0x1>;
+			     <0 381 0x1>, <0 382 0x1>, <0 383 0x1>;
 		reg = <0x39000000 0x1000>, <0x38000000 0x30000>,
 		      <0x0b111000 0x1000>;
 		reg-names = "nphys", "vphys", "qgic-phys";
@@ -315,8 +315,8 @@
 			 <&gcc GCC_DUMMY_CLK>;
 		reset-names = "clkrst-clamp", "clamp", "ahb", "axi";
 		qcom,id = <0>;
-		qcom,num-queue = <2>;
-		qcom,num-irq = <5>;
+		qcom,num-queue = <4>;
+		qcom,num-irq = <7>;
 		qcom,load-addr = <0x40000000>;
 		qcom,bridge-enabled;
 		qcom,ipv4-enabled;
