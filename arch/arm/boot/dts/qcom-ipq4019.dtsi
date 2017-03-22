@@ -483,8 +483,8 @@
 
 		usb3_hs_phy: hsphy@a6000 {
 			compatible = "qca,baldur-usb-hsphy";
-			reg = <0xa6000 0x40>;
-			reg-names = "phy_base";
+			reg = <0xa6000 0x40>, <0x8af8800 0x100>;
+			reg-names = "phy_base", "qscratch_base";
 			resets = <&gcc USB3_HSPHY_POR_ARES>,
 				<&gcc USB3_HSPHY_S_ARES>;
 			reset-names = "por_rst", "srif_rst";
