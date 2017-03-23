@@ -111,6 +111,8 @@ static struct regulator *create_regulator(struct regulator_dev *rdev,
 					  struct device *dev,
 					  const char *supply_name);
 static void _regulator_put(struct regulator *regulator);
+static int _regulator_list_voltage(struct regulator *regulator,
+				unsigned selector, int lock);
 
 static struct regulator_dev *dev_to_rdev(struct device *dev)
 {
@@ -2403,10 +2405,9 @@ static int _regulator_is_enabled(struct regulator_dev *rdev)
 	return rdev->desc->ops->is_enabled(rdev);
 }
 
-static int _regulator_list_voltage(struct regulator *regulator,
+static int _regulator_rdev_list_voltage(struct regulator_dev *rdev,
 				    unsigned selector, int lock)
 {
-	struct regulator_dev *rdev = regulator->rdev;
 	const struct regulator_ops *ops = rdev->desc->ops;
 	int ret;
 
@@ -2435,6 +2436,12 @@ static int _regulator_list_voltage(struct regulator *regulator,
 	}
 
 	return ret;
+}
+
+static int _regulator_list_voltage(struct regulator *regulator,
+				    unsigned selector, int lock)
+{
+	return _regulator_rdev_list_voltage(regulator->rdev, selector, lock);
 }
 
 /**
@@ -2926,6 +2933,77 @@ out:
 out2:
 	regulator->min_uV = old_min_uV;
 	regulator->max_uV = old_max_uV;
+
+	return ret;
+}
+
+static int regulator_dev_set_voltage_unlocked(struct regulator_dev *rdev,
+					int min_uV, int max_uV)
+{
+	int ret = 0;
+	int best_supply_uV = 0;
+	int supply_change_uV = 0;
+
+	if (!(rdev->constraints->valid_ops_mask & REGULATOR_CHANGE_VOLTAGE))
+		return ret;
+
+	if (!rdev->desc->ops->set_voltage &&
+		!rdev->desc->ops->set_voltage_sel)
+		return -EINVAL;
+
+	ret = regulator_check_voltage(rdev, &min_uV, &max_uV);
+	if (ret < 0)
+		return ret;
+
+	ret = regulator_check_consumers(rdev, &min_uV, &max_uV);
+	if (ret < 0)
+		return ret;
+
+	if (rdev->supply && (rdev->desc->min_dropout_uV ||
+				!rdev->desc->ops->get_voltage)) {
+		int current_supply_uV;
+		int selector;
+
+		selector = regulator_map_voltage(rdev, min_uV, max_uV);
+		if (selector < 0)
+			return selector;
+
+		best_supply_uV = _regulator_rdev_list_voltage(rdev,
+						selector, 0);
+		if (best_supply_uV < 0)
+			return best_supply_uV;
+
+		best_supply_uV += rdev->desc->min_dropout_uV;
+		current_supply_uV = _regulator_get_voltage(rdev->supply->rdev);
+		if (current_supply_uV < 0)
+			return current_supply_uV;
+
+		supply_change_uV = best_supply_uV - current_supply_uV;
+	}
+
+	if (supply_change_uV > 0) {
+		ret = regulator_set_voltage_unlocked(rdev->supply,
+			best_supply_uV, INT_MAX);
+		if (ret) {
+			dev_err(&rdev->dev, "Failed to increase supply voltage: %d\n",
+				ret);
+			return ret;
+		}
+	}
+
+	ret = _regulator_do_set_voltage(rdev, min_uV, max_uV);
+	if (ret < 0)
+		return ret;
+
+	if (supply_change_uV < 0) {
+		ret = regulator_set_voltage_unlocked(rdev->supply,
+				best_supply_uV, INT_MAX);
+		if (ret)
+			dev_warn(&rdev->dev, "Failed to decrease supply voltage: %d\n",
+				ret);
+		/* No need to fail here */
+		ret = 0;
+	}
 
 	return ret;
 }
