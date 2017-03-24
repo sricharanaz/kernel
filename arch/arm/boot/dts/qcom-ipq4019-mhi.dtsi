@@ -53,6 +53,8 @@
 			/* mhi cntxt parameters */
 			mhi-chan-cfg-0 = <0x0 0x80 0x1 0x92>;
 			mhi-chan-cfg-1 = <0x1 0x80 0x1 0xa2>;
+			mhi-chan-cfg-4 = <0x4 0x80 0x1 0x92>;
+			mhi-chan-cfg-5 = <0x5 0x80 0x1 0xa2>;
 			mhi-chan-cfg-16 = <0x10 0x40 0x1 0x92>;
 			mhi-chan-cfg-17 = <0x11 0x40 0x1 0xa2>;
 			mhi-event-rings = <2>;
@@ -68,6 +70,12 @@
 			qcom,xprt-remote = "external-wlan";
 			qcom,xprt-linkid = <1>;
 			qcom,xprt-version = <3>;
+		};
+
+		qcom,diag@0 {
+			compatible = "qcom,diag";
+			qcom,mhi = <&mhi_wlan>;
+			status = "ok";
 		};
 	};
 };
