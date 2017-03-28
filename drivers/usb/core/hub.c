@@ -2669,7 +2669,7 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 			return -EINVAL;
 		}
 
-		if (!hub->hdev->parent)
+		if (!hub->hdev->parent && hcd->primary_hcd)
 			usb_host_discon(hcd->primary_hcd->susphy, true);
 
 		/* Block EHCI CF initialization during the port reset.
@@ -2776,7 +2776,7 @@ done:
 	}
 
 	if (!hub_is_superspeed(hub->hdev)) {
-		if (!hub->hdev->parent)
+		if (!hub->hdev->parent && hcd->primary_hcd)
 			usb_host_discon(hcd->primary_hcd->susphy, false);
 		up_read(&ehci_cf_port_reset_rwsem);
 	}
@@ -3139,7 +3139,7 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 			msleep(10);
 		}
 
-		if (!hub->hdev->parent)
+		if ((!hub->hdev->parent) && hcd->primary_hcd)
 			usb_suspend_phy(hcd->primary_hcd->susphy,
 						udev->speed, true);
 
@@ -4497,8 +4497,8 @@ hub_port_init(struct usb_hub *hub, struct usb_device *udev, int port1,
 	if (retval)
 		goto fail;
 
-	usb_suspend_phy(hcd->primary_hcd->susphy, udev->speed, false);
-
+	if (hcd->primary_hcd)
+		usb_suspend_phy(hcd->primary_hcd->susphy, udev->speed, false);
 	/*
 	 * Some superspeed devices have finished the link training process
 	 * and attached to a superspeed hub port, but the device descriptor
@@ -4661,7 +4661,7 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 			usb_phy_notify_disconnect(hcd->usb_phy, udev->speed);
 		usb_disconnect(&port_dev->child);
 
-		if (!hdev->parent && !(portstatus & USB_PORT_STAT_CONNECTION))
+		if (!hdev->parent && !(portstatus & USB_PORT_STAT_CONNECTION) && hcd->primary_hcd)
 			usb_suspend_phy(hcd->primary_hcd->susphy,
 						udev->speed, true);
 	}
