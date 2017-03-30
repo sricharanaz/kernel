@@ -28,6 +28,8 @@ Required properties:
 - qca,emulation		States that this driver is used on emulation platform
 - qca,auto-restart      states that q6 is restarted after receiving error fatal
 			from q6
+- qca,extended-intc	notifies that virtual interrupt controller is used
+			instead of virtual GPIOs
 
 Example:
 --------
