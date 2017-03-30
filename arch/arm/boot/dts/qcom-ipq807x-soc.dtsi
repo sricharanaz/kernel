@@ -229,9 +229,9 @@
 					<&wcss_smp2p_in 1 0>,
 					<&wcss_smp2p_in 3 0>;
 			interrupt-names = "wdog",
-					  "fatal",
-					  "handover",
-					  "stop-ack";
+					  "qcom,gpio-err-fatal",
+					  "qcom,gpio-err-ready",
+					  "qcom,gpio-stop-ack";
 			qcom,smem-states = <&wcss_smp2p_out 0>,
 					   <&wcss_smp2p_out 1>;
 			qcom,smem-state-names = "shutdown",
