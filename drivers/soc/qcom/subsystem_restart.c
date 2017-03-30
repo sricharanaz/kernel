@@ -1623,6 +1623,9 @@ struct subsys_device *subsys_register(struct subsys_desc *desc)
 		if (!subsys->desc->edge)
 			pr_debug("Reading qcom,edge for %s failed\n",
 								desc->name);
+		if (of_property_read_bool(desc->dev->of_node,
+					"qca,auto-restart"))
+			subsys->restart_level = RESET_SUBSYS_COUPLED;
 	}
 
 	mutex_lock(&subsys_list_lock);
