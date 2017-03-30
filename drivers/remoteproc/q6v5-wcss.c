@@ -419,6 +419,15 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	struct rproc *rproc;
 	int ret;
 	struct resource *resource;
+	struct qcom_smem_state *state;
+	unsigned stop_bit;
+
+	state = qcom_smem_state_get(&pdev->dev, "stop",
+					&stop_bit);
+	if (IS_ERR(state)) {
+		/* Wait till SMP2P is registered and up */
+		return -EPROBE_DEFER;
+	}
 
 	ret = dma_set_coherent_mask(&pdev->dev,
 			DMA_BIT_MASK(sizeof(dma_addr_t) * 8));
