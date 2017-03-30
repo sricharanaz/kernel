@@ -567,6 +567,31 @@
 		qcom,crypto-eip197-enabled;
 	};
 
+	nss1: nss@40800000 {
+		compatible = "qcom,nss";
+		interrupts = <0 390 0x1>, <0 391 0x1>, <0 392 0x1>, <0 393 0x1>,
+				<0 394 0x1>, <0 395 0x1>, <0 396 0x1>;
+		reg = <0x39400000 0x1000>, <0x38030000 0x30000>,
+			<0x0b111000 0x1000>;
+		reg-names = "nphys", "vphys", "qgic-phys";
+		clocks = <&gcc GCC_DUMMY_CLK>, <&gcc GCC_DUMMY_CLK>,
+			<&gcc GCC_DUMMY_CLK>;
+		clock-names = "nss-core-clk", "nss-tcm-src",
+				"nss-tcm-clk";
+		resets = <&gcc GCC_DUMMY_CLK>,
+			<&gcc GCC_DUMMY_CLK>,
+			<&gcc GCC_DUMMY_CLK>,
+			<&gcc GCC_DUMMY_CLK>;
+		reset-names = "clkrst-clamp", "clamp", "ahb", "axi";
+		qcom,id = <1>;
+		qcom,num-queue = <4>;
+		qcom,num-irq = <7>;
+		qcom,load-addr = <0x40800000>;
+		qcom,capwap-enabled;
+		qcom,dtls-enabled;
+		qcom,ipsec-enabled;
+	};
+
 	audio: audio@7700000 {
 		status = "ok";
 	};
