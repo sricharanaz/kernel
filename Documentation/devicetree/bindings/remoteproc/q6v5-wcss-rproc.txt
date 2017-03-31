@@ -30,6 +30,7 @@ Required properties:
 			from q6
 - qca,extended-intc	notifies that virtual interrupt controller is used
 			instead of virtual GPIOs
+- qca,secure		notifies that TZ is used for bringing q6 out of reset
 
 Example:
 --------
