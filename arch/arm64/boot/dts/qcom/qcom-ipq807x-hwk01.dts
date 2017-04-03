@@ -16,6 +16,7 @@
  */
 #include "qcom-ipq807x-soc.dtsi"
 #include "qcom-ipq807x-coresight.dtsi"
+#include "qcom-ipq807x-spmi-regulator.dtsi"
 
 / {
 	#address-cells = <0x2>;
@@ -63,6 +64,7 @@
 			compatible = "arm,cortex-a53";
 			reg = <0x0>;
 			enable-method = "qcom,arm-cortex-acc";
+			cpu0-supply = <&s3>;
 			qcom,acc = <&acc0>;
 			next-level-cache = <&L2_0>;
 
@@ -76,6 +78,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			enable-method = "qcom,arm-cortex-acc";
+			cpu-supply = <&s3>;
 			reg = <0x1>;
 			qcom,acc = <&acc1>;
 			next-level-cache = <&L2_0>;
@@ -85,6 +88,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			enable-method = "qcom,arm-cortex-acc";
+			cpu-supply = <&s3>;
 			reg = <0x2>;
 			qcom,acc = <&acc2>;
 			next-level-cache = <&L2_0>;
@@ -94,6 +98,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			enable-method = "qcom,arm-cortex-acc";
+			cpu0-supply = <&s3>;
 			reg = <0x3>;
 			qcom,acc = <&acc3>;
 			next-level-cache = <&L2_0>;
