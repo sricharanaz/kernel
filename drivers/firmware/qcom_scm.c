@@ -545,3 +545,11 @@ int qcom_scm_tz_log(struct device *dev, u32 svc_id, u32 cmd_id,
 	return __qcom_scm_tz_log(dev, svc_id, cmd_id, log_buf, log_size);
 }
 EXPORT_SYMBOL(qcom_scm_tz_log);
+
+int qcom_los_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
+				void *cmd_buf, size_t size)
+{
+	return __qcom_los_scm_call(dev, svc_id, cmd_id,
+				cmd_buf, size);
+}
+EXPORT_SYMBOL(qcom_los_scm_call);

@@ -413,3 +413,9 @@ int __qcom_scm_tz_log(struct device *dev, u32 svc_id, u32 cmd_id,
 {
 	return -ENOTSUPP;
 }
+
+int __qcom_los_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
+					void *cmd_buf, size_t size)
+{
+	return -ENOTSUPP;
+}
