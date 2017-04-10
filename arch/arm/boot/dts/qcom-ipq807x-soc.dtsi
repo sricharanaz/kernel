@@ -1172,7 +1172,7 @@
 				<0x200a000 0x000700>;
 			reg-names = "core", "chnls", "obsrvr", "intr", "cnfg";
 			interrupt-names = "periph_irq";
-			interrupts = <GIC_SPI 326 IRQ_TYPE_NONE>;
+			interrupts = <GIC_SPI 190 IRQ_TYPE_NONE>;
 			qcom,ee = <0>;
 			qcom,channel = <0>;
 			#address-cells = <2>;
