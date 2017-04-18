@@ -24,6 +24,8 @@
 
 #include <dt-bindings/mfd/qcom-rpm.h>
 
+static u32 fw_version[3];
+
 struct qcom_rpm_resource {
 	unsigned target_id;
 	unsigned status_id;
@@ -483,13 +485,23 @@ static irqreturn_t qcom_rpm_wakeup_interrupt(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static ssize_t fw_version_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%u.%u.%u\n",
+			((fw_version[2] >> 24) & 0xff),
+			((fw_version[2] >> 16) & 0xff),
+			(fw_version[2] & 0xffff));
+}
+
+static struct kobj_attribute fw_version_attr = __ATTR_RO(fw_version);
+
 static int qcom_rpm_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *match;
 	struct device_node *syscon_np;
 	struct resource *res;
 	struct qcom_rpm *rpm;
-	u32 fw_version[3];
 	int irq_wakeup;
 	int irq_ack;
 	int irq_err;
@@ -618,11 +630,16 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	if (ret)
 		dev_warn(&pdev->dev, "failed to mark wakeup irq as wakeup\n");
 
+	ret = sysfs_create_file(&pdev->dev.kobj, &fw_version_attr.attr);
+	if(ret)
+		dev_warn(&pdev->dev, "Failed to create fw_version sysfs entry\n");
+
 	return of_platform_populate(pdev->dev.of_node, NULL, NULL, &pdev->dev);
 }
 
 static int qcom_rpm_remove(struct platform_device *pdev)
 {
+	sysfs_remove_file(&pdev->dev.kobj, &fw_version_attr.attr);
 	of_platform_depopulate(&pdev->dev);
 	return 0;
 }
