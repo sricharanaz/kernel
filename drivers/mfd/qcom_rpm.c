@@ -524,12 +524,19 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	}
 
 	match = of_match_device(qcom_rpm_of_match, &pdev->dev);
+	if (!match || !match->data) {
+		dev_err(&pdev->dev, "match data missing\n");
+		return -EINVAL;
+	}
+
 	rpm->data = match->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rpm->status_regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(rpm->status_regs))
+	if (IS_ERR(rpm->status_regs)) {
+		dev_err(&pdev->dev, "ioremap failed\n");
 		return PTR_ERR(rpm->status_regs);
+	}
 
 	rpm->ctrl_regs = rpm->status_regs + 0x400;
 	rpm->req_regs = rpm->status_regs + 0x600;
