@@ -288,6 +288,7 @@
 				 <&gcc GCC_DUMMY_CLK>;
 			clock-names = "iface_clk", "core_clk";
 			qcom,large-address-bus;
+			qcom,disable-aggressive-pm;
 
 			status = "disabled";
 		};
@@ -333,6 +334,7 @@
 				 <&gcc GCC_DUMMY_CLK>;
 			clock-names = "iface_clk", "core_clk";
 			qcom,large-address-bus;
+			qcom,disable-aggressive-pm;
 
 			status = "disabled";
 		};
