@@ -398,7 +398,13 @@
 				qcom,dma-queue-depth = <256>;
 				qcom,dma-mask = <0xff>;
 				qcom,transform-enabled;
+				qcom,aes128-cbc;
+				qcom,aes192-cbc;
+				qcom,aes256-cbc;
+				qcom,3des-cbc;
+				qcom,sha1-hmac;
 				qcom,aes128-cbc-sha1-hmac;
+				qcom,aes192-cbc-sha1-hmac;
 				qcom,aes256-cbc-sha1-hmac;
 				qcom,3des-cbc-sha1-hmac;
 
