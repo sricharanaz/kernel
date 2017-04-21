@@ -43,6 +43,7 @@ struct qcom_rpm_data {
 	unsigned int ack_sel_off;
 	unsigned int req_sel_size;
 	unsigned int ack_sel_size;
+	unsigned disable_mpm;
 };
 
 struct qcom_rpm {
@@ -390,6 +391,7 @@ static const struct qcom_rpm_data ipq806x_template = {
 	.ack_sel_off = 23,
 	.req_sel_size = 4,
 	.ack_sel_size = 7,
+	.disable_mpm = 1,
 };
 
 static const struct of_device_id qcom_rpm_of_match[] = {
@@ -534,12 +536,20 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	}
 
 	match = of_match_device(qcom_rpm_of_match, &pdev->dev);
+	if (!match || !match->data) {
+		dev_err(&pdev->dev, "match data missing\n");
+		return -EINVAL;
+	}
+
 	rpm->data = match->data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	rpm->status_regs = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(rpm->status_regs))
+	if (IS_ERR(rpm->status_regs)) {
+		dev_err(&pdev->dev, "ioremap failed\n");
 		return PTR_ERR(rpm->status_regs);
+	}
+
 	rpm->ctrl_regs = rpm->status_regs + 0x400;
 	rpm->req_regs = rpm->status_regs + 0x600;
 
@@ -600,9 +610,11 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = irq_set_irq_wake(irq_ack, 1);
-	if (ret)
-		dev_warn(&pdev->dev, "failed to mark ack irq as wakeup\n");
+	if (!rpm->data->disable_mpm) {
+		ret = irq_set_irq_wake(irq_ack, 1);
+		if (ret)
+			dev_warn(&pdev->dev, "failed to mark ack irq as wakeup\n");
+	}
 
 	ret = devm_request_irq(&pdev->dev,
 			       irq_err,
@@ -626,9 +638,11 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = irq_set_irq_wake(irq_wakeup, 1);
-	if (ret)
-		dev_warn(&pdev->dev, "failed to mark wakeup irq as wakeup\n");
+	if (!rpm->data->disable_mpm) {
+		ret = irq_set_irq_wake(irq_wakeup, 1);
+		if (ret)
+			dev_warn(&pdev->dev, "failed to mark wakeup irq as wakeup\n");
+	}
 
 	ret = sysfs_create_file(&pdev->dev.kobj, &fw_version_attr.attr);
 	if(ret)
