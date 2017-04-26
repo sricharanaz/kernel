@@ -58,4 +58,9 @@ extern int qcom_scm_get_cache_dump_size(u32 cmd_id, void *cmd_buf, u32 size);
 extern int qcom_scm_send_cache_dump_addr(u32 cmd_id, void *cmd_buf, u32 size);
 extern int qcom_scm_tzsched(const void *req, size_t req_size,
 				void *resp, size_t resp_size);
+
+#define QCOM_SCM_SVC_FUSE		0x8
+
+extern int qcom_los_scm_call(struct device *, u32 svc_id, u32 cmd_id,
+		void *cmd_buf, size_t size);
 #endif

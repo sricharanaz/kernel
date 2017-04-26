@@ -826,3 +826,13 @@ int __qcom_scm_tz_log(struct device *dev, u32 svc_id, u32 cmd_id,
 
 	return ret;
 }
+
+int __qcom_los_scm_call(struct device *dev, u32 svc_id, u32 cmd_id,
+					void *cmd_buf, size_t size)
+{
+	long ret;
+
+	ret = qcom_scm_call(dev, svc_id, cmd_id, cmd_buf, size, NULL, 0);
+
+	return ret;
+}

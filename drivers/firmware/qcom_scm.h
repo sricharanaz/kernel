@@ -142,6 +142,8 @@ extern int __qcom_scm_tzsched(struct device *, const void *req,
 				size_t resp_size);
 extern int __qcom_scm_tz_log(struct device *, u32 svc_id, u32 cmd_id,
 						void *log_buf, u32 log_size);
+extern int __qcom_los_scm_call(struct device *, u32 svc_id, u32 cmd_id,
+			void *cmd_buf, size_t size);
 
 /* common error codes */
 #define QCOM_SCM_V2_EBUSY	-12
