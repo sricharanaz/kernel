@@ -365,6 +365,12 @@ int __qcom_scm_regsave(struct device *dev, u32 svc_id, u32 cmd_id,
 	return -ENOTSUPP;
 }
 
+int __qcom_scm_tcsr(struct device *dev, u32 svc_id, u32 cmd_id,
+			struct qcom_scm_tcsr_req *tcsr_cmd)
+{
+	return -ENOTSUPP;
+}
+
 int __qcom_scm_dload(struct device *dev, u32 svc_id, u32 cmd_id, void *cmd_buf)
 {
 	return -ENOTSUPP;
