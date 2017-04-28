@@ -514,22 +514,22 @@
 	nss0: nss@40000000 {
 		compatible = "qcom,nss";
 		interrupts = <0 377 0x1>, <0 378 0x1>, <0 379 0x1>, <0 380 0x1>,
-			     <0 381 0x1>;
+				<0 381 0x1>, <0 382 0x1>, <0 383 0x1>, <0 384 0x1>;
 		reg = <0x39000000 0x1000>, <0x38000000 0x30000>,
-		      <0x0b111000 0x1000>;
+			<0x0b111000 0x1000>;
 		reg-names = "nphys", "vphys", "qgic-phys";
 		clocks = <&gcc GCC_DUMMY_CLK>, <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+			<&gcc GCC_DUMMY_CLK>;
 		clock-names = "nss-core-clk", "nss-tcm-src",
-			      "nss-tcm-clk";
+				"nss-tcm-clk";
 		resets = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+			<&gcc GCC_DUMMY_CLK>,
+			<&gcc GCC_DUMMY_CLK>,
+			<&gcc GCC_DUMMY_CLK>;
 		reset-names = "clkrst-clamp", "clamp", "ahb", "axi";
 		qcom,id = <0>;
-		qcom,num-queue = <2>;
-		qcom,num-irq = <5>;
+		qcom,num-queue = <4>;
+		qcom,num-irq = <8>;
 		qcom,load-addr = <0x40000000>;
 		qcom,bridge-enabled;
 		qcom,ipv4-enabled;
@@ -546,6 +546,32 @@
 		qcom,shaping-enabled;
 		qcom,wlan-dataplane-offload-enabled;
 		qcom,vlan-enabled;
+		qcom,crypto-eip197-enabled;
+	};
+
+	nss1: nss@40800000 {
+		compatible = "qcom,nss";
+		interrupts = <0 390 0x1>, <0 391 0x1>, <0 392 0x1>, <0 393 0x1>,
+				<0 394 0x1>, <0 395 0x1>, <0 396 0x1>, <0 397 0x1>;
+		reg = <0x39400000 0x1000>, <0x38030000 0x30000>,
+			<0x0b111000 0x1000>;
+		reg-names = "nphys", "vphys", "qgic-phys";
+		clocks = <&gcc GCC_DUMMY_CLK>, <&gcc GCC_DUMMY_CLK>,
+			<&gcc GCC_DUMMY_CLK>;
+		clock-names = "nss-core-clk", "nss-tcm-src",
+				"nss-tcm-clk";
+		resets = <&gcc GCC_DUMMY_CLK>,
+			<&gcc GCC_DUMMY_CLK>,
+			<&gcc GCC_DUMMY_CLK>,
+			<&gcc GCC_DUMMY_CLK>;
+		reset-names = "clkrst-clamp", "clamp", "ahb", "axi";
+		qcom,id = <1>;
+		qcom,num-queue = <4>;
+		qcom,num-irq = <8>;
+		qcom,load-addr = <0x40800000>;
+		qcom,capwap-enabled;
+		qcom,dtls-enabled;
+		qcom,ipsec-enabled;
 	};
 };
 
