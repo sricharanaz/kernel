@@ -154,7 +154,12 @@
 			uart2: serial@12490000 {
 
 				serial_clk = <1843200>;
-
+				dmas = <&adm_dma 8>,
+					<&adm_dma 7>;
+				dma-names = "rx", "tx";
+				qcom,rx-crci = <14>;
+				qcom,tx-crci = <4>;
+ 
 				pinctrl-0 = <&hs_uart_pins>;
 				pinctrl-names = "default";
 

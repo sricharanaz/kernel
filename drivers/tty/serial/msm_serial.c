@@ -955,7 +955,12 @@ static irqreturn_t msm_uart_irq(int irq, void *dev_id)
 			 * Flush DMA input fifo to memory, this will also
 			 * trigger DMA RX completion
 			 */
-			dmaengine_terminate_all(dma->chan);
+			if (msm_port->is_uartdm < UARTDM_1P4) {
+				dmaengine_terminate_all_graceful(dma->chan,
+					true);
+			} else {
+				dmaengine_terminate_all(dma->chan);
+			}
 		} else if (msm_port->is_uartdm) {
 			msm_handle_rx_dm(port, misr);
 		} else {
