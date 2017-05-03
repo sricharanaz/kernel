@@ -1695,7 +1695,7 @@ static struct clk_regmap_div nss_ubi0_div_clk_src = {
 				"nss_ubi0_clk_src"
 			},
 			.num_parents = 1,
-			.ops = &clk_regmap_div_ops,
+			.ops = &clk_regmap_div_ro_ops,
 			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
@@ -1712,7 +1712,7 @@ static struct clk_regmap_div nss_ubi1_div_clk_src = {
 				"nss_ubi1_clk_src"
 			},
 			.num_parents = 1,
-			.ops = &clk_regmap_div_ops,
+			.ops = &clk_regmap_div_ro_ops,
 			.flags = CLK_SET_RATE_PARENT,
 		},
 	},
