@@ -2,7 +2,7 @@
  *
  * Copyright (c) Jean-Luc Cooke <jlcooke@certainkey.com>
  * Copyright (c) Andrew McDonald <andrew@mcdonald.org.uk>
- * Copyright (c) 2003 Kyle McMartin <kyle@debian.org>
+ * Copyright (c) 2003, 2017 Kyle McMartin <kyle@debian.org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -78,8 +78,7 @@ static inline void BLEND_OP(int I, u64 *W)
 	W[I & 15] += s1(W[(I-2) & 15]) + W[(I-7) & 15] + s0(W[(I-15) & 15]);
 }
 
-static void
-sha512_transform(u64 *state, const u8 *input)
+void sha512_transform(u64 *state, const u8 *input)
 {
 	u64 a, b, c, d, e, f, g, h, t1, t2;
 
@@ -130,6 +129,7 @@ sha512_transform(u64 *state, const u8 *input)
 	/* erase our data */
 	a = b = c = d = e = f = g = h = t1 = t2 = 0;
 }
+EXPORT_SYMBOL(sha512_transform);
 
 static void sha512_generic_block_fn(struct sha512_state *sst, u8 const *src,
 				    int blocks)
