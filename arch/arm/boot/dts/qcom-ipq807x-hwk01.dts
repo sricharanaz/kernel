@@ -564,7 +564,6 @@
 		qcom,shaping-enabled;
 		qcom,wlan-dataplane-offload-enabled;
 		qcom,vlan-enabled;
-		qcom,crypto-eip197-enabled;
 	};
 
 	nss1: nss@40800000 {
@@ -589,6 +588,7 @@
 		qcom,load-addr = <0x40800000>;
 		qcom,capwap-enabled;
 		qcom,dtls-enabled;
+		qcom,crypto-enabled;
 		qcom,ipsec-enabled;
 	};
 
