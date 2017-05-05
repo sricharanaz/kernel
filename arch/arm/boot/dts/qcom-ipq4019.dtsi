@@ -243,6 +243,7 @@
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
 			qcom,ee = <1>;
+			qcom,controlled-remotely;
 		};
 
 		qcom_crypto: qcrypto@8e3a000 {
