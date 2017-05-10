@@ -10,8 +10,17 @@ Required properties:
 
 Optional properties:
 -qcom,xprt : The name of the transport on which to notify this subystem.
+-qca,no-notify-edges : specifies that no other subsystems needs to be notified
 
 Example:
+
+	glink_mpss: qcom,glink-ssr-modem {
+		compatible = "qcom,glink_ssr";
+		label = "q6v5-wcss";
+		qcom,edge = "mpss";
+		qca,no-notify-edges;
+		qcom,xprt = "smem";
+	};
 
 	glink_mpss: qcom,glink-ssr-modem {
 		compatible = "qcom,glink_ssr";

@@ -779,6 +779,7 @@ static int glink_ssr_probe(struct platform_device *pdev)
 	void *link_state_handle;
 	int phandle_index = 0;
 	int ret = 0;
+	int noedge_notification = 0;
 
 	if (!pdev) {
 		GLINK_SSR_ERR("<SSR> %s: pdev is NULL\n", __func__);
@@ -862,8 +863,12 @@ static int glink_ssr_probe(struct platform_device *pdev)
 		goto nb_registration_fail;
 	}
 
+	noedge_notification = of_property_read_bool(pdev->dev.of_node,
+						"qca,no-notify-edges");
 	key = "qcom,notify-edges";
 	while (true) {
+		if (noedge_notification)
+			break;
 		phandle_node = of_parse_phandle(node, key, phandle_index++);
 		if (!phandle_node && phandle_index == 0) {
 			GLINK_SSR_ERR(
@@ -908,7 +913,6 @@ static int glink_ssr_probe(struct platform_device *pdev)
 				&ss_info->notify_list);
 		ss_info->notify_list_len++;
 	}
-
 	list_add_tail(&ss_info->subsystem_list_node, &subsystem_list);
 
 	link_state_handle = glink_register_link_state_cb(ss_info->link_info,
