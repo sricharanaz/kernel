@@ -211,6 +211,39 @@
 			status = "disabled";
 		};
 
+		qcom,nss_crypto {
+			compatible = "qcom,nss-crypto";
+			qcom,max-contexts = <16>;
+			qcom,max-context-size = <32>;
+			ranges;
+
+			eip197_node {
+				compatible = "qcom,eip197";
+				reg-names = "crypto_pbase";
+				reg = <0x39800000 0x7ffff>;
+				qcom,dma-queue-depth = <256>;
+				qcom,dma-mask = <0xff>;
+				qcom,transform-enabled;
+				qcom,aes128-cbc;
+				qcom,aes192-cbc;
+				qcom,aes256-cbc;
+				qcom,3des-cbc;
+				qcom,sha1-hmac;
+				qcom,aes128-cbc-sha1-hmac;
+				qcom,aes192-cbc-sha1-hmac;
+				qcom,aes256-cbc-sha1-hmac;
+				qcom,3des-cbc-sha1-hmac;
+
+				engine0 {
+					reg_offset = <0x80000>;
+					qcom,ifpp-enabled;
+					qcom,ipue-enabled;
+					qcom,ofpp-enabled;
+					qcom,opue-enabled;
+				};
+			};
+		};
+
 		watchdog@b017000 {
 			compatible = "qcom,kpss-wdt-ipq807x";
 			reg = <0xb017000 0x1000>;
