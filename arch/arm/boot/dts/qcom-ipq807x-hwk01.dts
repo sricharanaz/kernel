@@ -257,6 +257,39 @@
 		local-mac-address = [000000000000];
 	};
 
+	serial_blsp2: serial@78B1000 {
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
+			reg = <0x78B1000 0x200>;
+			interrupts = <0x0 306 0x0>;
+			clocks = <&gcc GCC_DUMMY_CLK>,
+				 <&gcc GCC_DUMMY_CLK>;
+			clock-names = "core", "iface";
+			dmas = <&blsp_dma 4>,
+				 <&blsp_dma 5>;
+			dma-names = "tx", "rx";
+
+			pinctrl-0 = <&hsuart_pins>;
+			pinctrl-names = "default";
+			status = "disabled";
+	};
+
+	spi_2: spi@78b8000 { /* BLSP1 QUP3 */
+			compatible = "qcom,spi-qup-v2.2.1";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x78b8000 0x600>;
+			interrupts = <0 98 0>;
+			spi-max-frequency = <24000000>;
+			clocks = <&gcc GCC_DUMMY_CLK>,
+				<&gcc GCC_DUMMY_CLK>;
+			clock-names = "core", "iface";
+			dmas = <&blsp_dma 18>, <&blsp_dma 19>;
+			dma-names = "tx", "rx";
+			pinctrl-0 = <&spi_2_pins>;
+			pinctrl-names = "default";
+			status = "disabled";
+	};
+
 	edma@3ab00000 {
 		compatible = "qcom,edma";
 		reg = <0x3ab00000 0x76900>;
@@ -651,10 +684,34 @@
 &tlmm {
 	hsuart_pins: hsuart_pins {
 		mux {
-			pins = "gpio50", "gpio51", "gpio52", "gpio53";
-			function = "blsp3_uart";
+			pins = "gpio46", "gpio47", "gpio48", "gpio49";
+			function = "blsp2_uart";
 			bias-disable;
 		};
+	};
+
+	uart_pins: uart_pins {
+		mux {
+			pins = "gpio23", "gpio24";
+			function = "blsp4_uart1";
+			bias-disable;
+		};
+	};
+
+	spi_2_pins: spi_2_pinmux {
+				mux {
+					pins = "gpio50", "gpio51", "gpio52", "gpio52";
+					function = "blsp3_spi";
+					bias-disable;
+				};
+	};
+
+	i2c_0_pins: i2c_0_pinmux {
+				mux {
+					pins = "gpio42", "gpio43";
+					function = "blsp1_i2c";
+					bias-disable;
+				};
 	};
 
 	audio_gpio_pins: audio_gpio_pinmux {
@@ -796,6 +853,12 @@
 	qca,emulation = <1>;
 };
 
+&serial_blsp4 {
+	pinctrl-0 = <&uart_pins>;
+	pinctrl-names = "default";
+	status = "ok";
+};
+
 &spi_0 { /* BLSP1 QUP1 */
 	#pinctrl-0 = <&spi_0_pins>;
 	#pinctrl-names = "default";
@@ -812,10 +875,10 @@
 	};
 };
 
-&serial_1 {
-	pinctrl-0 = <&hsuart_pins>;
+&i2c_0 {
+	pinctrl-0 = <&i2c_0_pins>;
 	pinctrl-names = "default";
-	status = "ok";
+	status = "disabled";
 };
 
 &qpic_bam {
