@@ -19,6 +19,79 @@
 #include <dt-bindings/clock/qcom,gcc-ipq807x.h>
 
 / {
+	cpus: cpus {
+		#address-cells = <0x1>;
+		#size-cells = <0x0>;
+
+		CPU0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0x0>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+			clock-names = "cpu";
+			enable-method = "qcom,arm-cortex-acc";
+			qcom,acc = <&acc0>;
+			next-level-cache = <&L2_0>;
+			cpu-idle-states = <>;
+
+			L2_0: l2-cache {
+				compatible = "arm,arch-cache";
+				cache-level = <0x2>;
+			};
+		};
+
+		CPU1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			enable-method = "qcom,arm-cortex-acc";
+			reg = <0x1>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+			clock-names = "cpu";
+			qcom,acc = <&acc1>;
+			next-level-cache = <&L2_0>;
+			cpu-idle-states = <&cpu_hotplug>;
+		};
+
+		CPU2: cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			enable-method = "qcom,arm-cortex-acc";
+			reg = <0x2>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+			clock-names = "cpu";
+			qcom,acc = <&acc2>;
+			next-level-cache = <&L2_0>;
+			cpu-idle-states = <&cpu_hotplug>;
+		};
+
+		CPU3: cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			enable-method = "qcom,arm-cortex-acc";
+			reg = <0x3>;
+			clocks = <&gcc GCC_DUMMY_CLK>;
+			clock-names = "cpu";
+			qcom,acc = <&acc3>;
+			next-level-cache = <&L2_0>;
+			cpu-idle-states = <&cpu_hotplug>;
+		};
+
+		idle-states {
+			entry-method = "psci";
+
+			cpu_hotplug: cpu-hotplug {
+				compatible = "arm,idle-state";
+				local-timer-stop;
+				entry-latency-us = <100>;
+				exit-latency-us = <700>;
+				min-residency-us = <2000>;
+				arm,psci-suspend-param = <0x0010000>;
+				status = "disabled";
+			};
+		};
+
+	};
+
 	memory {
 		device_type = "memory";
 		reg = <0x0 0x40000000 0x0 0x20000000>;
@@ -117,6 +190,26 @@
 		#size-cells = <0x1>;
 		ranges = <0x0 0x0 0x0 0xffffffff>;
 		compatible = "simple-bus";
+
+		acc0:clock-controller@b188000 {
+			compatible = "qcom,arm-cortex-acc";
+			reg = <0x0b188000 0x1000>;
+		};
+
+		acc1:clock-controller@b198000 {
+			compatible = "qcom,arm-cortex-acc";
+			reg = <0x0b198000 0x1000>;
+		};
+
+		acc2:clock-controller@b1a8000 {
+			compatible = "qcom,arm-cortex-acc";
+			reg = <0x0b1a8000 0x1000>;
+		};
+
+		acc3:clock-controller@b1b8000 {
+			compatible = "qcom,arm-cortex-acc";
+			reg = <0x0b1b8000 0x1000>;
+		};
 
 		tlmm: pinctrl@1000000 {
 			compatible = "qcom,ipq807x-pinctrl";
