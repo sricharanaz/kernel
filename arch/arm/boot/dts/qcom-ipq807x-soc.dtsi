@@ -293,6 +293,11 @@
 			status = "disabled";
 		};
 
+		qcom,diag@0 {
+			compatible = "qcom,diag";
+			status = "ok";
+		};
+
 		sdhc_2: sdhci@7864900 {
 			compatible = "qcom,sdhci-msm";
 			reg = <0x7864900 0x500>, <0x7864000 0x800>;
