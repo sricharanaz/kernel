@@ -406,6 +406,20 @@ static const struct parent_map gcc_xo_gpll0_gpll6_gpll0_sleep_clk_map[] = {
 	{ P_SLEEP_CLK, 6 },
 };
 
+static const char * const gcc_xo_gpll0_gpll6_gpll0_out_main_div2[] = {
+	"xo",
+	"gpll0",
+	"gpll6",
+	"gpll0_out_main_div2",
+};
+
+static const struct parent_map gcc_xo_gpll0_gpll6_gpll0_out_main_div2_map[] = {
+	{ P_XO, 0 },
+	{ P_GPLL0, 1 },
+	{ P_GPLL6, 2 },
+	{ P_GPLL0_DIV2, 3 },
+};
+
 static struct clk_alpha_pll gpll0 = {
 	.offset = 0x21000,
 	.clkr = {
@@ -649,6 +663,20 @@ static struct clk_fixed_factor nss_noc_clk_src = {
 		.name = "nss_noc_clk_src",
 		.parent_names = (const char *[]){
 			"nss_noc_bfdcd_clk_src"
+		},
+		.num_parents = 1,
+		.ops = &clk_fixed_factor_ops,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_fixed_factor system_noc_clk_src = {
+	.mult = 1,
+	.div = 1,
+	.hw.init = &(struct clk_init_data){
+		.name = "system_noc_clk_src",
+		.parent_names = (const char *[]){
+			"system_noc_bfdcd_clk_src"
 		},
 		.num_parents = 1,
 		.ops = &clk_fixed_factor_ops,
@@ -1941,6 +1969,31 @@ static struct clk_branch gcc_apss_ahb_clk = {
 	},
 };
 
+struct freq_tbl ftbl_system_noc_bfdcd_clk_src[] = {
+	F(19200000, P_XO, 1, 0, 0),
+	F(50000000, P_GPLL0_DIV2, 8, 0, 0),
+	F(100000000, P_GPLL0, 8, 0, 0),
+	F(133333333, P_GPLL0, 6, 0, 0),
+	F(160000000, P_GPLL0, 5, 0, 0),
+	F(200000000, P_GPLL0, 4, 0, 0),
+	F(266666667, P_GPLL0, 3, 0, 0),
+	{ }
+};
+
+struct clk_rcg2 system_noc_bfdcd_clk_src = {
+	.cmd_rcgr = 0x26004,
+	.freq_tbl = ftbl_system_noc_bfdcd_clk_src,
+	.hid_width = 5,
+	.parent_map = gcc_xo_gpll0_gpll6_gpll0_out_main_div2_map,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "system_noc_bfdcd_clk_src",
+		.parent_names = gcc_xo_gpll0_gpll6_gpll0_out_main_div2,
+		.num_parents = 4,
+		.ops = &clk_rcg2_ops,
+		.flags = CLK_IS_CRITICAL,
+	},
+};
+
 static struct clk_branch gcc_apss_axi_clk = {
 	.halt_reg = 0x46020,
 	.halt_bit = 31,
@@ -3089,6 +3142,24 @@ static struct clk_branch gcc_nssnoc_qosgen_ref_clk = {
 	},
 };
 
+static struct clk_branch gcc_nssnoc_snoc_clk = {
+	.halt_reg = 0x68188,
+	.halt_bit = 31,
+	.clkr = {
+		.enable_reg = 0x68188,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_nssnoc_snoc_clk",
+			.parent_names = (const char *[]){
+				"system_noc_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
 static struct clk_branch gcc_nssnoc_timeout_ref_clk = {
 	.halt_reg = 0x68184,
 	.halt_bit = 31,
@@ -3287,6 +3358,24 @@ static struct clk_branch gcc_ubi0_axi_clk = {
 	},
 };
 
+static struct clk_branch gcc_ubi0_nc_axi_clk = {
+	.halt_reg = 0x68204,
+	.halt_bit = 31,
+	.clkr = {
+		.enable_reg = 0x68204,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_ubi0_nc_axi_clk",
+			.parent_names = (const char *[]){
+				"nss_noc_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
 static struct clk_branch gcc_ubi0_core_clk = {
 	.halt_reg = 0x68210,
 	.halt_bit = 31,
@@ -3349,6 +3438,24 @@ static struct clk_branch gcc_ubi1_axi_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_ubi1_axi_clk",
+			.parent_names = (const char *[]){
+				"nss_noc_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
+static struct clk_branch gcc_ubi1_nc_axi_clk = {
+	.halt_reg = 0x68224,
+	.halt_bit = 31,
+	.clkr = {
+		.enable_reg = 0x68224,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_ubi1_nc_axi_clk",
 			.parent_names = (const char *[]){
 				"nss_noc_clk_src"
 			},
@@ -4281,6 +4388,7 @@ static struct clk_hw *gcc_ipq807x_hws[] = {
 	&gpll0_out_main_div2.hw,
 	&pcnoc_clk_src.hw,
 	&nss_noc_clk_src.hw,
+	&system_noc_clk_src.hw,
 	&gcc_xo_div4_clk_src.hw,
 	&nss_ppe_cdiv_clk_src.hw,
 	&gpll6_out_main_div2.hw,
@@ -4298,6 +4406,7 @@ static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[NSS_CRYPTO_PLL] = &nss_crypto_pll.clkr,
 	[NSS_PPE_CLK_SRC] = &nss_ppe_clk_src.clkr,
 	[GCC_XO_CLK_SRC] = &gcc_xo_clk_src.clkr,
+	[SYSTEM_NOC_BFDCD_CLK_SRC] = &system_noc_bfdcd_clk_src.clkr,
 	[NSS_CE_CLK_SRC] = &nss_ce_clk_src.clkr,
 	[NSS_NOC_BFDCD_CLK_SRC] = &nss_noc_bfdcd_clk_src.clkr,
 	[GCC_SLEEP_CLK_SRC] = &gcc_sleep_clk_src.clkr,
@@ -4438,6 +4547,7 @@ static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[GCC_NSSNOC_PPE_CFG_CLK] = &gcc_nssnoc_ppe_cfg_clk.clkr,
 	[GCC_NSSNOC_PPE_CLK] = &gcc_nssnoc_ppe_clk.clkr,
 	[GCC_NSSNOC_QOSGEN_REF_CLK] = &gcc_nssnoc_qosgen_ref_clk.clkr,
+	[GCC_NSSNOC_SNOC_CLK] = &gcc_nssnoc_snoc_clk.clkr,
 	[GCC_NSSNOC_TIMEOUT_REF_CLK] = &gcc_nssnoc_timeout_ref_clk.clkr,
 	[GCC_NSSNOC_UBI0_AHB_CLK] = &gcc_nssnoc_ubi0_ahb_clk.clkr,
 	[GCC_NSSNOC_UBI1_AHB_CLK] = &gcc_nssnoc_ubi1_ahb_clk.clkr,
@@ -4449,10 +4559,12 @@ static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[GCC_PORT6_MAC_CLK] = &gcc_port6_mac_clk.clkr,
 	[GCC_UBI0_AHB_CLK] = &gcc_ubi0_ahb_clk.clkr,
 	[GCC_UBI0_AXI_CLK] = &gcc_ubi0_axi_clk.clkr,
+	[GCC_UBI0_NC_AXI_CLK] = &gcc_ubi0_nc_axi_clk.clkr,
 	[GCC_UBI0_CORE_CLK] = &gcc_ubi0_core_clk.clkr,
 	[GCC_UBI0_MPT_CLK] = &gcc_ubi0_mpt_clk.clkr,
 	[GCC_UBI1_AHB_CLK] = &gcc_ubi1_ahb_clk.clkr,
 	[GCC_UBI1_AXI_CLK] = &gcc_ubi1_axi_clk.clkr,
+	[GCC_UBI1_NC_AXI_CLK] = &gcc_ubi1_nc_axi_clk.clkr,
 	[GCC_UBI1_CORE_CLK] = &gcc_ubi1_core_clk.clkr,
 	[GCC_UBI1_MPT_CLK] = &gcc_ubi1_mpt_clk.clkr,
 	[GCC_PCIE0_AHB_CLK] = &gcc_pcie0_ahb_clk.clkr,

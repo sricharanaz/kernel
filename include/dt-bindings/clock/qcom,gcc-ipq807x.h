@@ -233,6 +233,10 @@
 #define GCC_GP1_CLK				213
 #define GCC_GP2_CLK				214
 #define GCC_GP3_CLK				215
-#define GCC_DUMMY_I2C_CLK			216
+#define SYSTEM_NOC_BFDCD_CLK_SRC		216
+#define GCC_NSSNOC_SNOC_CLK			217
+#define GCC_UBI0_NC_AXI_CLK			218
+#define GCC_UBI1_NC_AXI_CLK			219
+#define GCC_DUMMY_I2C_CLK			220
 
 #endif
