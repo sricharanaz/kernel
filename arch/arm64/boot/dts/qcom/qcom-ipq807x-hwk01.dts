@@ -583,7 +583,6 @@
 		qcom,shaping-enabled;
 		qcom,wlan-dataplane-offload-enabled;
 		qcom,vlan-enabled;
-		qcom,crypto-eip197-enabled;
 	};
 
 	nss1: nss@40800000 {
@@ -609,6 +608,7 @@
 		qcom,capwap-enabled;
 		qcom,dtls-enabled;
 		qcom,ipsec-enabled;
+		qcom,crypto-enabled;
 	};
 };
 
