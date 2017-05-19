@@ -293,8 +293,6 @@
 			clocks = <&gcc GCC_DUMMY_CLK>,
 				<&gcc GCC_DUMMY_CLK>;
 			clock-names = "core", "iface";
-			dmas = <&blsp_dma 12>, <&blsp_dma 13>;
-			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
