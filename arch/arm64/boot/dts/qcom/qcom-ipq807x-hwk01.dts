@@ -818,7 +818,7 @@
 	status = "ok";
 };
 
-&blsp_bam {
+&blsp_dma {
 	status = "ok";
 };
 

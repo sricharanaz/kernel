@@ -261,7 +261,7 @@
 			#reset-cells = <1>;
 		};
 
-		blsp_bam: dma@7884000 {
+		blsp_dma: dma@7884000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x07884000 0x2b000>;
 			interrupts = <GIC_SPI 238 0>;
@@ -292,12 +292,12 @@
 			clocks = <&gcc GCC_DUMMY_CLK>,
 				<&gcc GCC_DUMMY_CLK>;
 			clock-names = "core", "iface";
-			dmas = <&blsp_bam 12>, <&blsp_bam 13>;
+			dmas = <&blsp_dma 12>, <&blsp_dma 13>;
 			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
-		qcom,nss_crypto {
+		nss_crypto: qcom,nss_crypto {
 			compatible = "qcom,nss-crypto";
 			qcom,max-contexts = <16>;
 			qcom,max-context-size = <32>;
@@ -1128,7 +1128,7 @@
 				<&gcc GCC_DUMMY_I2C_CLK>;
 			clock-names = "iface", "core";
 			clock-frequency  = <100000>;
-			dmas = <&blsp_bam 15>, <&blsp_bam 14>;
+			dmas = <&blsp_dma 15>, <&blsp_dma 14>;
 			dma-names = "rx", "tx";
 		};
 
@@ -1142,7 +1142,7 @@
 				<&gcc GCC_DUMMY_I2C_CLK>;
 			clock-names = "iface", "core";
 			clock-frequency  = <100000>;
-			dmas = <&blsp_bam 17>, <&blsp_bam 16>;
+			dmas = <&blsp_dma 17>, <&blsp_dma 16>;
 			dma-names = "rx", "tx";
 
 			qca_codec: qca_codec@12 {
