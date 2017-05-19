@@ -452,7 +452,7 @@ static struct clk_fixed_factor gpll0_out_main_div2 = {
 
 static struct clk_alpha_pll ubi32_pll = {
 	.offset = 0x25000,
-	.flags = SUPPORTS_16BIT_ALPHA,
+	.flags = SUPPORTS_16BIT_ALPHA | SUPPORTS_64BIT_CTL,
 	.clkr = {
 		.enable_reg = 0x0b000,
 		.enable_mask = BIT(6),
@@ -4394,6 +4394,44 @@ static struct clk_hw *gcc_ipq807x_hws[] = {
 	&gpll6_out_main_div2.hw,
 };
 
+static const struct alpha_pll_config audio_pll_config = {
+	.l = 0x25,
+	.alpha = 0xcac08312,
+	.alpha_hi = 0xa1,
+	.config_ctl_val = 0x00004289,
+	.main_output_mask = BIT(0),
+	.post_div_val = 0x3 << 8,
+	.post_div_mask = GENMASK(9, 8),
+	.alpha_en_mask = BIT(24),
+};
+
+static const struct alpha_pll_config ubi32_pll_config = {
+	.l = 0x4e,
+	.config_ctl_val = 0x200d6aa8,
+	.config_ctl_hi_val = 0x3c2,
+	.main_output_mask = BIT(0),
+	.aux_output_mask = BIT(1),
+	.pre_div_val = 0x0,
+	.pre_div_mask = BIT(12),
+	.post_div_val = 0x0,
+	.post_div_mask = GENMASK(9, 8),
+};
+
+static const struct alpha_pll_config nss_crypto_pll_config = {
+	.l = 0x3e,
+	.alpha = 0x0,
+	.alpha_hi = 0x80,
+	.config_ctl_val = 0x4001051b,
+	.main_output_mask = BIT(0),
+	.pre_div_val = 0x0,
+	.pre_div_mask = GENMASK(14, 12),
+	.post_div_val = 0x1 << 8,
+	.post_div_mask = GENMASK(11, 8),
+	.vco_mask = GENMASK(21, 20),
+	.vco_val = 0x0,
+	.alpha_en_mask = BIT(24),
+};
+
 static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[GCC_DUMMY_CLK] = &dummy,
 	[GCC_DUMMY_I2C_CLK] = &dummy_i2c_clk,
@@ -4824,6 +4862,11 @@ static int gcc_ipq807x_probe(struct platform_device *pdev)
 	regmap_update_bits(regmap, 0x3e078, BIT(0), 0x0);
 	/* Enable SW_COLLAPSE for USB1 GDSCR */
 	regmap_update_bits(regmap, 0x3f078, BIT(0), 0x0);
+
+	clk_alpha_pll_configure(&audio_pll, regmap, &audio_pll_config);
+	clk_alpha_pll_configure(&ubi32_pll, regmap, &ubi32_pll_config);
+	clk_alpha_pll_configure(&nss_crypto_pll, regmap,
+				&nss_crypto_pll_config);
 
 	ret = qcom_cc_really_probe(pdev, &gcc_ipq807x_desc, regmap);
 
