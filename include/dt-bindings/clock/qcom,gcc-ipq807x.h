@@ -237,6 +237,13 @@
 #define GCC_NSSNOC_SNOC_CLK			217
 #define GCC_UBI0_NC_AXI_CLK			218
 #define GCC_UBI1_NC_AXI_CLK			219
-#define GCC_DUMMY_I2C_CLK			220
+#define GPLL0_MAIN				220
+#define UBI32_PLL_MAIN				221
+#define GPLL6_MAIN				222
+#define GPLL4_MAIN				223
+#define GPLL2_MAIN				224
+#define NSS_CRYPTO_PLL_MAIN			225
+#define AUDIO_PLL_MAIN				226
+#define GCC_DUMMY_I2C_CLK			227
 
 #endif

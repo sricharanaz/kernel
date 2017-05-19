@@ -76,10 +76,9 @@ static struct clk_alpha_pll_postdiv apss_pll = {
 		.name = "apss_pll",
 		.parent_names = (const char *[]){ "apss_pll_early" },
 		.num_parents = 1,
-		.ops = &clk_alpha_pll_postdiv_ops,
+		.ops = &clk_alpha_pll_postdiv_ro_ops,
 	},
 };
-
 
 static const char * const parents_apcs_alias0_clk_src[] = {
 	"xo",

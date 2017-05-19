@@ -420,13 +420,13 @@ static const struct parent_map gcc_xo_gpll0_gpll6_gpll0_out_main_div2_map[] = {
 	{ P_GPLL0_DIV2, 3 },
 };
 
-static struct clk_alpha_pll gpll0 = {
+static struct clk_alpha_pll gpll0_main = {
 	.offset = 0x21000,
 	.clkr = {
 		.enable_reg = 0x0b000,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
-			.name = "gpll0",
+			.name = "gpll0_main",
 			.parent_names = (const char *[]){
 				"xo"
 			},
@@ -442,7 +442,7 @@ static struct clk_fixed_factor gpll0_out_main_div2 = {
 	.hw.init = &(struct clk_init_data){
 		.name = "gpll0_out_main_div2",
 		.parent_names = (const char *[]){
-			"gpll0"
+			"gpll0_main"
 		},
 		.num_parents = 1,
 		.ops = &clk_fixed_factor_ops,
@@ -450,14 +450,28 @@ static struct clk_fixed_factor gpll0_out_main_div2 = {
 	},
 };
 
-static struct clk_alpha_pll ubi32_pll = {
+static struct clk_alpha_pll_postdiv gpll0 = {
+	.offset = 0x21000,
+	.width = 4,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "gpll0",
+		.parent_names = (const char *[]){
+			"gpll0_main"
+		},
+		.num_parents = 1,
+		.ops = &clk_alpha_pll_postdiv_ro_ops,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_alpha_pll ubi32_pll_main = {
 	.offset = 0x25000,
 	.flags = SUPPORTS_16BIT_ALPHA | SUPPORTS_64BIT_CTL,
 	.clkr = {
 		.enable_reg = 0x0b000,
 		.enable_mask = BIT(6),
 		.hw.init = &(struct clk_init_data){
-			.name = "ubi32_pll",
+			.name = "ubi32_pll_main",
 			.parent_names = (const char *[]){
 				"xo"
 			},
@@ -467,13 +481,27 @@ static struct clk_alpha_pll ubi32_pll = {
 	},
 };
 
-static struct clk_alpha_pll gpll6 = {
+static struct clk_alpha_pll_postdiv ubi32_pll = {
+	.offset = 0x25000,
+	.width = 2,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "ubi32_pll",
+		.parent_names = (const char *[]){
+			"ubi32_pll_main"
+		},
+		.num_parents = 1,
+		.ops = &clk_alpha_pll_postdiv_ro_ops,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_alpha_pll gpll6_main = {
 	.offset = 0x37000,
 	.clkr = {
 		.enable_reg = 0x0b000,
 		.enable_mask = BIT(7),
 		.hw.init = &(struct clk_init_data){
-			.name = "gpll6",
+			.name = "gpll6_main",
 			.parent_names = (const char *[]){
 				"xo"
 			},
@@ -483,13 +511,27 @@ static struct clk_alpha_pll gpll6 = {
 	},
 };
 
-static struct clk_alpha_pll gpll4 = {
+static struct clk_alpha_pll_postdiv gpll6 = {
+	.offset = 0x37000,
+	.width = 2,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "gpll6",
+		.parent_names = (const char *[]){
+			"gpll6_main"
+		},
+		.num_parents = 1,
+		.ops = &clk_alpha_pll_postdiv_ro_ops,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_alpha_pll gpll4_main = {
 	.offset = 0x24000,
 	.clkr = {
 		.enable_reg = 0x0b000,
 		.enable_mask = BIT(5),
 		.hw.init = &(struct clk_init_data){
-			.name = "gpll4",
+			.name = "gpll4_main",
 			.parent_names = (const char *[]){
 				"xo"
 			},
@@ -499,19 +541,47 @@ static struct clk_alpha_pll gpll4 = {
 	},
 };
 
-static struct clk_alpha_pll audio_pll = {
+static struct clk_alpha_pll_postdiv gpll4 = {
+	.offset = 0x24000,
+	.width = 4,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "gpll4",
+		.parent_names = (const char *[]){
+			"gpll4_main"
+		},
+		.num_parents = 1,
+		.ops = &clk_alpha_pll_postdiv_ro_ops,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_alpha_pll audio_pll_main = {
 	.offset = 0x4b000,
 	.clkr = {
 		.enable_reg = 0x0b000,
 		.enable_mask = BIT(1),
 		.hw.init = &(struct clk_init_data){
-			.name = "audio_pll",
+			.name = "audio_pll_main",
 			.parent_names = (const char *[]){
 				"xo"
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_brammo_ops,
 		},
+	},
+};
+
+static struct clk_alpha_pll_postdiv audio_pll = {
+	.offset = 0x4b000,
+	.width = 2,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "audio_pll",
+		.parent_names = (const char *[]){
+			"audio_pll_main"
+		},
+		.num_parents = 1,
+		.ops = &clk_alpha_pll_postdiv_ro_ops,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -549,13 +619,13 @@ static struct clk_fixed_factor pcnoc_clk_src = {
 	},
 };
 
-static struct clk_alpha_pll gpll2 = {
+static struct clk_alpha_pll gpll2_main = {
 	.offset = 0x4a000,
 	.clkr = {
 		.enable_reg = 0x0b000,
 		.enable_mask = BIT(2),
 		.hw.init = &(struct clk_init_data){
-			.name = "gpll2",
+			.name = "gpll2_main",
 			.parent_names = (const char *[]){
 				"xo"
 			},
@@ -565,19 +635,47 @@ static struct clk_alpha_pll gpll2 = {
 	},
 };
 
-static struct clk_alpha_pll nss_crypto_pll = {
+static struct clk_alpha_pll_postdiv gpll2 = {
+	.offset = 0x4a000,
+	.width = 4,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "gpll2",
+		.parent_names = (const char *[]){
+			"gpll2_main"
+		},
+		.num_parents = 1,
+		.ops = &clk_alpha_pll_postdiv_ro_ops,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_alpha_pll nss_crypto_pll_main = {
 	.offset = 0x22000,
 	.clkr = {
 		.enable_reg = 0x0b000,
 		.enable_mask = BIT(4),
 		.hw.init = &(struct clk_init_data){
-			.name = "nss_crypto_pll",
+			.name = "nss_crypto_pll_main",
 			.parent_names = (const char *[]){
 				"xo"
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_ops,
 		},
+	},
+};
+
+static struct clk_alpha_pll_postdiv nss_crypto_pll = {
+	.offset = 0x22000,
+	.width = 4,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "nss_crypto_pll",
+		.parent_names = (const char *[]){
+			"nss_crypto_pll_main"
+		},
+		.num_parents = 1,
+		.ops = &clk_alpha_pll_postdiv_ro_ops,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
@@ -2432,7 +2530,7 @@ static struct clk_fixed_factor gpll6_out_main_div2 = {
 	.hw.init = &(struct clk_init_data){
 		.name = "gpll6_out_main_div2",
 		.parent_names = (const char *[]){
-			"gpll6"
+			"gpll6_main"
 		},
 		.num_parents = 1,
 		.ops = &clk_fixed_factor_ops,
@@ -4435,12 +4533,18 @@ static const struct alpha_pll_config nss_crypto_pll_config = {
 static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[GCC_DUMMY_CLK] = &dummy,
 	[GCC_DUMMY_I2C_CLK] = &dummy_i2c_clk,
+	[GPLL0_MAIN] = &gpll0_main.clkr,
 	[GPLL0] = &gpll0.clkr,
+	[UBI32_PLL_MAIN] = &ubi32_pll_main.clkr,
 	[UBI32_PLL] = &ubi32_pll.clkr,
+	[GPLL6_MAIN] = &gpll6_main.clkr,
 	[GPLL6] = &gpll6.clkr,
+	[GPLL4_MAIN] = &gpll4_main.clkr,
 	[GPLL4] = &gpll4.clkr,
 	[PCNOC_BFDCD_CLK_SRC] = &pcnoc_bfdcd_clk_src.clkr,
+	[GPLL2_MAIN] = &gpll2_main.clkr,
 	[GPLL2] = &gpll2.clkr,
+	[NSS_CRYPTO_PLL_MAIN] = &nss_crypto_pll_main.clkr,
 	[NSS_CRYPTO_PLL] = &nss_crypto_pll.clkr,
 	[NSS_PPE_CLK_SRC] = &nss_ppe_clk_src.clkr,
 	[GCC_XO_CLK_SRC] = &gcc_xo_clk_src.clkr,
@@ -4448,6 +4552,7 @@ static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[NSS_CE_CLK_SRC] = &nss_ce_clk_src.clkr,
 	[NSS_NOC_BFDCD_CLK_SRC] = &nss_noc_bfdcd_clk_src.clkr,
 	[GCC_SLEEP_CLK_SRC] = &gcc_sleep_clk_src.clkr,
+	[AUDIO_PLL_MAIN] = &audio_pll_main.clkr,
 	[AUDIO_PLL] = &audio_pll.clkr,
 	[APSS_AHB_CLK_SRC] = &apss_ahb_clk_src.clkr,
 	[NSS_PORT5_RX_CLK_SRC] = &nss_port5_rx_clk_src.clkr,
@@ -4863,9 +4968,9 @@ static int gcc_ipq807x_probe(struct platform_device *pdev)
 	/* Enable SW_COLLAPSE for USB1 GDSCR */
 	regmap_update_bits(regmap, 0x3f078, BIT(0), 0x0);
 
-	clk_alpha_pll_configure(&audio_pll, regmap, &audio_pll_config);
-	clk_alpha_pll_configure(&ubi32_pll, regmap, &ubi32_pll_config);
-	clk_alpha_pll_configure(&nss_crypto_pll, regmap,
+	clk_alpha_pll_configure(&audio_pll_main, regmap, &audio_pll_config);
+	clk_alpha_pll_configure(&ubi32_pll_main, regmap, &ubi32_pll_config);
+	clk_alpha_pll_configure(&nss_crypto_pll_main, regmap,
 				&nss_crypto_pll_config);
 
 	ret = qcom_cc_really_probe(pdev, &gcc_ipq807x_desc, regmap);
