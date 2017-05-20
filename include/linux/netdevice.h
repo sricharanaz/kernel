@@ -180,7 +180,6 @@ struct net_device_stats {
 	unsigned long	tx_compressed;
 };
 
-
 #include <linux/cache.h>
 #include <linux/skbuff.h>
 
@@ -280,7 +279,6 @@ enum netdev_state_t {
 	__LINK_STATE_LINKWATCH_PENDING,
 	__LINK_STATE_DORMANT,
 };
-
 
 /*
  * This structure holds at boot time configured netdevice settings. They
@@ -1325,6 +1323,8 @@ enum netdev_priv_flags {
 	IFF_PPP_L2TPV2			= 1<<26,
 	IFF_PPP_L2TPV3			= 1<<27,
 	IFF_PPP_PPTP			= 1<<28,
+	IFF_GRE_V4_TAP			= 1<<29,
+	IFF_GRE_V6_TAP			= 1<<30,
 };
 
 #define IFF_802_1Q_VLAN			IFF_802_1Q_VLAN
@@ -1682,7 +1682,6 @@ struct net_device {
 	unsigned int		promiscuity;
 	unsigned int		allmulti;
 
-
 	/* Protocol specific pointers */
 
 #if IS_ENABLED(CONFIG_VLAN_8021Q)
@@ -1716,7 +1715,6 @@ struct net_device {
 
 	/* Interface address info used in eth_type_trans() */
 	unsigned char		*dev_addr;
-
 
 #ifdef CONFIG_SYSFS
 	struct netdev_rx_queue	*_rx;
@@ -2236,7 +2234,6 @@ netdev_notifier_info_to_dev(const struct netdev_notifier_info *info)
 }
 
 int call_netdevice_notifiers(unsigned long val, struct net_device *dev);
-
 
 extern rwlock_t				dev_base_lock;		/* Device list lock */
 
@@ -3259,7 +3256,6 @@ static inline bool netif_dormant(const struct net_device *dev)
 {
 	return test_bit(__LINK_STATE_DORMANT, &dev->state);
 }
-
 
 /**
  *	netif_oper_up - test if device is operational
