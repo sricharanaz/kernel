@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2017, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,28 +14,14 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include "qcom-ipq807x-regulator.dtsi"
-#include <dt-bindings/spmi/spmi.h>
-#include <dt-bindings/interrupt-controller/irq.h>
-
-&spmi_bus {
-	pmic@1 {
-		compatible ="qcom,spmi-pmic";
-		reg = <0x1 SPMI_USID>;
-		#address-cells = <1>;
-		#size-cells = <0>;
-
-		regulators {
-			compatible = "qcom,pmd9655-regulators";
-			vdd_s3-supply = <&e_smps1_reg>;
-
-			s3: s3 {
-				regulator-name = "pmd9655_s3";
-				regulator-min-microvolt = <660000>;
-				regulator-max-microvolt = <1104000>;
-				regulator-always-on;
-				regulator-boot-on;
-			};
-		};
+/ {
+	e_smps1_reg: fixed-regulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "e-smps1-reg";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+		regulator-boot-on;
 	};
 };
+
