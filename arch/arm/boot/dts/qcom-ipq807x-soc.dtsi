@@ -894,6 +894,8 @@
 				snps,nominal-elastic-buffer;
 				snps,is-utmi-l1-suspend;
 				snps,hird-threshold = /bits/ 8 <0x0>;
+				snps,dis_u2_susphy_quirk;
+				snps,dis_u3_susphy_quirk;
 				qcom,emulation = <1>;
 				dr_mode = "host";
 			};
@@ -925,6 +927,8 @@
 				snps,nominal-elastic-buffer;
 				snps,is-utmi-l1-suspend;
 				snps,hird-threshold = /bits/ 8 <0x0>;
+				snps,dis_u2_susphy_quirk;
+				snps,dis_u3_susphy_quirk;
 				qcom,emulation = <1>;
 				dr_mode = "host";
 			};
