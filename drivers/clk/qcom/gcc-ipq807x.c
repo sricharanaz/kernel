@@ -4708,6 +4708,11 @@ static int gcc_ipq807x_probe(struct platform_device *pdev)
 			return PTR_ERR(clk);
 	}
 
+	/* Enable SW_COLLAPSE for USB0 GDSCR */
+	regmap_update_bits(regmap, 0x3e078, BIT(0), 0x0);
+	/* Enable SW_COLLAPSE for USB1 GDSCR */
+	regmap_update_bits(regmap, 0x3f078, BIT(0), 0x0);
+
 	ret = qcom_cc_really_probe(pdev, &gcc_ipq807x_desc, regmap);
 
 	dev_dbg(&pdev->dev, "Registered dummy clock provider\n");
