@@ -787,6 +787,10 @@
 &serial_blsp4 {
 	pinctrl-0 = <&uart_pins>;
 	pinctrl-names = "default";
+	status = "disabled";
+};
+
+&serial_blsp0 {
 	status = "ok";
 };
 
