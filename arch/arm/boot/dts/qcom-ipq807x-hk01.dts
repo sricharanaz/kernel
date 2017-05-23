@@ -41,6 +41,14 @@
 	};
 };
 
+&soc {
+	ess-switch@3a000000 {
+		compatible = "qcom,ess-switch";
+		status = "disabled";
+	};
+};
+
+
 &apss_clk {
 	status = "disabled";
 };
