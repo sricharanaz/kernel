@@ -220,14 +220,6 @@
 			#gpio-cells = <0x2>;
 			interrupt-controller;
 			#interrupt-cells = <0x2>;
-
-			spi_0_pins: spi_0_pinmux {
-				mux {
-					pins = "gpio38", "gpio39", "gpio40", "gpio41";
-					function = "blsp0_spi";
-					bias-disable;
-				};
-			};
 		};
 
 		intc: interrupt-controller@b000000 {
