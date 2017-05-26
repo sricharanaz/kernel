@@ -59,6 +59,60 @@
 			bias-disable;
 		};
 	};
+
+	qpic_pins: qpic_pins {
+		data_0 {
+			pins = "gpio15";
+			function = "qpic_pad0";
+			bias-disable;
+		};
+		data_1 {
+			pins = "gpio12";
+			function = "qpic_pad1";
+			bias-disable;
+		};
+		data_2 {
+			pins = "gpio13";
+			function = "qpic_pad2";
+			bias-disable;
+		};
+		data_3 {
+			pins = "gpio14";
+			function = "qpic_pad3";
+			bias-disable;
+		};
+		data_4 {
+			pins = "gpio5";
+			function = "qpic_pad4";
+			bias-disable;
+		};
+		data_5 {
+			pins = "gpio6";
+			function = "qpic_pad5";
+			bias-disable;
+		};
+		data_6 {
+			pins = "gpio7";
+			function = "qpic_pad6";
+			bias-disable;
+		};
+		data_7 {
+			pins = "gpio8";
+			function = "qpic_pad7";
+			bias-disable;
+		};
+		data_8 {
+			pins = "gpio16";
+			function = "qpic_pad8";
+			bias-disable;
+		};
+		qpic_pad {
+			pins = "gpio0", "gpio1", "gpio2", "gpio3", "gpio4",
+			       "gpio9", "gpio10", "gpio11", "gpio17";
+			function = "qpic_pad";
+			bias-disable;
+		};
+	};
 };
 
 &soc {
@@ -175,5 +229,15 @@
 			 192000000 384000000>;
 	qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
 	qcom,nonremovable;
+	status = "ok";
+};
+
+&qpic_bam {
+	status = "ok";
+};
+
+&nand {
+	pinctrl-0 = <&qpic_pins>;
+	pinctrl-names = "default";
 	status = "ok";
 };
