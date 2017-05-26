@@ -128,7 +128,7 @@
 };
 
 &blsp_dma {
-	status = "disabled";
+	status = "ok";
 };
 
 &serial_blsp4 {
