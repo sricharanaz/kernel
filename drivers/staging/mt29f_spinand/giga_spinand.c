@@ -21,6 +21,23 @@
 #include <linux/spi/spi.h>
 #include "giga_spinand.h"
 
+/* Only ecc un-protected fields in the spare area included */
+static struct nand_ecclayout winbond_oob_64 = {
+	.eccbytes = 32,
+	.eccpos = {
+		8, 9, 10, 11, 12, 13, 14, 15, 16,
+		24, 25, 26, 27, 28, 29, 30, 31, 32,
+		40, 41, 42, 43, 44, 45, 46, 47, 48,
+		56, 57, 58, 59, 60, 61, 62, 63, 64},
+	.oobavail = 8,
+	.oobfree = {
+		{.offset = 2,  .length = 2},
+		{.offset = 18, .length = 2},
+		{.offset = 34, .length = 2},
+		{.offset = 50, .length = 2},
+	}
+};
+
 void gigadevice_set_defaults(struct spi_device *spi_nand)
 {
 	struct mtd_info *mtd = (struct mtd_info *)dev_get_drvdata
@@ -49,6 +66,20 @@ void gigadevice_set_defaults_512mb(struct spi_device *spi_nand)
 	chip->ecc.strength = 1;
 	chip->ecc.total	= 0;
 	chip->ecc.layout = NULL;
+}
+
+void winbond_set_defaults(struct spi_device *spi_nand)
+{
+	struct mtd_info *mtd = dev_get_drvdata(&spi_nand->dev);
+	struct nand_chip *chip = (struct nand_chip *)mtd->priv;
+
+	chip->ecc.size	= 0x800;
+	chip->ecc.bytes	= 0x0;
+	chip->ecc.steps	= 0x0;
+
+	chip->ecc.strength = 1;
+	chip->ecc.total	= 0;
+	chip->ecc.layout = &winbond_oob_64;
 }
 
 void gigadevice_read_cmd(struct spinand_cmd *cmd, u32 page_id)
