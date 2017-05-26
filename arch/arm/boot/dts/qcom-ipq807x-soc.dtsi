@@ -411,7 +411,7 @@
 
 			qcom,bus-width = <4>;
 			qcom,dedicated-io = <1>;
-
+			qcom,max_clk = <192000000>;
 			/* device core power supply */
 			qcom,vdd-voltage-level = <2950000 2950000>;
 			qcom,vdd-current-level = <15000 400000>;
