@@ -39,6 +39,14 @@
 			bias-disable;
 		};
 	};
+
+	i2c_0_pins: i2c_0_pinmux {
+		mux {
+			pins = "gpio42", "gpio43";
+			function = "blsp1_i2c";
+			bias-disable;
+		};
+	};
 };
 
 &soc {
@@ -125,7 +133,9 @@
 };
 
 &i2c_0 {
-	status = "disabled";
+	pinctrl-0 = <&i2c_0_pins>;
+	pinctrl-names = "default";
+	status = "ok";
 };
 
 &i2c_1 {
