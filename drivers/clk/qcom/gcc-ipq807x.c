@@ -1975,6 +1975,7 @@ struct clk_rcg2 usb0_aux_clk_src = {
 
 struct freq_tbl ftbl_usb_mock_utmi_clk_src[] = {
 	F(19200000, P_XO, 1, 0, 0),
+	F(20000000, P_GPLL6, 6, 1, 9),
 	F(60000000, P_GPLL6, 6, 1, 3),
 	{ }
 };
