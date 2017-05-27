@@ -335,7 +335,7 @@
 			reg = <0xe3000 0x1000>;
 			clocks = <&gcc GCC_DUMMY_CLK>;
 			clock-names = "core";
-			status = "disabled";
+			status = "ok";
 		};
 
 		restart@4ab000 {
