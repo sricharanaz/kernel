@@ -93,7 +93,7 @@
 };
 
 &watchdog {
-	status = "disabled";
+	status = "ok";
 };
 
 &glink_mpss_ssr {
