@@ -432,6 +432,7 @@ static struct clk_alpha_pll gpll0_main = {
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_ops,
+			.flags = CLK_IS_CRITICAL,
 		},
 	},
 };
@@ -507,6 +508,7 @@ static struct clk_alpha_pll gpll6_main = {
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_brammo_ops,
+			.flags = CLK_IS_CRITICAL,
 		},
 	},
 };
@@ -537,6 +539,7 @@ static struct clk_alpha_pll gpll4_main = {
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_ops,
+			.flags = CLK_IS_CRITICAL,
 		},
 	},
 };
@@ -631,6 +634,7 @@ static struct clk_alpha_pll gpll2_main = {
 			},
 			.num_parents = 1,
 			.ops = &clk_alpha_pll_ops,
+			.flags = CLK_IS_CRITICAL,
 		},
 	},
 };
