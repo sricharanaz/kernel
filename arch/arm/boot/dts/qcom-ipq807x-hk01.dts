@@ -167,7 +167,7 @@
 };
 
 &smem {
-	status = "disabled";
+	status = "ok";
 };
 
 &tcsr_mutex_block {
@@ -175,7 +175,7 @@
 };
 
 &tcsr_mutex {
-	status = "disabled";
+	status = "ok";
 };
 
 &nss_crypto {
@@ -191,15 +191,15 @@
 };
 
 &glink_modem {
-	status = "disabled";
+	status = "ok";
 };
 
 &ipc_router {
-	status = "disabled";
+	status = "ok";
 };
 
 &ipc_router_modem {
-	status = "disabled";
+	status = "ok";
 };
 
 &msm_imem {
