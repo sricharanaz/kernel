@@ -62,7 +62,7 @@
 
 
 &apss_clk {
-	status = "disabled";
+	status = "ok";
 };
 
 &blsp_dma {

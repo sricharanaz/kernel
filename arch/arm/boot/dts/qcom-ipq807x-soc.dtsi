@@ -18,6 +18,7 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/sound/ipq8074-audio.h>
 #include <dt-bindings/clock/qcom,gcc-ipq807x.h>
+#include <dt-bindings/clock/qca,apss-ipq807x.h>
 
 / {
 	cpus: cpus {
@@ -28,7 +29,7 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
 			reg = <0x0>;
-			clocks = <&gcc GCC_DUMMY_CLK>;
+			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
 			clock-names = "cpu";
 			enable-method = "qcom,arm-cortex-acc";
 			qcom,acc = <&acc0>;
@@ -46,7 +47,7 @@
 			compatible = "arm,cortex-a53";
 			enable-method = "qcom,arm-cortex-acc";
 			reg = <0x1>;
-			clocks = <&gcc GCC_DUMMY_CLK>;
+			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
 			clock-names = "cpu";
 			qcom,acc = <&acc1>;
 			next-level-cache = <&L2_0>;
@@ -58,7 +59,7 @@
 			compatible = "arm,cortex-a53";
 			enable-method = "qcom,arm-cortex-acc";
 			reg = <0x2>;
-			clocks = <&gcc GCC_DUMMY_CLK>;
+			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
 			clock-names = "cpu";
 			qcom,acc = <&acc2>;
 			next-level-cache = <&L2_0>;
@@ -70,7 +71,7 @@
 			compatible = "arm,cortex-a53";
 			enable-method = "qcom,arm-cortex-acc";
 			reg = <0x3>;
-			clocks = <&gcc GCC_DUMMY_CLK>;
+			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
 			clock-names = "cpu";
 			qcom,acc = <&acc3>;
 			next-level-cache = <&L2_0>;
