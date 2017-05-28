@@ -344,6 +344,15 @@
 			status = "disabled";
 		};
 
+		restart@4ab000 {
+			compatible = "qcom,pshold";
+			reg = <0x4ab000 0x4>;
+		};
+
+		qca,scm_restart_reason {
+			compatible = "qca,scm_restart_reason";
+		};
+
 		sdhc_1: sdhci@7824900 {
 			compatible = "qcom,sdhci-msm";
 			reg = <0x7824900 0x500>, <0x7824000 0x800>;
