@@ -778,6 +778,14 @@
 			bias-pull,up;
 		};
 	};
+
+	spi_0_pins: spi_0_pins {
+		mux {
+			pins = "gpio38", "gpio39", "gpio40", "gpio41";
+			function = "blsp0_spi";
+			bias-disable;
+		};
+	};
 };
 
 &q6v5_wcss {
