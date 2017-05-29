@@ -3281,10 +3281,10 @@ static struct clk_branch gcc_nssnoc_timeout_ref_clk = {
 };
 
 static struct clk_branch gcc_nssnoc_ubi0_ahb_clk = {
-	.halt_reg = 0x6820C,
+	.halt_reg = 0x68270,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x6820C,
+		.enable_reg = 0x68270,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_nssnoc_ubi0_ahb_clk",
@@ -3299,10 +3299,10 @@ static struct clk_branch gcc_nssnoc_ubi0_ahb_clk = {
 };
 
 static struct clk_branch gcc_nssnoc_ubi1_ahb_clk = {
-	.halt_reg = 0x6822C,
+	.halt_reg = 0x68274,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x6822C,
+		.enable_reg = 0x68274,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_nssnoc_ubi1_ahb_clk",
@@ -4253,10 +4253,10 @@ static struct clk_branch gcc_uniphy2_port6_tx_clk = {
 };
 
 static struct clk_branch gcc_uniphy2_sys_clk = {
-	.halt_reg = 0x56208,
+	.halt_reg = 0x5620c,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x56208,
+		.enable_reg = 0x5620c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_uniphy2_sys_clk",
