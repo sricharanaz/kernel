@@ -569,7 +569,7 @@ static struct clk_alpha_pll nss_crypto_pll = {
 
 struct freq_tbl ftbl_nss_ppe_clk_src[] = {
 	F(19200000, P_XO, 1, 0, 0),
-	F(300000000, P_BIAS_PLL, 2, 0, 0),
+	F(300000000, P_BIAS_PLL, 1, 0, 0),
 	{ }
 };
 
