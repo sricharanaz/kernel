@@ -244,6 +244,8 @@
 #define GPLL2_MAIN				224
 #define NSS_CRYPTO_PLL_MAIN			225
 #define AUDIO_PLL_MAIN				226
-#define GCC_DUMMY_I2C_CLK			227
+#define GCC_CMN_12GPLL_AHB_CLK			227
+#define GCC_CMN_12GPLL_SYS_CLK			228
+#define GCC_DUMMY_I2C_CLK			229
 
 #endif
