@@ -3281,10 +3281,10 @@ static struct clk_branch gcc_nssnoc_timeout_ref_clk = {
 };
 
 static struct clk_branch gcc_nssnoc_ubi0_ahb_clk = {
-	.halt_reg = 0x6820C,
+	.halt_reg = 0x68270,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x6820C,
+		.enable_reg = 0x68270,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_nssnoc_ubi0_ahb_clk",
@@ -3299,10 +3299,10 @@ static struct clk_branch gcc_nssnoc_ubi0_ahb_clk = {
 };
 
 static struct clk_branch gcc_nssnoc_ubi1_ahb_clk = {
-	.halt_reg = 0x6822C,
+	.halt_reg = 0x68274,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x6822C,
+		.enable_reg = 0x68274,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_nssnoc_ubi1_ahb_clk",
@@ -4253,10 +4253,10 @@ static struct clk_branch gcc_uniphy2_port6_tx_clk = {
 };
 
 static struct clk_branch gcc_uniphy2_sys_clk = {
-	.halt_reg = 0x56208,
+	.halt_reg = 0x5620c,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x56208,
+		.enable_reg = 0x5620c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_uniphy2_sys_clk",
@@ -4893,6 +4893,34 @@ static const struct qcom_reset_map gcc_ipq807x_resets[] = {
 	[GCC_APC0_VOLTAGE_DROOP_DETECTOR_BCR] = { 0x78000, 0 },
 	[GCC_APC1_VOLTAGE_DROOP_DETECTOR_BCR] = { 0x79000, 0 },
 	[GCC_SMMU_CATS_BCR] = { 0x7c000, 0 },
+	[GCC_UBI0_AXI_ARES] = { 0x68010, 0 },
+	[GCC_UBI0_AHB_ARES] = { 0x68010, 1 },
+	[GCC_UBI0_NC_AXI_ARES] = { 0x68010, 2 },
+	[GCC_UBI0_DBG_ARES] = { 0x68010, 3 },
+	[GCC_UBI0_CORE_CLAMP_ENABLE] = { 0x68010, 4 },
+	[GCC_UBI0_CLKRST_CLAMP_ENABLE] = { 0x68010, 5 },
+	[GCC_UBI1_AXI_ARES] = { 0x68010, 8 },
+	[GCC_UBI1_AHB_ARES] = { 0x68010, 9 },
+	[GCC_UBI1_NC_AXI_ARES] = { 0x68010, 10 },
+	[GCC_UBI1_DBG_ARES] = { 0x68010, 11 },
+	[GCC_UBI1_CORE_CLAMP_ENABLE] = { 0x68010, 12 },
+	[GCC_UBI1_CLKRST_CLAMP_ENABLE] = { 0x68010, 13 },
+	[GCC_NSS_CFG_ARES] = { 0x68010, 16 },
+	[GCC_NSS_IMEM_ARES] = { 0x68010, 17 },
+	[GCC_NSS_NOC_ARES] = { 0x68010, 18 },
+	[GCC_NSS_CRYPTO_ARES] = { 0x68010, 19 },
+	[GCC_NSS_CSR_ARES] = { 0x68010, 20 },
+	[GCC_NSS_CE_APB_ARES] = { 0x68010, 21 },
+	[GCC_NSS_CE_AXI_ARES] = { 0x68010, 22 },
+	[GCC_NSSNOC_CE_APB_ARES] = { 0x68010, 23 },
+	[GCC_NSSNOC_CE_AXI_ARES] = { 0x68010, 24 },
+	[GCC_NSSNOC_UBI0_AHB_ARES] = { 0x68010, 25 },
+	[GCC_NSSNOC_UBI1_AHB_ARES] = { 0x68010, 26 },
+	[GCC_NSSNOC_SNOC_ARES] = { 0x68010, 27 },
+	[GCC_NSSNOC_CRYPTO_ARES] = { 0x68010, 28 },
+	[GCC_NSSNOC_ATB_ARES] = { 0x68010, 29 },
+	[GCC_NSSNOC_QOSGEN_REF_ARES] = { 0x68010, 30 },
+	[GCC_NSSNOC_TIMEOUT_REF_ARES] = { 0x68010, 31 },
 };
 
 static int clk_dummy_is_enabled(struct clk_hw *hw)
