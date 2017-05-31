@@ -4486,6 +4486,42 @@ static struct clk_branch gcc_usb1_sleep_clk = {
 	},
 };
 
+static struct clk_branch gcc_cmn_12gpll_ahb_clk = {
+	.halt_reg = 0x56308,
+	.halt_bit = 31,
+	.clkr = {
+		.enable_reg = 0x56308,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_cmn_12gpll_ahb_clk",
+			.parent_names = (const char *[]){
+				"pcnoc_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
+static struct clk_branch gcc_cmn_12gpll_sys_clk = {
+	.halt_reg = 0x5630c,
+	.halt_bit = 31,
+	.clkr = {
+		.enable_reg = 0x5630c,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_cmn_12gpll_sys_clk",
+			.parent_names = (const char *[]){
+				"gcc_xo_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
 static struct clk_hw *gcc_ipq807x_hws[] = {
 	&gpll0_out_main_div2.hw,
 	&pcnoc_clk_src.hw,
@@ -4763,6 +4799,8 @@ static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[GCC_USB1_PHY_CFG_AHB_CLK] = &gcc_usb1_phy_cfg_ahb_clk.clkr,
 	[GCC_USB1_PIPE_CLK] = &gcc_usb1_pipe_clk.clkr,
 	[GCC_USB1_SLEEP_CLK] = &gcc_usb1_sleep_clk.clkr,
+	[GCC_CMN_12GPLL_AHB_CLK] = &gcc_cmn_12gpll_ahb_clk.clkr,
+	[GCC_CMN_12GPLL_SYS_CLK] = &gcc_cmn_12gpll_sys_clk.clkr,
 };
 
 static const struct qcom_reset_map gcc_ipq807x_resets[] = {
