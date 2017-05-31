@@ -759,16 +759,18 @@ int __qcom_scm_tcsr(struct device *dev, u32 svc_id, u32 cmd_id,
 	return ret;
 }
 
-static int __qcom_scm_dload_v8(struct device *dev)
+static int __qcom_scm_dload_v8(struct device *dev, void *cmd_buf)
 {
 	struct scm_desc desc = {0};
 	int ret;
+	unsigned int enable = *((unsigned int *)cmd_buf);
 
 #define TCSR_BOOT_MISC_REG		0x193d100ull
-#define DLOAD_MODE_BITMASK		0x10ull
+#define DLOAD_MODE_ENABLE		0x10ull
+#define DLOAD_MODE_DISABLE		0x00ull
 
 	desc.args[0] = TCSR_BOOT_MISC_REG;
-	desc.args[1] = DLOAD_MODE_BITMASK;
+	desc.args[1] = enable ? DLOAD_MODE_DISABLE : DLOAD_MODE_ENABLE;
 	desc.arginfo = SCM_ARGS(2, SCM_VAL, SCM_VAL);
 	ret = qcom_scm_call2(SCM_SIP_FNID(SCM_SVC_IO_ACCESS,
 					SCM_IO_WRITE), &desc);
@@ -783,7 +785,7 @@ int __qcom_scm_dload(struct device *dev, u32 svc_id, u32 cmd_id, void *cmd_buf)
 	long ret;
 
 	if (is_scm_armv8())
-		return __qcom_scm_dload_v8(dev);
+		return __qcom_scm_dload_v8(dev, cmd_buf);
 
 	if (cmd_buf)
 		ret = qcom_scm_call(dev, svc_id, cmd_id, cmd_buf,
