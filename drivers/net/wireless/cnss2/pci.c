@@ -257,9 +257,9 @@ static int cnss_pci_init_smmu(struct cnss_pci_data *pci_priv)
 		pr_err("Failed to attach SMMU device, err = %d\n", ret);
 		goto release_mapping;
 	}
-#endif
 
 	pci_priv->smmu_mapping = mapping;
+#endif
 
 	return ret;
 release_mapping:
@@ -275,9 +275,9 @@ static void cnss_pci_deinit_smmu(struct cnss_pci_data *pci_priv)
 #if CONFIG_CNSS2_SMMU
 	arm_iommu_detach_device(&pci_priv->pci_dev->dev);
 	arm_iommu_release_mapping(pci_priv->smmu_mapping);
-#endif
 
 	pci_priv->smmu_mapping = NULL;
+#endif
 }
 
 static void cnss_pci_event_cb(struct msm_pcie_notify *notify)
@@ -1305,8 +1305,10 @@ disable_bus:
 dereg_pci_event:
 	cnss_dereg_pci_event(pci_priv);
 deinit_smmu:
+#ifdef CONFIG_CNSS2_SMMU
 	if (pci_priv->smmu_mapping)
 		cnss_pci_deinit_smmu(pci_priv);
+#endif
 unregister_ramdump:
 	cnss_unregister_ramdump(plat_priv);
 unregister_subsys:
@@ -1332,8 +1334,10 @@ static void cnss_pci_remove(struct pci_dev *pci_dev)
 	}
 	cnss_pci_disable_bus(pci_priv);
 	cnss_dereg_pci_event(pci_priv);
+#ifdef CONFIG_CNSS2_SMMU
 	if (pci_priv->smmu_mapping)
 		cnss_pci_deinit_smmu(pci_priv);
+#endif
 	cnss_unregister_ramdump(plat_priv);
 	cnss_unregister_subsys(plat_priv);
 	plat_priv->bus_priv = NULL;

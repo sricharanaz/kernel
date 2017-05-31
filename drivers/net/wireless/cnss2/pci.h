@@ -13,7 +13,9 @@
 #ifndef _CNSS_PCI_H
 #define _CNSS_PCI_H
 
+#ifdef CONFIG_CNSS2_SMMU
 #include <asm/dma-iommu.h>
+#endif
 #include <linux/msm_mhi.h>
 #include <linux/msm_pcie.h>
 #include <linux/pci.h>
@@ -65,9 +67,11 @@ struct cnss_pci_data {
 	struct msm_pcie_register_event msm_pci_event;
 	atomic_t auto_suspended;
 	bool monitor_wake_intr;
+#ifdef CONFIG_CNSS2_SMMU
 	struct dma_iommu_mapping *smmu_mapping;
 	dma_addr_t smmu_iova_start;
 	size_t smmu_iova_len;
+#endif
 	void __iomem *bar;
 	struct cnss_msi_config *msi_config;
 	uint32_t msi_ep_base_data;
