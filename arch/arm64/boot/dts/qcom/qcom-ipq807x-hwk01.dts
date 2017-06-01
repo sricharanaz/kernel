@@ -15,9 +15,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "qcom-ipq807x-soc.dtsi"
-#include "qcom-ipq807x-coresight.dtsi"
 #include "qcom-ipq807x-spmi-regulator.dtsi"
 
+#include "qcom-ipq807x-coresight.dtsi"
 / {
 	#address-cells = <0x2>;
 	#size-cells = <0x2>;
@@ -34,9 +34,8 @@
 
 	chosen {
 		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw init=/init";
-		bootargs-append = " clk_ignore_unused swiotlb=1";
+		bootargs-append = " clk_ignore_unused";
 	};
-
 };
 
 	&CPU0 {
@@ -101,7 +100,62 @@
 		};
 	};
 
+
 &soc {
+	dp1 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <1>;
+		reg = <0x3a001000 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+	};
+
+	dp2 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <2>;
+		reg = <0x3a001200 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+	};
+
+	dp3 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <3>;
+		reg = <0x3a001400 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+	};
+
+	dp4 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <4>;
+		reg = <0x3a001600 0x200>;
+		qcom,mactype = <0>;
+		local-mac-address = [000000000000];
+	};
+
+	dp5 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <5>;
+		reg = <0x3a003000 0x3fff>;
+		qcom,mactype = <1>;
+		local-mac-address = [000000000000];
+	};
+
+	dp6 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <6>;
+		reg = <0x3a007000 0x3fff>;
+		qcom,mactype = <1>;
+		local-mac-address = [000000000000];
+	};
+
 	serial_blsp2: serial@78B1000 {
 			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
 			reg = <0x78B1000 0x200>;
@@ -133,6 +187,24 @@
 			pinctrl-0 = <&spi_2_pins>;
 			pinctrl-names = "default";
 			status = "disabled";
+	};
+
+	edma@3ab00000 {
+		compatible = "qcom,edma";
+		reg = <0x3ab00000 0x76900>;
+		reg-names = "edma-reg-base";
+		qcom,txdesc-ring-start = <23>;
+		qcom,txdesc-rings = <1>;
+		qcom,txcmpl-ring-start = <7>;
+		qcom,txcmpl-rings = <1>;
+		qcom,rxfill-ring-start = <7>;
+		qcom,rxfill-rings = <1>;
+		qcom,rxdesc-ring-start = <15>;
+		qcom,rxdesc-rings = <1>;
+		interrupts = <0 345 4>,
+			   <0 353 4>,
+			   <0 361 4>,
+			   <0 344 4>;
 	};
 
 	mdio@90000 {
@@ -412,6 +484,78 @@
 		uniphy_access_mode = "local bus";
 	};
 
+	nss-common {
+		compatible = "qcom,nss-common";
+		reg = <0x01d00000 0x1000>;
+		reg-names = "nss_fpb_base";
+		clocks = <&gcc GCC_DUMMY_CLK>, <&gcc GCC_DUMMY_CLK>;
+		clock-names = "nss-core-clk", "nss-tcm-clk";
+	};
+
+	nss0: nss@40000000 {
+		compatible = "qcom,nss";
+		interrupts = <0 377 0x1>, <0 378 0x1>, <0 379 0x1>, <0 380 0x1>,
+			     <0 381 0x1>, <0 382 0x1>, <0 383 0x1>;
+		reg = <0x39000000 0x1000>, <0x38000000 0x30000>,
+		      <0x0b111000 0x1000>;
+		reg-names = "nphys", "vphys", "qgic-phys";
+		clocks = <&gcc GCC_DUMMY_CLK>, <&gcc GCC_DUMMY_CLK>,
+			 <&gcc GCC_DUMMY_CLK>;
+		clock-names = "nss-core-clk", "nss-tcm-src",
+			      "nss-tcm-clk";
+		resets = <&gcc GCC_DUMMY_CLK>,
+			 <&gcc GCC_DUMMY_CLK>,
+			 <&gcc GCC_DUMMY_CLK>,
+			 <&gcc GCC_DUMMY_CLK>;
+		reset-names = "clkrst-clamp", "clamp", "ahb", "axi";
+		qcom,id = <0>;
+		qcom,num-queue = <4>;
+		qcom,num-irq = <7>;
+		qcom,load-addr = <0x40000000>;
+		qcom,bridge-enabled;
+		qcom,ipv4-enabled;
+		qcom,ipv6-enabled;
+		qcom,wlanredirect-enabled;
+		qcom,tun6rd-enabled;
+		qcom,l2tpv2-enabled;
+		qcom,gre-enabled;
+		qcom,map-t-enabled;
+		qcom,portid-enabled;
+		qcom,ppe-enabled;
+		qcom,pppoe-enabled;
+		qcom,pptp-enabled;
+		qcom,tunipip6-enabled;
+		qcom,shaping-enabled;
+		qcom,wlan-dataplane-offload-enabled;
+		qcom,vlan-enabled;
+	};
+
+	nss1: nss@40800000 {
+		compatible = "qcom,nss";
+		interrupts = <0 390 0x1>, <0 391 0x1>, <0 392 0x1>, <0 393 0x1>,
+				<0 394 0x1>, <0 395 0x1>, <0 396 0x1>;
+		reg = <0x39400000 0x1000>, <0x38030000 0x30000>,
+			<0x0b111000 0x1000>;
+		reg-names = "nphys", "vphys", "qgic-phys";
+		clocks = <&gcc GCC_DUMMY_CLK>, <&gcc GCC_DUMMY_CLK>,
+			<&gcc GCC_DUMMY_CLK>;
+		clock-names = "nss-core-clk", "nss-tcm-src",
+				"nss-tcm-clk";
+		resets = <&gcc GCC_DUMMY_CLK>,
+			<&gcc GCC_DUMMY_CLK>,
+			<&gcc GCC_DUMMY_CLK>,
+			<&gcc GCC_DUMMY_CLK>;
+		reset-names = "clkrst-clamp", "clamp", "ahb", "axi";
+		qcom,id = <1>;
+		qcom,num-queue = <4>;
+		qcom,num-irq = <7>;
+		qcom,load-addr = <0x40800000>;
+		qcom,capwap-enabled;
+		qcom,dtls-enabled;
+		qcom,crypto-enabled;
+		qcom,ipsec-enabled;
+	};
+
 	audio: audio@7700000 {
 		status = "ok";
 	};
@@ -465,149 +609,6 @@
 		status = "ok";
 		pinctrl-0 = <&voip_pins>;
 		pinctrl-names = "default";
-	};
-
-	dp1 {
-		device_type = "network";
-		compatible = "qcom,nss-dp";
-		qcom,id = <1>;
-		reg = <0x3a001000 0x200>;
-		qcom,mactype = <0>;
-		local-mac-address = [000000000000];
-	};
-
-	dp2 {
-		device_type = "network";
-		compatible = "qcom,nss-dp";
-		qcom,id = <2>;
-		reg = <0x3a001200 0x200>;
-		qcom,mactype = <0>;
-		local-mac-address = [000000000000];
-	};
-
-	dp3 {
-		device_type = "network";
-		compatible = "qcom,nss-dp";
-		qcom,id = <3>;
-		reg = <0x3a001400 0x200>;
-		qcom,mactype = <0>;
-		local-mac-address = [000000000000];
-	};
-
-	dp4 {
-		device_type = "network";
-		compatible = "qcom,nss-dp";
-		qcom,id = <4>;
-		reg = <0x3a001600 0x200>;
-		qcom,mactype = <0>;
-		local-mac-address = [000000000000];
-	};
-
-	dp5 {
-		device_type = "network";
-		compatible = "qcom,nss-dp";
-		qcom,id = <5>;
-		reg = <0x3a003000 0x3fff>;
-		qcom,mactype = <1>;
-		local-mac-address = [000000000000];
-	};
-
-	dp6 {
-		device_type = "network";
-		compatible = "qcom,nss-dp";
-		qcom,id = <6>;
-		reg = <0x3a007000 0x3fff>;
-		qcom,mactype = <1>;
-		local-mac-address = [000000000000];
-	};
-
-	edma@3ab00000 {
-		compatible = "qcom,edma";
-		reg = <0x3ab00000 0x76900>;
-		reg-names = "edma-reg-base";
-		qcom,txdesc-ring-start = <23>;
-		qcom,txdesc-rings = <1>;
-		qcom,txcmpl-ring-start = <7>;
-		qcom,txcmpl-rings = <1>;
-		qcom,rxfill-ring-start = <7>;
-		qcom,rxfill-rings = <1>;
-		qcom,rxdesc-ring-start = <15>;
-		qcom,rxdesc-rings = <1>;
-		interrupts = <0 345 4>,
-			   <0 353 4>,
-			   <0 361 4>,
-			   <0 344 4>;
-	};
-
-	nss-common {
-		compatible = "qcom,nss-common";
-		reg = <0x01d00000 0x1000>;
-		reg-names = "nss_fpb_base";
-		clocks = <&gcc GCC_DUMMY_CLK>, <&gcc GCC_DUMMY_CLK>;
-		clock-names = "nss-core-clk", "nss-tcm-clk";
-	};
-
-	nss0: nss@40000000 {
-		compatible = "qcom,nss";
-		interrupts = <0 377 0x1>, <0 378 0x1>, <0 379 0x1>, <0 380 0x1>,
-				<0 381 0x1>, <0 382 0x1>, <0 383 0x1>;
-		reg = <0x39000000 0x1000>, <0x38000000 0x30000>,
-			<0x0b111000 0x1000>;
-		reg-names = "nphys", "vphys", "qgic-phys";
-		clocks = <&gcc GCC_DUMMY_CLK>, <&gcc GCC_DUMMY_CLK>,
-			<&gcc GCC_DUMMY_CLK>;
-		clock-names = "nss-core-clk", "nss-tcm-src",
-				"nss-tcm-clk";
-		resets = <&gcc GCC_DUMMY_CLK>,
-			<&gcc GCC_DUMMY_CLK>,
-			<&gcc GCC_DUMMY_CLK>,
-			<&gcc GCC_DUMMY_CLK>;
-		reset-names = "clkrst-clamp", "clamp", "ahb", "axi";
-		qcom,id = <0>;
-		qcom,num-queue = <4>;
-		qcom,num-irq = <7>;
-		qcom,load-addr = <0x40000000>;
-		qcom,bridge-enabled;
-		qcom,ipv4-enabled;
-		qcom,ipv6-enabled;
-		qcom,wlanredirect-enabled;
-		qcom,tun6rd-enabled;
-		qcom,l2tpv2-enabled;
-		qcom,map-t-enabled;
-		qcom,portid-enabled;
-		qcom,ppe-enabled;
-		qcom,pppoe-enabled;
-		qcom,pptp-enabled;
-		qcom,tunipip6-enabled;
-		qcom,shaping-enabled;
-		qcom,wlan-dataplane-offload-enabled;
-		qcom,vlan-enabled;
-	};
-
-	nss1: nss@40800000 {
-		compatible = "qcom,nss";
-		interrupts = <0 390 0x1>, <0 391 0x1>, <0 392 0x1>, <0 393 0x1>,
-				<0 394 0x1>, <0 395 0x1>, <0 396 0x1>;
-		reg = <0x39400000 0x1000>, <0x38030000 0x30000>,
-			<0x0b111000 0x1000>;
-		reg-names = "nphys", "vphys", "qgic-phys";
-		clocks = <&gcc GCC_DUMMY_CLK>, <&gcc GCC_DUMMY_CLK>,
-			<&gcc GCC_DUMMY_CLK>;
-		clock-names = "nss-core-clk", "nss-tcm-src",
-				"nss-tcm-clk";
-		resets = <&gcc GCC_DUMMY_CLK>,
-			<&gcc GCC_DUMMY_CLK>,
-			<&gcc GCC_DUMMY_CLK>,
-			<&gcc GCC_DUMMY_CLK>;
-		reset-names = "clkrst-clamp", "clamp", "ahb", "axi";
-		qcom,id = <1>;
-		qcom,num-queue = <4>;
-		qcom,num-irq = <7>;
-		qcom,load-addr = <0x40800000>;
-		qcom,capwap-enabled;
-		qcom,dtls-enabled;
-		qcom,ipsec-enabled;
-		qcom,crypto-enabled;
 	};
 };
 
@@ -777,6 +778,14 @@
 			bias-pull,up;
 		};
 	};
+
+	spi_0_pins: spi_0_pins {
+		mux {
+			pins = "gpio38", "gpio39", "gpio40", "gpio41";
+			function = "blsp0_spi";
+			bias-disable;
+		};
+	};
 };
 
 &q6v5_wcss {
@@ -784,15 +793,14 @@
 };
 
 &serial_blsp4 {
-       pinctrl-0 = <&uart_pins>;
-       pinctrl-names = "default";
-       status = "disabled";
+	pinctrl-0 = <&uart_pins>;
+	pinctrl-names = "default";
+	status = "disabled";
 };
 
 &serial_blsp0 {
-       status = "ok";
+	status = "ok";
 };
-
 
 &spi_0 { /* BLSP1 QUP1 */
 	#pinctrl-0 = <&spi_0_pins>;
@@ -816,7 +824,6 @@
 	status = "disabled";
 };
 
-
 &qpic_bam {
 	status = "ok";
 };
@@ -825,7 +832,11 @@
 	status = "ok";
 };
 
-&blsp_dma {
+&qpic_lcd {
+	status = "ok";
+};
+
+&qpic_lcd_panel {
 	status = "ok";
 };
 
@@ -866,6 +877,7 @@
 			 192000000 384000000>;
 	qcom,bus-speed-mode = "DDR_1p8v";
 	qcom,nonremovable;
+	qcom,emulation = <1>;
 	status = "ok";
 };
 
@@ -873,13 +885,6 @@
 	qcom,clk-rates = <400000 25000000 50000000 100000000 \
 			 192000000 384000000>;
 	qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
+	qcom,emulation = <1>;
 	status = "disabled";
-};
-
-&qpic_lcd {
-	status = "ok";
-};
-
-&qpic_lcd_panel {
-	status = "ok";
 };
