@@ -33,7 +33,7 @@
 
 	chosen {
 		bootargs = "console=ttyMSM0,115200,n8 root=/dev/ram0 rw init=/init";
-		bootargs-append = " clk_ignore_unused";
+		bootargs-append = " clk_ignore_unused swiotlb=1";
 	};
 };
 
