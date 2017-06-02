@@ -153,6 +153,14 @@
 		};
 	};
 
+	sd_pins: sd_pins {
+		mux {
+			pins = "gpio63";
+			function = "sd_card";
+			bias-pull-up;
+		};
+	};
+
 	hsuart_pins: hsuart_pins {
 		mux {
 			pins = "gpio46", "gpio47", "gpio48", "gpio49";
@@ -299,5 +307,8 @@
 	qcom,clk-rates = <400000 25000000 50000000 100000000 \
 			 192000000 384000000>;
 	qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
+	pinctrl-0 = <&sd_pins>;
+	pinctrl-names = "default";
+	cd-gpios = <&tlmm 63 1>;
 	status = "ok";
 };
