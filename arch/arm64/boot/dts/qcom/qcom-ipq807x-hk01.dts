@@ -268,11 +268,11 @@
 };
 
 &cryptobam {
-	status = "disabled";
+	status = "ok";
 };
 
 &crypto {
-	status = "disabled";
+	status = "ok";
 };
 
 &i2c_0 {

@@ -632,6 +632,7 @@
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
 			qcom,ee = <1>;
+			qcom,controlled-remotely;
 		};
 
 		crypto: crypto@8e3a000 {
