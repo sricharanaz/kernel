@@ -21,6 +21,12 @@
 #include <dt-bindings/clock/qca,apss-ipq807x.h>
 
 / {
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+		status = "ok";
+	};
+
 	cpus: cpus {
 		#address-cells = <0x1>;
 		#size-cells = <0x0>;
@@ -31,7 +37,7 @@
 			reg = <0x0>;
 			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
 			clock-names = "cpu";
-			enable-method = "qcom,arm-cortex-acc";
+			enable-method = "psci";
 			qcom,acc = <&acc0>;
 			next-level-cache = <&L2_0>;
 			cpu-idle-states = <>;
@@ -45,7 +51,7 @@
 		CPU1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
-			enable-method = "qcom,arm-cortex-acc";
+			enable-method = "psci";
 			reg = <0x1>;
 			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
 			clock-names = "cpu";
@@ -57,7 +63,7 @@
 		CPU2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
-			enable-method = "qcom,arm-cortex-acc";
+			enable-method = "psci";
 			reg = <0x2>;
 			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
 			clock-names = "cpu";
@@ -69,7 +75,7 @@
 		CPU3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a53";
-			enable-method = "qcom,arm-cortex-acc";
+			enable-method = "psci";
 			reg = <0x3>;
 			clocks = <&apss_clk APCS_ALIAS0_CORE_CLK>;
 			clock-names = "cpu";
