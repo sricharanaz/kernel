@@ -198,7 +198,7 @@ static irqreturn_t qcom_smp2p_intr(int irq, void *data)
 	/* Match newly created entries */
 	for (i = smp2p->valid_entries; i < in->valid_entries; i++) {
 		list_for_each_entry(entry, &smp2p->inbound, node) {
-			memcpy(buf, in->entries[i].name, sizeof(buf));
+			memcpy_fromio(buf, in->entries[i].name, sizeof(buf));
 			if (!strcmp(buf, entry->name)) {
 				entry->value = &in->entries[i].value;
 				break;
@@ -348,7 +348,7 @@ static int qcom_smp2p_outbound_entry(struct qcom_smp2p *smp2p,
 
 	/* Allocate an entry from the smem item */
 	strlcpy(buf, entry->name, SMP2P_MAX_ENTRY_NAME);
-	memcpy(out->entries[out->valid_entries].name, buf, SMP2P_MAX_ENTRY_NAME);
+	memcpy_toio(out->entries[out->valid_entries].name, buf, SMP2P_MAX_ENTRY_NAME);
 
 	/* Make the logical entry reference the physical value */
 	entry->value = &out->entries[out->valid_entries].value;
@@ -391,7 +391,7 @@ static int qcom_smp2p_alloc_outbound_item(struct qcom_smp2p *smp2p)
 		return PTR_ERR(out);
 	}
 
-	memset(out, 0, sizeof(*out));
+	memset_io(out, 0, sizeof(*out));
 	out->magic = SMP2P_MAGIC;
 	out->local_pid = smp2p->local_pid;
 	out->remote_pid = smp2p->remote_pid;
