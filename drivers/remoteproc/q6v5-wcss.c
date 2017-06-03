@@ -523,13 +523,13 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 						segment_name);
 				break;
 			}
-			memcpy(ptr, fw->data, fw->size);
+			memcpy_toio(ptr, fw->data, fw->size);
 			release_firmware(fw);
 		}
 
 		/* for .bss and sections that needs to be memset to zero */
 		if (memsz > filesz)
-			memset(ptr + filesz, 0, memsz - filesz);
+			memset_io(ptr + filesz, 0, memsz - filesz);
 
 	}
 	kfree(segment_name);
