@@ -340,3 +340,7 @@
 	cd-gpios = <&tlmm 63 1>;
 	status = "ok";
 };
+
+&dwc_0 {
+	dr_mode = "peripheral";
+};
