@@ -267,6 +267,34 @@
 	status = "disabled";
 };
 
+&ssphy_0 {
+	qcom,emulation = <1>;
+	status = "ok";
+};
+
+&qusb_phy_0 {
+	qcom,emulation = <1>;
+	status = "ok";
+};
+
+&ssphy_1 {
+	qcom,emulation = <1>;
+	status = "ok";
+};
+
+&qusb_phy_1 {
+	qcom,emulation = <1>;
+	status = "ok";
+};
+
+&usb3_0 {
+	status = "ok";
+};
+
+&usb3_1 {
+	status = "ok";
+};
+
 &cryptobam {
 	status = "ok";
 };

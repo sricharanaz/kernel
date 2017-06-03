@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/usb/phy.h>
+#include <linux/reset.h>
 #include <linux/usb/msm_hsusb.h>
 
 /* TCSR_PHY_CLK_SCHEME_SEL bit mask */
@@ -137,9 +138,16 @@ struct qusb_phy {
 	bool			emulation;
 };
 
-static void qusb_reset(struct clk *phy_reset, u32 action)
+static void qusb_reset(struct qusb_phy *qphy, u32 action)
 {
-	/* TBD */
+	if (action == CLK_RESET_ASSERT) {
+		reset_control_assert(qphy->phy_reset);
+		usleep_range(100, 150);
+	} else {
+		reset_control_deassert(qphy->phy_reset);
+		usleep_range(100, 150); /* wait 100ms */
+	}
+	wmb(); /* ensure data is written to hw register */
 }
 
 static void qusb_phy_enable_clocks(struct qusb_phy *qphy, bool on)
@@ -374,13 +382,11 @@ static int qusb_phy_init(struct usb_phy *phy)
 	bool is_se_clk = true;
 
 	dev_dbg(phy->dev, "%s\n", __func__);
-
 	ret = qusb_phy_enable_power(qphy, true, true);
 	if (ret)
 		return ret;
 
 	qusb_phy_enable_clocks(qphy, true);
-
 	/*
 	 * ref clock is enabled by default after power on reset. Linux clock
 	 * driver will disable this clock as part of late init if peripheral
@@ -397,11 +403,10 @@ static int qusb_phy_init(struct usb_phy *phy)
 		/* Make sure that above write complete to get ref clk OFF */
 		wmb();
 	}
-
 	/* Perform phy reset */
-	qusb_reset(qphy->phy_reset, CLK_RESET_ASSERT);
+	qusb_reset(qphy, CLK_RESET_ASSERT);
 	usleep_range(100, 150);
-	qusb_reset(qphy->phy_reset, CLK_RESET_DEASSERT);
+	qusb_reset(qphy, CLK_RESET_DEASSERT);
 
 	/* Disable the PHY */
 	writel_relaxed(CLAMP_N_EN | FREEZIO_N | POWER_DOWN,
@@ -482,18 +487,15 @@ static int qusb_phy_init(struct usb_phy *phy)
 
 	/* Make sure that above write is completed to get PLL source clock */
 	wmb();
-
 	/* Required to get PHY PLL lock successfully */
 	usleep_range(100, 110);
 
-	if (!qphy->emulation) {
-		if (!(readb_relaxed(qphy->base + QUSB2PHY_PLL_STATUS) &
-					QUSB2PHY_PLL_LOCK)) {
-			dev_err(phy->dev, "QUSB PHY PLL LOCK fails:%x\n",
-				readb_relaxed(qphy->base
-					+ QUSB2PHY_PLL_STATUS));
-			WARN_ON(1);
-		}
+	if (!(readb_relaxed(qphy->base + QUSB2PHY_PLL_STATUS) &
+				QUSB2PHY_PLL_LOCK)) {
+		dev_err(phy->dev, "QUSB PHY PLL LOCK fails:%x\n",
+			readb_relaxed(qphy->base
+				+ QUSB2PHY_PLL_STATUS));
+		WARN_ON(1);
 	}
 
 	/* Set OTG VBUS Valid from HSPHY to controller */
@@ -765,7 +767,7 @@ static int qusb_phy_probe(struct platform_device *pdev)
 	if (IS_ERR(qphy->cfg_ahb_clk))
 		return PTR_ERR(qphy->cfg_ahb_clk);
 
-	qphy->phy_reset = devm_clk_get(dev, "phy_reset");
+	qphy->phy_reset = devm_reset_control_get(dev, "usb2_phy_reset");
 	if (IS_ERR(qphy->phy_reset))
 		return PTR_ERR(qphy->phy_reset);
 
@@ -854,7 +856,7 @@ static int qusb_phy_probe(struct platform_device *pdev)
 	 * rail. Hence keep QUSB PHY into reset state explicitly here.
 	 */
 	if (hold_phy_reset)
-		qusb_reset(qphy->phy_reset, CLK_RESET_ASSERT);
+		qusb_reset(qphy, CLK_RESET_ASSERT);
 
 	ret = usb_add_phy_dev(&qphy->phy);
 	return ret;
