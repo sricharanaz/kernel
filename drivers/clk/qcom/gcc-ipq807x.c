@@ -2056,6 +2056,7 @@ static struct clk_regmap_mux usb1_pipe_clk_src = {
 
 static struct clk_branch gcc_apss_ahb_clk = {
 	.halt_reg = 0x4601c,
+	.halt_check = BRANCH_HALT_VOTED,
 	.halt_bit = 31,
 	.clkr = {
 		.enable_reg = 0x01008,
@@ -2099,9 +2100,10 @@ struct clk_rcg2 system_noc_bfdcd_clk_src = {
 
 static struct clk_branch gcc_apss_axi_clk = {
 	.halt_reg = 0x46020,
+	.halt_check = BRANCH_HALT_VOTED,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x01008,
+		.enable_reg = 0x0b004,
 		.enable_mask = BIT(13),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_apss_axi_clk",
@@ -2117,6 +2119,7 @@ static struct clk_branch gcc_apss_axi_clk = {
 
 static struct clk_branch gcc_blsp1_ahb_clk = {
 	.halt_reg = 0x01008,
+	.halt_check = BRANCH_HALT_VOTED,
 	.halt_bit = 31,
 	.clkr = {
 		.enable_reg = 0x0b004,
@@ -2459,6 +2462,7 @@ static struct clk_branch gcc_blsp1_uart6_apps_clk = {
 
 static struct clk_branch gcc_crypto_ahb_clk = {
 	.halt_reg = 0x16024,
+	.halt_check = BRANCH_HALT_VOTED,
 	.halt_bit = 31,
 	.clkr = {
 		.enable_reg = 0x0b004,
@@ -2477,6 +2481,7 @@ static struct clk_branch gcc_crypto_ahb_clk = {
 
 static struct clk_branch gcc_crypto_axi_clk = {
 	.halt_reg = 0x16020,
+	.halt_check = BRANCH_HALT_VOTED,
 	.halt_bit = 31,
 	.clkr = {
 		.enable_reg = 0x0b004,
@@ -2495,6 +2500,7 @@ static struct clk_branch gcc_crypto_axi_clk = {
 
 static struct clk_branch gcc_crypto_clk = {
 	.halt_reg = 0x1601c,
+	.halt_check = BRANCH_HALT_VOTED,
 	.halt_bit = 31,
 	.clkr = {
 		.enable_reg = 0x0b004,
@@ -3787,6 +3793,7 @@ static struct clk_branch gcc_pcie1_pipe_clk = {
 
 static struct clk_branch gcc_prng_ahb_clk = {
 	.halt_reg = 0x13004,
+	.halt_check = BRANCH_HALT_VOTED,
 	.halt_bit = 31,
 	.clkr = {
 		.enable_reg = 0x0b004,
