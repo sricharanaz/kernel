@@ -60,6 +60,7 @@ static int msm_restart_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *mem;
+	int ret = 0;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	msm_ps_hold = devm_ioremap_resource(dev, mem);
@@ -70,7 +71,11 @@ static int msm_restart_probe(struct platform_device *pdev)
 
 	register_reboot_notifier(&reboot_nb1);
 
-	return 0;
+	ret = register_restart_handler(&restart_nb);
+	if (ret)
+		pr_err("Can't register restart handler err = %d\n", ret);
+
+	return ret;
 }
 
 static const struct of_device_id of_msm_restart_match[] = {

@@ -362,7 +362,17 @@ int __qcom_scm_pas_mss_reset(struct device *dev, bool reset)
 int __qcom_scm_regsave(struct device *dev, u32 svc_id, u32 cmd_id,
 			void *scm_regsave)
 {
-	return -ENOTSUPP;
+	struct scm_desc desc = {0};
+	struct arm_smccc_res res;
+	int ret;
+
+	desc.args[0] = (u64)virt_to_phys(scm_regsave);
+	desc.args[1] = PAGE_SIZE;
+	desc.arginfo = SCM_ARGS(2, SCM_RW, SCM_VAL);
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_REGSAVE, QCOM_SCM_REGSAVE_CMD,
+				&desc, &res);
+
+	return ret ? : res.a1;
 }
 
 int __qcom_scm_tcsr(struct device *dev, u32 svc_id, u32 cmd_id,
@@ -373,12 +383,37 @@ int __qcom_scm_tcsr(struct device *dev, u32 svc_id, u32 cmd_id,
 
 int __qcom_scm_dload(struct device *dev, u32 svc_id, u32 cmd_id, void *cmd_buf)
 {
-	return -ENOTSUPP;
+	struct scm_desc desc = {0};
+	struct arm_smccc_res res;
+	int ret;
+	unsigned int enable = *((unsigned int *)cmd_buf);
+
+#define TCSR_BOOT_MISC_REG	0x193d100ull
+#define DLOAD_MODE_ENABLE	0x10ull
+#define DLOAD_MODE_DISABLE	0x00ull
+
+	desc.args[0] = TCSR_BOOT_MISC_REG;
+	desc.args[1] = enable ? DLOAD_MODE_ENABLE : DLOAD_MODE_DISABLE;
+	desc.arginfo = SCM_ARGS(2, SCM_VAL, SCM_VAL);
+	ret = qcom_scm_call(dev, SCM_SVC_IO_ACCESS, SCM_IO_WRITE,
+				&desc, &res);
+
+	return ret ? : res.a1;
 }
 
 int __qcom_scm_sdi(struct device *dev, u32 svc_id, u32 cmd_id)
 {
-	return -ENOTSUPP;
+	struct scm_desc desc = {0};
+	struct arm_smccc_res res;
+	int ret;
+
+	desc.args[0] = 1ull; /* Disable wdog debug */
+	desc.args[1] = 0ull; /* SDI Enable */
+	desc.arginfo = SCM_ARGS(2, SCM_VAL, SCM_VAL);
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT,
+		SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID, &desc, &res);
+
+	return ret ? : res.a1;
 }
 
 int __qcom_scm_tzsched(struct device *dev, const void *req, size_t req_size,
