@@ -311,7 +311,7 @@
 			#size-cells = <0>;
 			reg = <0x78b5000 0x600>;
 			interrupts = <0 95 0>;
-			spi-max-frequency = <24000000>;
+			spi-max-frequency = <50000000>;
 			clocks = <&gcc GCC_BLSP1_QUP1_SPI_APPS_CLK>,
 				<&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
