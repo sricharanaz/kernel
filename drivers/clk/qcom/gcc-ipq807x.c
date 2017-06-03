@@ -38,7 +38,6 @@
 #include "reset.h"
 
 static struct clk_regmap dummy;
-static struct clk_regmap dummy_i2c_clk;
 
 #define F(f, s, h, m, n) { (f), (s), (2 * (h) - 1), (m), (n) }
 
@@ -4652,7 +4651,6 @@ static const struct alpha_pll_config nss_crypto_pll_config = {
 
 static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[GCC_DUMMY_CLK] = &dummy,
-	[GCC_DUMMY_I2C_CLK] = &dummy_i2c_clk,
 	[GPLL0_MAIN] = &gpll0_main.clkr,
 	[GPLL0] = &gpll0.clkr,
 	[UBI32_PLL_MAIN] = &ubi32_pll_main.clkr,
@@ -5064,15 +5062,6 @@ const struct clk_ops clk_dummy_ops = {
 static struct clk_regmap dummy = {
 	.hw.init = &(struct clk_init_data){
 		.name = "dummy_clk_src",
-		.parent_names = (const char *[]){ "xo"},
-		.num_parents = 1,
-		.ops = &clk_dummy_ops,
-	},
-};
-
-static struct clk_regmap dummy_i2c_clk = {
-	.hw.init = &(struct clk_init_data){
-		.name = "dummy_clk_src_i2c",
 		.parent_names = (const char *[]){ "xo"},
 		.num_parents = 1,
 		.ops = &clk_dummy_ops,
