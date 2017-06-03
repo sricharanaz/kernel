@@ -825,14 +825,22 @@
 };
 
 &qpic_bam {
+	clocks = <&gcc GCC_DUMMY_CLK>;
+	clock-names = "bam_clk";
 	status = "ok";
 };
 
 &nand {
+	clocks = <&gcc GCC_DUMMY_CLK>,
+		<&gcc GCC_DUMMY_CLK>;
+	clock-names = "core", "aon";
 	status = "ok";
 };
 
 &qpic_lcd {
+	clocks = <&gcc GCC_DUMMY_CLK>,
+		<&gcc GCC_DUMMY_CLK>;
+	clock-names = "core", "aon";
 	status = "ok";
 };
 
