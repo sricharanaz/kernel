@@ -232,7 +232,7 @@
 };
 
 &nss_crypto {
-	status = "disabled";
+	status = "ok";
 };
 
 &watchdog {
