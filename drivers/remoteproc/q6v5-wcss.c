@@ -36,6 +36,31 @@
 #define QCOM_MDT_TYPE_HASH      (2 << 24)
 #define STOP_ACK_TIMEOUT_MS 10000
 
+#define QDSP6SS_RST_EVB 0x10
+#define QDSP6SS_RESET 0x14
+#define QDSP6SS_DBG_CFG 0x18
+#define QDSP6SS_XO_CBCR 0x38
+#define QDSP6SS_MEM_PWR_CTL 0xb0
+#define QDSP6SS_SLEEP_CBCR 0x3C
+#define QDSP6SS_BHS_STATUS 0x78
+#define TCSR_GLOBAL_CFG0 0x0
+#define TCSR_GLOBAL_CFG1 0x4
+
+#define QDSP6SS_GFMUX_CTL 0x20
+#define QDSP6SS_PWR_CTL 0x30
+#define TCSR_HALTREQ 0x0
+#define TCSR_HALTACK 0x4
+#define TCSR_Q6_HALTREQ 0x0
+#define TCSR_Q6_HALTACK 0x4
+#define SSCAON_CONFIG 0x8
+#define SSCAON_STATUS 0xc
+#define GCC_WCSS_BCR 0x0
+#define GCC_WCSSAON_RESET 0x10
+#define GCC_WCSS_Q6_BCR 0x100
+#define GCC_MISC_RESET_ADDR 0x8
+#define HALTACK BIT(0)
+#define BHS_EN_REST_ACK BIT(0)
+
 struct q6v5_rtable {
 	struct resource_table rtable;
 	struct fw_rsc_hdr last_hdr;
@@ -53,10 +78,12 @@ static struct q6v5_rtable q6v5_rtable = {
 
 struct q6v5_rproc_pdata {
 	void __iomem *q6_base;
+	void __iomem *tcsr_q6_base;
 	void __iomem *tcsr_base;
 	void __iomem *mpm_base;
 	void __iomem *gcc_bcr_base;
 	void __iomem *gcc_misc_base;
+	void __iomem *tcsr_global_base;
 	struct rproc *rproc;
 	struct subsys_device *subsys;
 	struct subsys_desc subsys_desc;
@@ -89,6 +116,184 @@ static struct resource_table *q6v5_find_rsc_table(struct rproc *rproc,
 	return &(q6v5_rtable.rtable);
 }
 
+static void wcss_powerdown(struct q6v5_rproc_pdata *pdata)
+{
+	unsigned int nretry = 0;
+	unsigned long val = 0;
+	int ret = 0;
+
+	/* Assert WCSS/Q6 HALTREQ - 1 */
+	nretry = 0;
+	val = readl(pdata->tcsr_base + TCSR_HALTREQ);
+	val |= BIT(0);
+	writel(val, pdata->tcsr_base + TCSR_HALTREQ);
+	while (1) {
+		val = readl(pdata->tcsr_base + TCSR_HALTACK);
+		if (val & HALTACK)
+			break;
+		mdelay(1);
+		nretry++;
+		if (nretry >= 10) {
+			pr_warn("can't get TCSR haltACK\n");
+			break;
+		}
+	}
+
+	/* Check HALTACK */
+	/* Set MPM_SSCAON_CONFIG 13 - 2 */
+	val = readl(pdata->mpm_base + SSCAON_CONFIG);
+	val |= BIT(13);
+	writel(val, pdata->mpm_base + SSCAON_CONFIG);
+
+	/* Set MPM_SSCAON_CONFIG 15 - 3 */
+	val = readl(pdata->mpm_base + SSCAON_CONFIG);
+	val |= BIT(15);
+	val &= ~(BIT(16));
+	val &= ~(BIT(17));
+	val &= ~(BIT(18));
+	writel(val, pdata->mpm_base + SSCAON_CONFIG);
+
+	/* Set MPM_SSCAON_CONFIG 1 - 4 */
+	val = readl(pdata->mpm_base + SSCAON_CONFIG);
+	val |= BIT(1);
+	writel(val, pdata->mpm_base + SSCAON_CONFIG);
+
+	/* wait for SSCAON_STATUS to be 0x400 - 5 */
+	nretry = 0;
+	while (1) {
+		val = readl(pdata->mpm_base + SSCAON_STATUS);
+		/* ignore bits 16 to 31 */
+		val &= 0xffff;
+		if (val == BIT(10))
+			break;
+		nretry++;
+		mdelay(1);
+		if (nretry == 10) {
+			pr_warn("can't get SSCAON_STATUS\n");
+			break;
+		}
+	}
+
+	/* Enable Q6/WCSS BLOCK ARES - 6 */
+	val = readl(pdata->gcc_bcr_base + GCC_WCSSAON_RESET);
+	val |= BIT(0);
+	writel(val, pdata->gcc_bcr_base + GCC_WCSSAON_RESET);
+	mdelay(1);
+
+	/* Enable MPM_WCSSAON_CONFIG 13 - 7 */
+	val = readl(pdata->mpm_base + SSCAON_CONFIG);
+	val &= (~(BIT(13)));
+	writel(val, pdata->mpm_base + SSCAON_CONFIG);
+
+	/* Enable A2AB/ACMT/ECHAB ARES - 8 */
+	/* De-assert WCSS/Q6 HALTREQ - 8 */
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	val |= BIT(0);
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	mdelay(1);
+	val = readl(pdata->tcsr_base + TCSR_HALTREQ);
+	val &= ~(BIT(0));
+	writel(val, pdata->tcsr_base + TCSR_HALTREQ);
+
+	return;
+}
+
+static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
+{
+	int i = 0;
+	unsigned int nretry = 0;
+	unsigned long val = 0;
+	int ret = 0;
+
+	/* Halt Q6 bus interface - 9*/
+	val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
+	val |= BIT(0);
+	writel(val, pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
+
+	nretry = 0;
+	while (1) {
+		val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTACK);
+		if (val & HALTACK)
+			break;
+		mdelay(1);
+		nretry++;
+		if (nretry >= 10) {
+			pr_err("can't get TCSR Q6 haltACK\n");
+			break;
+		}
+	}
+
+	/* Disable Q6 Core clock - 10 */
+	val = readl(pdata->q6_base + QDSP6SS_GFMUX_CTL);
+	val &= (~(BIT(1)));
+	writel(val, pdata->q6_base + QDSP6SS_GFMUX_CTL);
+
+	/* Clamp I/O - 11 */
+	val = readl(pdata->q6_base + QDSP6SS_PWR_CTL);
+	val |= BIT(20);
+	writel(val, pdata->q6_base + QDSP6SS_PWR_CTL);
+
+	/* Clamp WL - 12 */
+	val = readl(pdata->q6_base + QDSP6SS_PWR_CTL);
+	val |= BIT(21);
+	writel(val, pdata->q6_base + QDSP6SS_PWR_CTL);
+
+	/* Clear Erase standby - 13 */
+	val = readl(pdata->q6_base + QDSP6SS_PWR_CTL);
+	val &= (~(BIT(18)));
+	writel(val, pdata->q6_base + QDSP6SS_PWR_CTL);
+
+	/* Clear Sleep RTN - 14 */
+	val = readl(pdata->q6_base + QDSP6SS_PWR_CTL);
+	val &= (~(BIT(19)));
+	writel(val, pdata->q6_base + QDSP6SS_PWR_CTL);
+
+	/* turn off QDSP6 memory foot/head switch one bank at a time - 15*/
+	for (i = 0; i < 20; i++) {
+		val = readl(pdata->q6_base + QDSP6SS_MEM_PWR_CTL);
+		val &= (~(BIT(i)));
+		writel(val, pdata->q6_base + QDSP6SS_MEM_PWR_CTL);
+		mdelay(1);
+	}
+
+	/* Assert QMC memory RTN - 16 */
+	val = readl(pdata->q6_base + QDSP6SS_PWR_CTL);
+	val |= BIT(22);
+	writel(val, pdata->q6_base + QDSP6SS_PWR_CTL);
+
+	/* Turn off BHS - 17 */
+	val = readl(pdata->q6_base + QDSP6SS_PWR_CTL);
+	val &= (~(BIT(24)));
+	writel(val, pdata->q6_base + QDSP6SS_PWR_CTL);
+	udelay(1);
+	/* Wait till BHS Reset is done */
+	nretry = 0;
+	while (1) {
+		val = readl(pdata->q6_base + QDSP6SS_BHS_STATUS);
+		if (!(val & BHS_EN_REST_ACK))
+			break;
+		mdelay(1);
+		nretry++;
+		if (nretry >= 10) {
+			pr_err("BHS_STATUS not OFF\n");
+			break;
+		}
+	}
+
+	/* HALT CLEAR - 18 */
+	val = readl(pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
+	val &= ~(BIT(0));
+	writel(val, pdata->tcsr_q6_base + TCSR_Q6_HALTREQ);
+
+	/* Enable Q6 Block reset - 19 */
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+	val |= BIT(0);
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+	mdelay(2);
+
+	return;
+}
+
 static int q6_rproc_stop(struct rproc *rproc)
 {
 	struct device *dev = rproc->dev.parent;
@@ -96,7 +301,6 @@ static int q6_rproc_stop(struct rproc *rproc)
 	struct q6v5_rproc_pdata *pdata = platform_get_drvdata(pdev);
 	unsigned long val = 0;
 	int ret = 0;
-	unsigned int nretry = 0;
 
 	pdata->running = false;
 	if (pdata->secure) {
@@ -107,120 +311,11 @@ static int q6_rproc_stop(struct rproc *rproc)
 	}
 
 	/* Non secure */
-#define TCSR_HALTREQ 0x0
-#define TCSR_HALTACK 0x4
-#define QDSP6SS_INTF_HALTREQ 0x88
-#define QDSP6SS_INTF_HALTACK 0x8c
-#define SSCAON_CONFIG 0x8
-#define GCC_WCSS_BCR 0x0
-#define GCC_WCSS_Q6_BCR 0x100
-#define GCC_MISC_RESET_ADDR 0x8
-#define HALTACK BIT(0)
+	/* WCSS powerdown */
+	wcss_powerdown(pdata);
 
-	/* Assert WCSS/Q6 HALTREQ */
-	val = readl(pdata->tcsr_base + TCSR_HALTREQ);
-	val |= BIT(0);
-	writel(val, pdata->tcsr_base + TCSR_HALTREQ);
-	mdelay(1000);
-
-	val = readl(pdata->q6_base + QDSP6SS_INTF_HALTREQ);
-	val |= BIT(0);
-	writel(val, pdata->q6_base + QDSP6SS_INTF_HALTREQ);
-	mdelay(1000);
-
-	/* Check HALTACK */
-	if (pdata->emulation == 1) {
-		val = readl(pdata->tcsr_base + TCSR_HALTACK);
-		mdelay(1000);
-		val = readl(pdata->q6_base + QDSP6SS_INTF_HALTACK);
-		mdelay(1000);
-	} else {
-		while (1) {
-			val = readl(pdata->tcsr_base + TCSR_HALTACK);
-			if (val & HALTACK)
-				break;
-			mdelay(1);
-			nretry++;
-			if (nretry >= 10) {
-				pr_err("Can't bring q6 to halt\n");
-				return -EIO;
-			}
-		}
-		nretry = 0;
-		while (1) {
-			val = readl(pdata->q6_base + QDSP6SS_INTF_HALTACK);
-			if (val & HALTACK)
-				break;
-			mdelay(1);
-			nretry++;
-			if (nretry >= 10) {
-				pr_err("Can't bring q6 to halt\n");
-				return -EIO;
-			}
-		}
-	}
-
-	/* Set MPM_SSCAON_CONFIG 1 */
-	val = readl(pdata->mpm_base + SSCAON_CONFIG);
-	val |= BIT(1);
-	writel(val, pdata->mpm_base + SSCAON_CONFIG);
-	mdelay(1000);
-
-	/* Set MPM_SSCAON_CONFIG 0 */
-	val = readl(pdata->mpm_base + SSCAON_CONFIG);
-	val &= ~(BIT(0));
-	writel(val, pdata->mpm_base + SSCAON_CONFIG);
-	mdelay(1000);
-
-	/* Set MPM_SSCAON_CONFIG 1 */
-	val = readl(pdata->mpm_base + SSCAON_CONFIG);
-	val &= ~(BIT(1));
-	writel(val, pdata->mpm_base + SSCAON_CONFIG);
-	mdelay(1000);
-
-	/* Enable Q6/WCSS BLOCK ARES */
-	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
-	val |= BIT(0);
-	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
-	mdelay(1000);
-
-	val = readl(pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
-	val |= BIT(0);
-	writel(val, pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
-	mdelay(1000);
-
-	/* Enable A2AB/ACMT/ECHAB ARES */
-	val = readl(pdata->gcc_misc_base + GCC_MISC_RESET_ADDR);
-	val |= 0xe;
-	writel(val, pdata->gcc_misc_base + GCC_MISC_RESET_ADDR);
-
-	/* De-assert WCSS/Q6 HALTREQ */
-	val = readl(pdata->tcsr_base + TCSR_HALTREQ);
-	val &= ~(BIT(0));
-	writel(val, pdata->tcsr_base + TCSR_HALTREQ);
-
-	val = readl(pdata->q6_base + QDSP6SS_INTF_HALTREQ);
-	val &= ~(BIT(0));
-	writel(val, pdata->q6_base + QDSP6SS_INTF_HALTREQ);
-
-	/* Release A2AB/ACMT/ECHAB ARES */
-	val = readl(pdata->gcc_misc_base + GCC_MISC_RESET_ADDR);
-	val &= (~0xf);
-	writel(val, pdata->gcc_misc_base + GCC_MISC_RESET_ADDR);
-
-	/* Release Q6/WCSS BLOCK ARES */
-	val = readl(pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
-	val &= ~(BIT(0));
-	writel(val, pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
-
-	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
-	val &= ~(BIT(0));
-	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
-
-	/* Set MPM_SSCAON_CONFIG 0 */
-	val = readl(pdata->mpm_base + SSCAON_CONFIG);
-	val |= BIT(0);
-	writel(val, pdata->mpm_base + SSCAON_CONFIG);
+	/* Q6 Power down */
+	q6_powerdown(pdata);
 
 	return ret;
 }
@@ -244,16 +339,23 @@ static int q6_rproc_start(struct rproc *rproc)
 		goto skip_reset;
 	}
 
-#define QDSP6SS_RST_EVB 0x10
-#define QDSP6SS_RESET 0x14
-#define QDSP6SS_DBG_CFG 0x18
-#define QDSP6SS_GFMUX_CTL 0x20
-#define QDSP6SS_XO_CBCR 0x38
-#define QDSP6SS_PWR_CTL 0x30
-#define QDSP6SS_MEM_PWR_CTL 0xb0
-#define QDSP6SS_SLEEP_CBCR 0x3C
-#define QDSP6SS_BHS_STATUS 0x78
-#define BHS_EN_REST_ACK BIT(0)
+	/* Release Q6 and WCSS reset */
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	val &= ~(BIT(0));
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_BCR);
+	val = readl(pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+	val &= ~(BIT(0));
+	writel(val, pdata->gcc_bcr_base + GCC_WCSS_Q6_BCR);
+
+	/* This is for Lithium configuration - clock gating */
+	val = readl(pdata->tcsr_global_base + TCSR_GLOBAL_CFG0);
+	val |= 0x14;
+	writel(val, pdata->tcsr_global_base + TCSR_GLOBAL_CFG0);
+
+	/* This is for Lithium configuration - bus arbitration */
+	val = readl(pdata->tcsr_global_base + TCSR_GLOBAL_CFG1);
+	val = 0;
+	writel(val, pdata->tcsr_global_base + TCSR_GLOBAL_CFG1);
 
 	/* Write bootaddr to EVB so that Q6WCSS will jump there after reset */
 	writel(rproc->bootaddr >> 4, pdata->q6_base + QDSP6SS_RST_EVB);
@@ -261,22 +363,21 @@ static int q6_rproc_start(struct rproc *rproc)
 	writel(0x1, pdata->q6_base + QDSP6SS_XO_CBCR);
 	/* Turn on BHS */
 	writel(0x1700000, pdata->q6_base + QDSP6SS_PWR_CTL);
+	udelay(1);
+
 	/* Wait till BHS Reset is done */
-	if (pdata->emulation == 1) {
-		mdelay(100);
-	} else {
-		while (1) {
-			val = readl(pdata->q6_base + QDSP6SS_BHS_STATUS);
-			if (val & BHS_EN_REST_ACK)
-				break;
-			mdelay(1);
-			nretry++;
-			if (nretry >= 10) {
-				pr_err("Can't bring q6 out of reset\n");
-				return -EIO;
-			}
+	while (1) {
+		val = readl(pdata->q6_base + QDSP6SS_BHS_STATUS);
+		if (val & BHS_EN_REST_ACK)
+			break;
+		mdelay(1);
+		nretry++;
+		if (nretry >= 10) {
+			pr_err("BHS_STATUS not ON\n");
+			break;
 		}
 	}
+
 	/* Put LDO in bypass mode */
 	writel(0x3700000, pdata->q6_base + QDSP6SS_PWR_CTL);
 	/* De-assert QDSP6 complier memory clamp */
@@ -297,17 +398,16 @@ static int q6_rproc_start(struct rproc *rproc)
 	writel(0x31FFFFF, pdata->q6_base + QDSP6SS_PWR_CTL);
 	/* Remove QDSP6 I/O clamp */
 	writel(0x30FFFFF, pdata->q6_base + QDSP6SS_PWR_CTL);
+
 	/* Bring Q6 out of reset and stop the core */
 	writel(0x5, pdata->q6_base + QDSP6SS_RESET);
-	mdelay(10);
+
 	/* Retain debugger state during next QDSP6 reset */
 	writel(0x0, pdata->q6_base + QDSP6SS_DBG_CFG);
 	/* Turn on the QDSP6 core clock */
 	writel(0x102, pdata->q6_base + QDSP6SS_GFMUX_CTL);
 	/* Enable the core to run */
 	writel(0x4, pdata->q6_base + QDSP6SS_RESET);
-	/* QDSP6SS_QDSP6SS Scalar bring-up completed */
-	val = readl(pdata->q6_base + QDSP6SS_MEM_PWR_CTL);
 
 skip_reset:
 	pdata->running = true;
@@ -597,6 +697,16 @@ static int q6_rproc_probe(struct platform_device *pdev)
 			goto free_rproc;
 
 		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"tcsr-q6-base");
+		if (unlikely(!resource))
+			goto free_rproc;
+
+		q6v5_rproc_pdata->tcsr_q6_base = ioremap(resource->start,
+				resource_size(resource));
+		if (!q6v5_rproc_pdata->tcsr_q6_base)
+			goto free_rproc;
+
+		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						"tcsr-base");
 		if (unlikely(!resource))
 			goto free_rproc;
@@ -634,6 +744,16 @@ static int q6_rproc_probe(struct platform_device *pdev)
 		q6v5_rproc_pdata->gcc_misc_base = ioremap(resource->start,
 				resource_size(resource));
 		if (!q6v5_rproc_pdata->gcc_misc_base)
+			goto free_rproc;
+
+		resource = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						"tcsr-global");
+		if (unlikely(!resource))
+			goto free_rproc;
+
+		q6v5_rproc_pdata->tcsr_global_base = ioremap(resource->start,
+				resource_size(resource));
+		if (!q6v5_rproc_pdata->tcsr_global_base)
 			goto free_rproc;
 
 	}
@@ -696,8 +816,15 @@ free_rproc:
 	if (q6v5_rproc_pdata->tcsr_base)
 		iounmap(q6v5_rproc_pdata->tcsr_base);
 
+	if (q6v5_rproc_pdata->tcsr_q6_base)
+		iounmap(q6v5_rproc_pdata->tcsr_q6_base);
+
 	if (q6v5_rproc_pdata->q6_base)
 		iounmap(q6v5_rproc_pdata->q6_base);
+
+	if (q6v5_rproc_pdata->tcsr_global_base)
+		iounmap(q6v5_rproc_pdata->tcsr_global_base);
+
 
 	rproc_put(rproc);
 	return -EIO;
