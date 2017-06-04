@@ -546,6 +546,10 @@
 				qcom,aes192-cbc-sha1-hmac;
 				qcom,aes256-cbc-sha1-hmac;
 				qcom,3des-cbc-sha1-hmac;
+				qcom,aes128-cbc-sha256-hmac;
+				qcom,aes192-cbc-sha256-hmac;
+				qcom,aes256-cbc-sha256-hmac;
+				qcom,3des-cbc-sha256-hmac;
 
 				engine0 {
 					reg_offset = <0x80000>;
