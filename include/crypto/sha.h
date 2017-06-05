@@ -101,4 +101,6 @@ extern int crypto_sha512_update(struct shash_desc *desc, const u8 *data,
 
 extern int crypto_sha512_finup(struct shash_desc *desc, const u8 *data,
 			       unsigned int len, u8 *hash);
+extern void sha256_transform(u32 *state, const u8 *input);
+extern void sha512_transform(u64 *state, const u8 *input);
 #endif
