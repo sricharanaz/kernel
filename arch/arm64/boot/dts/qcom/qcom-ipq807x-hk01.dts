@@ -527,6 +527,18 @@
 		phy-mode = "sgmii";
 	};
 
+	dp6 {
+		device_type = "network";
+		compatible = "qcom,nss-dp";
+		qcom,id = <6>;
+		reg = <0x3a007000 0x3fff>;
+		qcom,mactype = <1>;
+		local-mac-address = [000000000000];
+		qcom,link-poll = <1>;
+		qcom,phy-mdio-addr = <7>;
+		phy-mode = "sgmii";
+	};
+
 	nss-common {
 		compatible = "qcom,nss-common";
 		reg = <0x01868010 0x1000>;
