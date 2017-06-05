@@ -109,6 +109,7 @@
 		reg = <0x3a001000 0x200>;
 		qcom,mactype = <0>;
 		local-mac-address = [000000000000];
+		qcom,forced-speed = <1000>;
 	};
 
 	dp2 {
@@ -118,6 +119,7 @@
 		reg = <0x3a001200 0x200>;
 		qcom,mactype = <0>;
 		local-mac-address = [000000000000];
+		qcom,forced-speed = <1000>;
 	};
 
 	dp3 {
@@ -127,6 +129,7 @@
 		reg = <0x3a001400 0x200>;
 		qcom,mactype = <0>;
 		local-mac-address = [000000000000];
+		qcom,forced-speed = <1000>;
 	};
 
 	dp4 {
@@ -136,6 +139,7 @@
 		reg = <0x3a001600 0x200>;
 		qcom,mactype = <0>;
 		local-mac-address = [000000000000];
+		qcom,forced-speed = <1000>;
 	};
 
 	dp5 {
@@ -145,6 +149,7 @@
 		reg = <0x3a003000 0x3fff>;
 		qcom,mactype = <1>;
 		local-mac-address = [000000000000];
+		qcom,forced-speed = <10000>;
 	};
 
 	dp6 {
@@ -154,6 +159,7 @@
 		reg = <0x3a007000 0x3fff>;
 		qcom,mactype = <1>;
 		local-mac-address = [000000000000];
+		qcom,forced-speed = <10000>;
 	};
 
 	serial_blsp2: serial@78B1000 {
@@ -486,10 +492,8 @@
 
 	nss-common {
 		compatible = "qcom,nss-common";
-		reg = <0x01d00000 0x1000>;
-		reg-names = "nss_fpb_base";
-		clocks = <&gcc GCC_DUMMY_CLK>, <&gcc GCC_DUMMY_CLK>;
-		clock-names = "nss-core-clk", "nss-tcm-clk";
+		reg = <0x01868010 0x1000>;
+		reg-names = "nss-misc-reset";
 	};
 
 	nss0: nss@40000000 {
@@ -499,15 +503,29 @@
 		reg = <0x39000000 0x1000>, <0x38000000 0x30000>,
 		      <0x0b111000 0x1000>;
 		reg-names = "nphys", "vphys", "qgic-phys";
-		clocks = <&gcc GCC_DUMMY_CLK>, <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
-		clock-names = "nss-core-clk", "nss-tcm-src",
-			      "nss-tcm-clk";
-		resets = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
-		reset-names = "clkrst-clamp", "clamp", "ahb", "axi";
+		clocks = <&gcc GCC_NSS_NOC_CLK>, <&gcc GCC_NSS_PTP_REF_CLK>,
+			 <&gcc GCC_NSS_CSR_CLK>, <&gcc GCC_NSS_CFG_CLK>,
+			 <&gcc GCC_NSS_IMEM_CLK>,
+			 <&gcc GCC_NSSNOC_QOSGEN_REF_CLK>,
+			 <&gcc GCC_MEM_NOC_NSS_AXI_CLK>,
+			 <&gcc GCC_NSSNOC_SNOC_CLK>,
+			 <&gcc GCC_NSSNOC_TIMEOUT_REF_CLK>,
+			 <&gcc GCC_NSS_CE_AXI_CLK>, <&gcc GCC_NSS_CE_APB_CLK>,
+			 <&gcc GCC_NSSNOC_CE_AXI_CLK>,
+			 <&gcc GCC_NSSNOC_CE_APB_CLK>,
+			 <&gcc GCC_NSSNOC_UBI0_AHB_CLK>,
+			 <&gcc GCC_UBI0_CORE_CLK>, <&gcc GCC_UBI0_AHB_CLK>,
+			 <&gcc GCC_UBI0_AXI_CLK>, <&gcc GCC_UBI0_MPT_CLK>,
+			 <&gcc GCC_UBI0_NC_AXI_CLK>;
+		clock-names = "nss-noc-clk", "nss-ptp-ref-clk", "nss-csr-clk",
+			      "nss-cfg-clk", "nss-imem-clk",
+			      "nss-nssnoc-qosgen-ref-clk",
+			      "nss-mem-noc-nss-axi-clk", "nss-nssnoc-snoc-clk",
+			      "nss-nssnoc-timeout-ref-clk", "nss-ce-axi-clk",
+			      "nss-ce-apb-clk", "nss-nssnoc-ce-axi-clk",
+			      "nss-nssnoc-ce-apb-clk", "nss-nssnoc-ahb-clk",
+			      "nss-core-clk", "nss-ahb-clk", "nss-axi-clk",
+			      "nss-mpt-clk", "nss-nc-axi-clk";
 		qcom,id = <0>;
 		qcom,num-queue = <4>;
 		qcom,num-irq = <7>;
@@ -537,15 +555,29 @@
 		reg = <0x39400000 0x1000>, <0x38030000 0x30000>,
 			<0x0b111000 0x1000>;
 		reg-names = "nphys", "vphys", "qgic-phys";
-		clocks = <&gcc GCC_DUMMY_CLK>, <&gcc GCC_DUMMY_CLK>,
-			<&gcc GCC_DUMMY_CLK>;
-		clock-names = "nss-core-clk", "nss-tcm-src",
-				"nss-tcm-clk";
-		resets = <&gcc GCC_DUMMY_CLK>,
-			<&gcc GCC_DUMMY_CLK>,
-			<&gcc GCC_DUMMY_CLK>,
-			<&gcc GCC_DUMMY_CLK>;
-		reset-names = "clkrst-clamp", "clamp", "ahb", "axi";
+		clocks = <&gcc GCC_NSS_NOC_CLK>, <&gcc GCC_NSS_PTP_REF_CLK>,
+			 <&gcc GCC_NSS_CSR_CLK>, <&gcc GCC_NSS_CFG_CLK>,
+			 <&gcc GCC_NSS_IMEM_CLK>,
+			 <&gcc GCC_NSSNOC_QOSGEN_REF_CLK>,
+			 <&gcc GCC_MEM_NOC_NSS_AXI_CLK>,
+			 <&gcc GCC_NSSNOC_SNOC_CLK>,
+			 <&gcc GCC_NSSNOC_TIMEOUT_REF_CLK>,
+			 <&gcc GCC_NSS_CE_AXI_CLK>, <&gcc GCC_NSS_CE_APB_CLK>,
+			 <&gcc GCC_NSSNOC_CE_AXI_CLK>,
+			 <&gcc GCC_NSSNOC_CE_APB_CLK>,
+			 <&gcc GCC_NSSNOC_UBI1_AHB_CLK>,
+			 <&gcc GCC_UBI1_CORE_CLK>, <&gcc GCC_UBI1_AHB_CLK>,
+			 <&gcc GCC_UBI1_AXI_CLK>, <&gcc GCC_UBI1_MPT_CLK>,
+			 <&gcc GCC_UBI1_NC_AXI_CLK>;
+		clock-names = "nss-noc-clk", "nss-ptp-ref-clk", "nss-csr-clk",
+			      "nss-cfg-clk", "nss-imem-clk",
+			      "nss-nssnoc-qosgen-ref-clk",
+			      "nss-mem-noc-nss-axi-clk", "nss-nssnoc-snoc-clk",
+			      "nss-nssnoc-timeout-ref-clk", "nss-ce-axi-clk",
+			      "nss-ce-apb-clk", "nss-nssnoc-ce-axi-clk",
+			      "nss-nssnoc-ce-apb-clk", "nss-nssnoc-ahb-clk",
+			      "nss-core-clk", "nss-ahb-clk", "nss-axi-clk",
+			      "nss-mpt-clk", "nss-nc-axi-clk";
 		qcom,id = <1>;
 		qcom,num-queue = <4>;
 		qcom,num-irq = <7>;
