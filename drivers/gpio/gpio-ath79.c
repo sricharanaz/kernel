@@ -15,8 +15,17 @@
 #include <linux/gpio/driver.h>
 #include <linux/platform_data/gpio-ath79.h>
 #include <linux/of_device.h>
+#include <asm/prom.h>
 
 #include <asm/mach-ath79/ar71xx_regs.h>
+#include <asm/mach-ath79/ath79.h>
+
+#define AP147_V2_ID			17
+#define WMAC1_CALDATA_OFFSET		0x5000
+#define BOARDID_OFFSET			0x20
+
+void __iomem *ath79_gpio_base;
+EXPORT_SYMBOL_GPL(ath79_gpio_base);
 
 struct ath79_gpio_ctrl {
 	struct gpio_chip chip;
@@ -83,6 +92,93 @@ static int ath79_gpio_direction_output(struct gpio_chip *chip,
 	return 0;
 }
 
+void ath79_gpio_output_select(struct gpio_chip *chip,
+					unsigned gpio, u8 val)
+{
+	struct ath79_gpio_ctrl *ctrl = to_ath79_gpio_ctrl(chip);
+	unsigned long flags;
+	unsigned int reg;
+	u32 t, s;
+
+	WARN_ON(!soc_is_ar934x() && !soc_is_qca953x() && !soc_is_qca956x());
+
+	if (gpio >= ctrl->chip.ngpio)
+		return;
+
+	reg = AR934X_GPIO_REG_OUT_FUNC0 + 4 * (gpio / 4);
+	s = 8 * (gpio % 4);
+
+	spin_lock_irqsave(&ctrl->lock, flags);
+
+	t = __raw_readl(ctrl->base + reg);
+	t &= ~(0xff << s);
+	t |= val << s;
+	__raw_writel(t, ctrl->base + reg);
+
+	/* flush write */
+	(void) __raw_readl(ctrl->base + reg);
+
+	spin_unlock_irqrestore(&ctrl->lock, flags);
+}
+
+int ath79_gpio_direction_select(struct gpio_chip *chip,
+					unsigned gpio, bool oe)
+{
+	struct ath79_gpio_ctrl *ctrl = to_ath79_gpio_ctrl(chip);
+	unsigned long flags;
+	bool oe_inverted = (soc_is_ar934x() || soc_is_qca953x());
+
+	spin_lock_irqsave(&ctrl->lock, flags);
+
+	if ((oe_inverted && oe) || (!oe_inverted && !oe))
+		__raw_writel(
+			__raw_readl(
+				ctrl->base + AR71XX_GPIO_REG_OE) & ~(1 << gpio),
+				ctrl->base + AR71XX_GPIO_REG_OE);
+	else
+		__raw_writel(
+			__raw_readl(
+				ctrl->base + AR71XX_GPIO_REG_OE) | (1 << gpio),
+				ctrl->base + AR71XX_GPIO_REG_OE);
+
+	spin_unlock_irqrestore(&ctrl->lock, flags);
+
+	return 0;
+}
+
+static void __iomem *ath79_gpio_get_function_reg(struct gpio_chip *chip)
+{
+	struct ath79_gpio_ctrl *ctrl = to_ath79_gpio_ctrl(chip);
+	u32 reg = 0;
+
+	if (soc_is_ar71xx() ||
+	    soc_is_ar724x() ||
+	    soc_is_ar913x() ||
+	    soc_is_ar933x())
+		reg = AR71XX_GPIO_REG_FUNC;
+	else if (soc_is_ar934x() || soc_is_qca953x() || soc_is_qca956x())
+		reg = AR934X_GPIO_REG_FUNC;
+	else
+		WARN(1, "Unsupported SOC");
+
+	return ctrl->base + reg;
+}
+
+void ath79_gpio_function_enable(struct gpio_chip *chip, u32 mask)
+{
+	struct ath79_gpio_ctrl *ctrl = to_ath79_gpio_ctrl(chip);
+	void __iomem *reg = ath79_gpio_get_function_reg(chip);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ctrl->lock, flags);
+
+	__raw_writel(__raw_readl(reg) | mask, reg);
+	/* flush write */
+	__raw_readl(reg);
+
+	spin_unlock_irqrestore(&ctrl->lock, flags);
+}
+
 static int ar934x_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct ath79_gpio_ctrl *ctrl = to_ath79_gpio_ctrl(chip);
@@ -145,6 +241,10 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 	u32 ath79_gpio_count;
 	bool oe_inverted;
 	int err;
+	const __be32 *paddr;
+	int len;
+	int i;
+	u8 *art = KSEG1ADDR(0x1fff0000);
 
 	ctrl = devm_kzalloc(&pdev->dev, sizeof(*ctrl), GFP_KERNEL);
 	if (!ctrl)
@@ -189,6 +289,30 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev,
 			"cannot add AR71xx GPIO chip, error=%d", err);
 		return err;
+	}
+
+	if (strncmp(mips_get_machine_name(), "QCA AP147 Board", 15) == 0) {
+		u8 board_id = *(art + WMAC1_CALDATA_OFFSET + BOARDID_OFFSET);
+
+		pr_info("AP147 Reference Board Id is %d\n", board_id);
+		if (board_id == AP147_V2_ID)
+			ath79_gpio_function_enable(&ctrl->chip,
+						AR934X_GPIO_FUNC_JTAG_DISABLE);
+	}
+
+	paddr = of_get_property(np, "val,gpio", &len);
+
+	if (!paddr || len < (2 * sizeof(*paddr)))
+		return -EINVAL;
+
+	len /= sizeof(*paddr);
+	for (i = 0; i < len - 1; i += 2) {
+		u32 gpio;
+		u32 val;
+
+		val = be32_to_cpup(paddr + i);
+		gpio = be32_to_cpup(paddr + i + 1);
+		ath79_gpio_output_select(&ctrl->chip, gpio, val);
 	}
 
 	return 0;
