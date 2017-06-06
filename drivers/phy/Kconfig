@@ -306,6 +306,13 @@ config PHY_QCOM_APQ8064_SATA
 	depends on OF
 	select GENERIC_PHY
 
+config PHY_QCA_PCIE_QMP
+	bool "PCIe QMP PHY driver"
+	depends on ARCH_QCOM
+	depends on HAS_IOMEM
+	depends on OF
+	select GENERIC_PHY
+
 config PHY_QCOM_DWC3
 	tristate "Qualcomm DWC3 USB PHY support"
 	depends on ARCH_QCOM
