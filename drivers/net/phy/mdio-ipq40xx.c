@@ -41,6 +41,8 @@
 #define IPQ40XX_MDIO_RETRY	1000
 #define IPQ40XX_MDIO_DELAY	10
 
+#define IPQ40XX_MAX_PHY_RESET	2
+
 struct ipq40xx_mdio_data {
 	struct mii_bus *mii_bus;
 	void __iomem *membase;
@@ -164,11 +166,38 @@ static int ipq40xx_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	return 0;
 }
 
+static int ipq40xx_phy_gpio_set(struct platform_device *pdev, int number)
+{
+	int ret;
+
+	ret = gpio_request(number, "phy-reset-gpio");
+	if (ret) {
+		dev_err(&pdev->dev, "Can't get phy-reset-gpio %d\n", ret);
+		return ret;
+	}
+
+	ret = gpio_direction_output(number, 0x0);
+	if (ret) {
+		dev_err(&pdev->dev,
+			"Can't set direction for phy-reset-gpio %d\n", ret);
+		goto phy_reset_out;
+	}
+
+	usleep_range(10000, 20000);
+
+	gpio_set_value(number, 0x01);
+
+phy_reset_out:
+	gpio_free(number);
+
+	return ret;
+}
+
 static int ipq40xx_phy_reset(struct platform_device *pdev)
 {
 	struct device_node *mdio_node;
 	int phy_reset_gpio_number;
-	int ret;
+	int ret, i;
 
 	mdio_node = of_find_node_by_name(NULL, "mdio");
 	if (!mdio_node) {
@@ -176,35 +205,20 @@ static int ipq40xx_phy_reset(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	ret = of_get_named_gpio(mdio_node, "phy-reset-gpio", 0);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "Could not find phy-reset-gpio\n");
-		return ret;
+	for (i = 0; i < IPQ40XX_MAX_PHY_RESET; i++) {
+		ret = of_get_named_gpio(mdio_node, "phy-reset-gpio", i);
+		if (ret < 0) {
+			dev_info(&pdev->dev, "Could not find phy-reset-gpio\n");
+			return 0;
+		}
+
+		phy_reset_gpio_number = ret;
+		ret = ipq40xx_phy_gpio_set(pdev, phy_reset_gpio_number);
+		if (ret)
+			return ret;
 	}
 
-	phy_reset_gpio_number = ret;
-
-	ret = gpio_request(phy_reset_gpio_number, "phy-reset-gpio");
-	if (ret) {
-		dev_err(&pdev->dev, "Can't get phy-reset-gpio %d\n", ret);
-		return ret;
-	}
-
-	ret = gpio_direction_output(phy_reset_gpio_number, 0x0);
-	if (ret) {
-		dev_err(&pdev->dev,
-			"Can't set direction for phy-reset-gpio %d\n", ret);
-		goto phy_reset_out;
-	}
-
-	usleep_range(1000, 10005);
-
-	gpio_set_value(phy_reset_gpio_number, 0x01);
-
-phy_reset_out:
-	gpio_free(phy_reset_gpio_number);
-
-	return ret;
+	return 0;
 }
 
 static int ipq40xx_mdio_probe(struct platform_device *pdev)
