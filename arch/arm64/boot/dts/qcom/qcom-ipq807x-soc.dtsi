@@ -322,7 +322,7 @@
 
 		q6v5_wcss: q6v5_wcss@CD00000 {
 			compatible = "qca,q6v5-wcss-rproc";
-			firmware = "IPQ8074/M8074QCAHKAWPLQ_WLANFW.mdt";
+			firmware = "IPQ8074/q6_fw.mdt";
 			reg = <0xCD00000 0x4040>,
 				<0x194f000 0x10>,
 				<0x1952000 0x10>,

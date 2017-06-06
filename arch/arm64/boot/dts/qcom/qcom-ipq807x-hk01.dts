@@ -214,25 +214,8 @@
 	status = "ok";
 };
 
-&q6v5_wcss {
-	qca,emulation = <1>;
-	status = "disabled";
-};
-
-&apcs {
-	status = "disabled";
-};
-
-&wcss {
-	status = "disabled";
-};
-
 &smem {
 	status = "ok";
-};
-
-&tcsr_mutex_block {
-	status = "disabled";
 };
 
 &tcsr_mutex {
@@ -245,10 +228,6 @@
 
 &watchdog {
 	status = "ok";
-};
-
-&glink_mpss_ssr {
-	status = "disabled";
 };
 
 &glink_modem {
