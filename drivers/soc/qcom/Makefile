@@ -33,6 +33,7 @@ ifdef CONFIG_IPQ_SUBSYSTEM_RESTART
 	obj-y += subsystem_notif.o
 	obj-y += subsystem_restart.o
 	obj-y += ramdump.o
+	obj-$(CONFIG_IPQ_SUBSYSTEM_RESTART_TEST) += testssr.o
 endif
 
 obj-$(CONFIG_QCOM_TZ_LOG) += tz_log.o
