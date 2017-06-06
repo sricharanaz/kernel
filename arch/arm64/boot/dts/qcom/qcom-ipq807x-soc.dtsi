@@ -324,15 +324,19 @@
 			compatible = "qca,q6v5-wcss-rproc";
 			firmware = "IPQ8074/M8074QCAHKAWPLQ_WLANFW.mdt";
 			reg = <0xCD00000 0x4040>,
+				<0x194f000 0x10>,
 				<0x1952000 0x10>,
-				<0x4ab000 0x10>,
+				<0x4ab000 0x20>,
 				<0x1818000 0x110>,
-				<0x1859000 0x10>;
+				<0x1859000 0x10>,
+				<0x1945000 0x10>;
 			reg-names = "wcss-base",
+					"tcsr-q6-base",
 					"tcsr-base",
 					"mpm-base",
 					"gcc-wcss-bcr-base",
-					"gcc-wcss-misc-base";
+					"gcc-wcss-misc-base",
+					"tcsr-global";
 			qca,auto-restart;
 			qca,extended-intc;
 			interrupts-extended = <&intc 0 325 1>,
