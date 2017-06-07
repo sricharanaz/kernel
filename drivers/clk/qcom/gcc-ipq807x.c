@@ -3686,6 +3686,7 @@ static struct clk_branch gcc_pcie0_axi_s_clk = {
 
 static struct clk_branch gcc_pcie0_pipe_clk = {
 	.halt_reg = 0x75018,
+	.halt_check = BRANCH_HALT_DELAY,
 	.halt_bit = 31,
 	.clkr = {
 		.enable_reg = 0x75018,
@@ -3776,6 +3777,7 @@ static struct clk_branch gcc_pcie1_axi_s_clk = {
 
 static struct clk_branch gcc_pcie1_pipe_clk = {
 	.halt_reg = 0x76018,
+	.halt_check = BRANCH_HALT_DELAY,
 	.halt_bit = 31,
 	.clkr = {
 		.enable_reg = 0x76018,
@@ -4389,6 +4391,7 @@ static struct clk_branch gcc_usb0_phy_cfg_ahb_clk = {
 
 static struct clk_branch gcc_usb0_pipe_clk = {
 	.halt_reg = 0x3e040,
+	.halt_check = BRANCH_HALT_DELAY,
 	.halt_bit = 31,
 	.clkr = {
 		.enable_reg = 0x3e040,
@@ -4533,6 +4536,7 @@ static struct clk_branch gcc_usb1_phy_cfg_ahb_clk = {
 
 static struct clk_branch gcc_usb1_pipe_clk = {
 	.halt_reg = 0x3f040,
+	.halt_check = BRANCH_HALT_DELAY,
 	.halt_bit = 31,
 	.clkr = {
 		.enable_reg = 0x3f040,
