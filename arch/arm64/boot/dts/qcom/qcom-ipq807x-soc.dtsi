@@ -1250,6 +1250,19 @@
 			};
 		};
 
+		pcie_phy0: phy@86000 {
+			compatible = "qca,pcie-qmp-phy";
+			reg = <0x86000 0x1000>;
+			#phy-cells = <0>;
+			clocks = <&gcc GCC_PCIE0_PIPE_CLK>;
+			clock-names = "pipe_clk";
+
+			resets = <&gcc GCC_PCIE0_PHY_BCR>,
+				<&gcc GCC_PCIE0PHY_PHY_BCR>;
+			reset-names = "phy",
+				      "phy_phy";
+		};
+
 		pcie0: pci@20000000 {
 			compatible = "qcom,pcie-ipq807x";
 			reg =  <0x20000000 0xf1d
@@ -1263,6 +1276,9 @@
 			num-lanes = <1>;
 			#address-cells = <3>;
 			#size-cells = <2>;
+
+			phys = <&pcie_phy0>;
+			phy-names = "pciephy";
 
 			ranges = <0x81000000 0 0x20200000 0x20200000
 				  0 0x00100000   /* downstream I/O */
@@ -1308,6 +1324,19 @@
 			status = "disabled";
 		};
 
+		pcie_phy1: phy@8e000 {
+			compatible = "qca,pcie-qmp-phy";
+			reg = <0x8e000 0x1000>;
+			#phy-cells = <0>;
+			clocks = <&gcc GCC_PCIE1_PIPE_CLK>;
+			clock-names = "pipe_clk";
+
+			resets = <&gcc GCC_PCIE1_PHY_BCR>,
+				<&gcc GCC_PCIE1PHY_PHY_BCR>;
+			reset-names = "phy",
+				      "phy_phy";
+		};
+
 		pcie1: pci@10000000 {
 			compatible = "qcom,pcie-ipq807x";
 			reg =  <0x10000000 0xf1d
@@ -1321,6 +1350,9 @@
 			num-lanes = <1>;
 			#address-cells = <3>;
 			#size-cells = <2>;
+
+			phys = <&pcie_phy1>;
+			phy-names = "pciephy";
 
 			ranges = <0x81000000 0 0x10200000 0x10200000
 				  0 0x00100000   /* downstream I/O */
