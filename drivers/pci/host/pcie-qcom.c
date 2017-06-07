@@ -125,6 +125,9 @@
 
 #define AXI_CLK_RATE		200000000
 
+#define PCIE20_v3_PARF_SLV_ADDR_SPACE_SIZE	0x358
+#define SLV_ADDR_SPACE_SZ                       0x10000000
+
 struct qcom_pcie_resources_v0 {
 	struct clk *iface_clk;
 	struct clk *core_clk;
@@ -1034,6 +1037,12 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 		qcom_ep_reset_assert(pcie);
 
 	ret = qcom_pcie_enable_resources_v3(pcie);
+	if (ret)
+		return ret;
+
+	writel(SLV_ADDR_SPACE_SZ, pcie->parf + PCIE20_v3_PARF_SLV_ADDR_SPACE_SIZE);
+
+	ret = phy_power_on(pcie->phy);
 	if (ret)
 		return ret;
 
