@@ -19,6 +19,7 @@
 #include <dt-bindings/sound/ipq8074-audio.h>
 #include <dt-bindings/clock/qcom,gcc-ipq807x.h>
 #include <dt-bindings/clock/qca,apss-ipq807x.h>
+#include <dt-bindings/clock/qca,adss-ipq807x.h>
 
 / {
 	psci {
@@ -260,6 +261,12 @@
 			reg = <0xb111000 0x6000>;
 			#clock-cells = <0x1>;
 			#reset-cells = <1>;
+		};
+
+		adss_clk: qcom,adss_clk@7700100 {
+			compatible = "qcom,adss-ipq807x";
+			reg = <0x7700100 0x200>;
+			#clock-cells = <0x1>;
 		};
 
 		blsp_dma: dma@7884000 {
