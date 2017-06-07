@@ -123,6 +123,8 @@
 #define PCIE20_MPS_MASK			__mask(7, 5)
 #define PCIE20_MPS(x)			__set(x, 7, 5)
 
+#define AXI_CLK_RATE		200000000
+
 struct qcom_pcie_resources_v0 {
 	struct clk *iface_clk;
 	struct clk *core_clk;
@@ -974,9 +976,21 @@ static int qcom_pcie_enable_resources_v3(struct qcom_pcie *pcie)
 		goto err_clk_axi_m;
 	}
 
+	ret = clk_set_rate(res->axi_m_clk, AXI_CLK_RATE);
+	if (ret) {
+		dev_err(dev, "MClk rate set failed (%d)\n", ret);
+		goto err_clk_axi_m;
+	}
+
 	ret = clk_prepare_enable(res->axi_s_clk);
 	if (ret) {
 		dev_err(dev, "cannot prepare/enable axi slave clock\n");
+		goto err_clk_axi_s;
+	}
+
+	ret = clk_set_rate(res->axi_s_clk, AXI_CLK_RATE);
+	if (ret) {
+		dev_err(dev, "MClk rate set failed (%d)\n", ret);
 		goto err_clk_axi_s;
 	}
 
