@@ -610,6 +610,7 @@ struct wil6210_priv {
 	u8 chip_revision;
 	const char *hw_name;
 	const char *wil_fw_name;
+	char *board_file;
 	DECLARE_BITMAP(hw_capabilities, hw_capability_last);
 	DECLARE_BITMAP(fw_capabilities, WMI_FW_CAPABILITY_MAX);
 	u8 n_mids; /* number of additional MIDs as reported by FW */
@@ -779,6 +780,11 @@ static inline void wil_s(struct wil6210_priv *wil, u32 reg, u32 val)
 static inline void wil_c(struct wil6210_priv *wil, u32 reg, u32 val)
 {
 	wil_w(wil, reg, wil_r(wil, reg) & ~val);
+}
+
+static inline const char *wil_get_board_file(struct wil6210_priv *wil)
+{
+	return wil->board_file ? wil->board_file : WIL_BOARD_FILE_NAME;
 }
 
 #if defined(CONFIG_DYNAMIC_DEBUG)

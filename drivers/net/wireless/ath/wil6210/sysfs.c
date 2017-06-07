@@ -94,8 +94,55 @@ static DEVICE_ATTR(ftm_txrx_offset, 0644,
 		   wil_ftm_txrx_offset_sysfs_show,
 		   wil_ftm_txrx_offset_sysfs_store);
 
+static ssize_t
+wil_board_file_sysfs_show(struct device *dev,
+			  struct device_attribute *attr,
+			  char *buf)
+{
+	struct wil6210_priv *wil = dev_get_drvdata(dev);
+	ssize_t len;
+
+	len = snprintf(buf, PAGE_SIZE, "%s\n", wil_get_board_file(wil));
+	return len;
+}
+
+static ssize_t
+wil_board_file_sysfs_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct wil6210_priv *wil = dev_get_drvdata(dev);
+	size_t len;
+
+	mutex_lock(&wil->mutex);
+
+	kfree(wil->board_file);
+	wil->board_file = NULL;
+
+	len = count;
+	if (buf[count - 1] == '\n')
+		len--;
+	len = strnlen(buf, len);
+	if (len > 0) {
+		wil->board_file = kmalloc(len + 1, GFP_KERNEL);
+		if (!wil->board_file) {
+			mutex_unlock(&wil->mutex);
+			return -ENOMEM;
+		}
+		strlcpy(wil->board_file, buf, len + 1);
+	}
+	mutex_unlock(&wil->mutex);
+
+	return count;
+}
+
+static DEVICE_ATTR(board_file, 0644,
+		   wil_board_file_sysfs_show,
+		   wil_board_file_sysfs_store);
+
 static struct attribute *wil6210_sysfs_entries[] = {
 	&dev_attr_ftm_txrx_offset.attr,
+	&dev_attr_board_file.attr,
 	NULL
 };
 
