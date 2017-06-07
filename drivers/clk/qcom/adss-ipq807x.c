@@ -104,7 +104,7 @@ static struct clk_regmap_div adss_audio_rxm_postdiv_clk_src = {
 		.hw.init = &(struct clk_init_data){
 			.name = "adss_audio_rxm_postdiv_clk_src",
 			.parent_names = (const char *[]){
-				"ftbl_audio_rxm_clk_src"
+				"adss_audio_rxm_clk_src"
 			},
 			.num_parents = 1,
 			.ops = &clk_regmap_div_ops,
@@ -134,12 +134,12 @@ static struct clk_branch adss_audio_rxm_clk = {
 static struct clk_regmap_div adss_audio_rxb_postdiv_clk_src = {
 	.reg = 0x0108,
 	.shift = 1,
-	.width = 2,
+	.width = 8,
 	.clkr = {
 		.hw.init = &(struct clk_init_data){
 			.name = "adss_audio_rxb_postdiv_clk_src",
 			.parent_names = (const char *[]){
-				"ftbl_audio_rxm_clk_src"
+				"adss_audio_rxm_clk_src"
 			},
 			.num_parents = 1,
 			.ops = &clk_regmap_div_ops,
@@ -149,8 +149,8 @@ static struct clk_regmap_div adss_audio_rxb_postdiv_clk_src = {
 };
 
 static const char * const parent_adss_audio_rxb_clk_mux[] = {
-	"audio_rxbpad_clk",
 	"adss_audio_rxb_postdiv_clk_src",
+	"audio_rxbpad_clk",
 };
 
 static struct clk_regmap_mux adss_audio_rxb_clk_mux = {
@@ -247,7 +247,7 @@ static struct clk_regmap_div adss_audio_txm_postdiv_clk_src = {
 		.hw.init = &(struct clk_init_data){
 			.name = "adss_audio_txm_postdiv_clk_src",
 			.parent_names = (const char *[]){
-				"ftbl_audio_txm_clk_src"
+				"adss_audio_txm_clk_src"
 			},
 			.num_parents = 1,
 			.ops = &clk_regmap_div_ops,
@@ -282,7 +282,7 @@ static struct clk_regmap_div adss_audio_txb_postdiv_clk_src = {
 		.hw.init = &(struct clk_init_data){
 			.name = "adss_audio_txb_postdiv_clk_src",
 			.parent_names = (const char *[]){
-				"ftbl_audio_txm_clk_src"
+				"adss_audio_txm_clk_src"
 			},
 			.num_parents = 1,
 			.ops = &clk_regmap_div_ops,
@@ -292,8 +292,8 @@ static struct clk_regmap_div adss_audio_txb_postdiv_clk_src = {
 };
 
 static const char * const parent_adss_audio_txb_clk_mux[] = {
-	"audio_txbpad_clk",
 	"adss_audio_txb_postdiv_clk_src",
+	"audio_txbpad_clk",
 };
 
 static struct clk_regmap_mux adss_audio_txb_clk_mux = {
