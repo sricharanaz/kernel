@@ -766,6 +766,7 @@
 	pinctrl-0 = <&sd_pins>;
 	pinctrl-names = "default";
 	cd-gpios = <&tlmm 63 1>;
+	vqmmc-supply = <&ldo11>;
 	status = "ok";
 };
 
