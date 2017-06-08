@@ -83,7 +83,7 @@ struct freq_tbl ftbl_audio_rxm_clk_src[] = {
 };
 
 struct clk_rcg2 adss_audio_rxm_clk_src = {
-	.cmd_rcgr = 0x0120,
+	.cmd_rcgr = 0x0020,
 	.freq_tbl = ftbl_audio_rxm_clk_src,
 	.hid_width = 5,
 	.parent_map = parents_audio_rxm_clk_src_map,
@@ -97,7 +97,7 @@ struct clk_rcg2 adss_audio_rxm_clk_src = {
 };
 
 static struct clk_regmap_div adss_audio_rxm_postdiv_clk_src = {
-	.reg = 0x0128,
+	.reg = 0x0028,
 	.shift = 0,
 	.width = 9,
 	.clkr = {
@@ -114,10 +114,10 @@ static struct clk_regmap_div adss_audio_rxm_postdiv_clk_src = {
 };
 
 static struct clk_branch adss_audio_rxm_clk = {
-	.halt_reg = 0x012c,
+	.halt_reg = 0x002c,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x012c,
+		.enable_reg = 0x002c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "adss_audio_rxm_clk",
@@ -132,7 +132,7 @@ static struct clk_branch adss_audio_rxm_clk = {
 };
 
 static struct clk_regmap_div adss_audio_rxb_postdiv_clk_src = {
-	.reg = 0x0108,
+	.reg = 0x0008,
 	.shift = 1,
 	.width = 8,
 	.clkr = {
@@ -154,7 +154,7 @@ static const char * const parent_adss_audio_rxb_clk_mux[] = {
 };
 
 static struct clk_regmap_mux adss_audio_rxb_clk_mux = {
-	.reg = 0x0104,
+	.reg = 0x0004,
 	.shift = 8,
 	.width = 3,
 	.clkr = {
@@ -169,10 +169,10 @@ static struct clk_regmap_mux adss_audio_rxb_clk_mux = {
 };
 
 static struct clk_branch adss_audio_rxb_clk = {
-	.halt_reg = 0x010c,
+	.halt_reg = 0x000c,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x010c,
+		.enable_reg = 0x000c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "adss_audio_rxb_clk",
@@ -226,7 +226,7 @@ static const struct parent_map parents_audio_txm_clk_src_map[] = {
 };
 
 struct clk_rcg2 adss_audio_txm_clk_src = {
-	.cmd_rcgr = 0x0160,
+	.cmd_rcgr = 0x0060,
 	.freq_tbl = ftbl_audio_txm_clk_src,
 	.hid_width = 5,
 	.parent_map = parents_audio_txm_clk_src_map,
@@ -240,7 +240,7 @@ struct clk_rcg2 adss_audio_txm_clk_src = {
 };
 
 static struct clk_regmap_div adss_audio_txm_postdiv_clk_src = {
-	.reg = 0x0168,
+	.reg = 0x0068,
 	.shift = 0,
 	.width = 9,
 	.clkr = {
@@ -257,10 +257,10 @@ static struct clk_regmap_div adss_audio_txm_postdiv_clk_src = {
 };
 
 static struct clk_branch adss_audio_txm_clk = {
-	.halt_reg = 0x016c,
+	.halt_reg = 0x006c,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x016c,
+		.enable_reg = 0x006c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "adss_audio_txm_clk",
@@ -275,7 +275,7 @@ static struct clk_branch adss_audio_txm_clk = {
 };
 
 static struct clk_regmap_div adss_audio_txb_postdiv_clk_src = {
-	.reg = 0x0148,
+	.reg = 0x0048,
 	.shift = 1,
 	.width = 8,
 	.clkr = {
@@ -297,7 +297,7 @@ static const char * const parent_adss_audio_txb_clk_mux[] = {
 };
 
 static struct clk_regmap_mux adss_audio_txb_clk_mux = {
-	.reg = 0x0144,
+	.reg = 0x0044,
 	.shift = 8,
 	.width = 3,
 	.clkr = {
@@ -312,10 +312,10 @@ static struct clk_regmap_mux adss_audio_txb_clk_mux = {
 };
 
 static struct clk_branch adss_audio_txb_clk = {
-	.halt_reg = 0x014c,
+	.halt_reg = 0x004c,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x014c,
+		.enable_reg = 0x004c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "adss_audio_txb_clk",
@@ -348,7 +348,7 @@ static const struct parent_map parents_audio_pcm_clk_src_map[] = {
 };
 
 struct clk_rcg2 adss_audio_pcm_clk_src = {
-	.cmd_rcgr = 0x01a0,
+	.cmd_rcgr = 0x00a0,
 	.freq_tbl = ftbl_audio_pcm_clk_src,
 	.hid_width = 5,
 	.parent_map = parents_audio_pcm_clk_src_map,
@@ -362,7 +362,7 @@ struct clk_rcg2 adss_audio_pcm_clk_src = {
 };
 
 static struct clk_regmap_div adss_audio_pcm_postdiv_clk_src = {
-	.reg = 0x01a8,
+	.reg = 0x00a8,
 	.shift = 0,
 	.width = 9,
 	.clkr = {
@@ -379,10 +379,10 @@ static struct clk_regmap_div adss_audio_pcm_postdiv_clk_src = {
 };
 
 static struct clk_branch adss_audio_pcm_clk = {
-	.halt_reg = 0x01ac,
+	.halt_reg = 0x00ac,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x01ac,
+		.enable_reg = 0x00ac,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "adss_audio_pcm_clk",
@@ -397,10 +397,10 @@ static struct clk_branch adss_audio_pcm_clk = {
 };
 
 static struct clk_branch adss_audio_xo_clk = {
-	.halt_reg = 0x01cc,
+	.halt_reg = 0x00cc,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x01cc,
+		.enable_reg = 0x00cc,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "adss_audio_xo_clk",
@@ -414,10 +414,10 @@ static struct clk_branch adss_audio_xo_clk = {
 };
 
 static struct clk_branch adss_audio_ahb_clk = {
-	.halt_reg = 0x0200,
+	.halt_reg = 0x0100,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x0200,
+		.enable_reg = 0x0100,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "adss_audio_ahb_clk",
@@ -431,10 +431,10 @@ static struct clk_branch adss_audio_ahb_clk = {
 };
 
 static struct clk_branch adss_audio_i2s0_clk = {
-	.halt_reg = 0x0204,
+	.halt_reg = 0x0104,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x0204,
+		.enable_reg = 0x0104,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "adss_audio_i2s0_clk",
@@ -448,10 +448,10 @@ static struct clk_branch adss_audio_i2s0_clk = {
 };
 
 static struct clk_branch adss_audio_i2s3_clk = {
-	.halt_reg = 0x0208,
+	.halt_reg = 0x0108,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x0208,
+		.enable_reg = 0x0108,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "adss_audio_i2s3_clk",
@@ -465,10 +465,10 @@ static struct clk_branch adss_audio_i2s3_clk = {
 };
 
 static struct clk_branch adss_audio_mbox0_clk = {
-	.halt_reg = 0x020c,
+	.halt_reg = 0x010c,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x020c,
+		.enable_reg = 0x010c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "adss_audio_mbox0_clk",
@@ -482,10 +482,10 @@ static struct clk_branch adss_audio_mbox0_clk = {
 };
 
 static struct clk_branch adss_audio_mbox3_clk = {
-	.halt_reg = 0x0210,
+	.halt_reg = 0x0110,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x0210,
+		.enable_reg = 0x0110,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "adss_audio_mbox3_clk",
@@ -532,7 +532,7 @@ static const struct regmap_config adss_ipq807x_regmap_config = {
 	.reg_bits       = 32,
 	.reg_stride     = 4,
 	.val_bits       = 32,
-	.max_register   = 0xffc,
+	.max_register   = 0x1fc,
 	.fast_io	= true,
 };
 
