@@ -16,6 +16,7 @@
  */
 #include "qcom-ipq807x-soc.dtsi"
 #include "qcom-ipq807x-spmi-regulator.dtsi"
+#include "qcom-ipq807x-thermal.dtsi"
 
 / {
 	#address-cells = <0x2>;
