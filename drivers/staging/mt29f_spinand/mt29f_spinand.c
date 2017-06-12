@@ -103,7 +103,7 @@ struct spinand_ops spinand_dev[] = {
 		0x12,
 		INT_MAX,
 		0x10000,
-		gigadevice_set_defaults,
+		macronix_set_defaults,
 		gigadevice_read_cmd,
 		macronix_read_data,
 		gigadevice_write_cmd,

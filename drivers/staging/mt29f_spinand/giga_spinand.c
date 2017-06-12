@@ -38,6 +38,19 @@ static struct nand_ecclayout winbond_oob_64 = {
 	}
 };
 
+/* Only ecc un-protected fields in the spare area included */
+/* ECC parity code stored in the additional hidden spare area */
+static struct nand_ecclayout macronix_oob_64 = {
+	.eccbytes = 0,
+	.eccpos = {},
+	.oobfree = {
+		{.offset = 2,  .length = 2},
+		{.offset = 18, .length = 2},
+		{.offset = 34, .length = 2},
+		{.offset = 50, .length = 2},
+	}
+};
+
 void gigadevice_set_defaults(struct spi_device *spi_nand)
 {
 	struct mtd_info *mtd = (struct mtd_info *)dev_get_drvdata
@@ -80,6 +93,20 @@ void winbond_set_defaults(struct spi_device *spi_nand)
 	chip->ecc.strength = 1;
 	chip->ecc.total	= 0;
 	chip->ecc.layout = &winbond_oob_64;
+}
+
+void macronix_set_defaults(struct spi_device *spi_nand)
+{
+	struct mtd_info *mtd = dev_get_drvdata(&spi_nand->dev);
+	struct nand_chip *chip = (struct nand_chip *)mtd->priv;
+
+	chip->ecc.size  = 0x800;
+	chip->ecc.bytes = 0x0;
+	chip->ecc.steps = 0x0;
+
+	chip->ecc.strength = 1;
+	chip->ecc.total = 0;
+	chip->ecc.layout = &macronix_oob_64;
 }
 
 void gigadevice_read_cmd(struct spinand_cmd *cmd, u32 page_id)
