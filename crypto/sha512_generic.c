@@ -2,7 +2,7 @@
  *
  * Copyright (c) Jean-Luc Cooke <jlcooke@certainkey.com>
  * Copyright (c) Andrew McDonald <andrew@mcdonald.org.uk>
- * Copyright (c) 2003, 2017 Kyle McMartin <kyle@debian.org>
+ * Copyright (c) 2003 Kyle McMartin <kyle@debian.org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
