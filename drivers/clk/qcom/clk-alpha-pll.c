@@ -139,13 +139,13 @@ static int wait_for_pll(struct clk_alpha_pll *pll, u32 mask, bool inverse,
 	wait_for_pll(pll, PLL_OFFLINE_ACK, 0, "offline")
 
 #define wait_for_pll_update(pll) \
-	wait_for_pll(pll, PLL_UPDATE, 0, "update")
+	wait_for_pll(pll, PLL_UPDATE, 1, "update")
 
 #define wait_for_pll_update_ack_set(pll) \
-	wait_for_pll(pll, ALPHA_PLL_ACK_LATCH, 1, "update_ack_set")
+	wait_for_pll(pll, ALPHA_PLL_ACK_LATCH, 0, "update_ack_set")
 
 #define wait_for_pll_update_ack_clear(pll) \
-	wait_for_pll(pll, ALPHA_PLL_ACK_LATCH, 0, "update_ack_clear")
+	wait_for_pll(pll, ALPHA_PLL_ACK_LATCH, 1, "update_ack_clear")
 
 void clk_alpha_pll_configure(struct clk_alpha_pll *pll, struct regmap *regmap,
 			     const struct alpha_pll_config *config)
@@ -484,6 +484,22 @@ static long clk_alpha_pll_round_rate(struct clk_hw *hw, unsigned long rate,
 	return clamp(rate, min_freq, max_freq);
 }
 
+static long
+clk_alpha_pll_brammo_round_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long *prate)
+{
+	struct clk_alpha_pll *pll = to_clk_alpha_pll(hw);
+	u32 l, alpha_width;
+	u64 a;
+
+	alpha_width = pll->flags & SUPPORTS_16BIT_ALPHA ?
+				ALPHA_REG_16BIT_WIDTH : ALPHA_REG_BITWIDTH;
+
+	rate = alpha_pll_round_rate(rate, *prate, &l, &a, alpha_width);
+
+	return rate;
+}
+
 static unsigned long
 alpha_pll_huayra_calc_rate(u64 prate, u32 l, u32 a)
 {
@@ -724,7 +740,7 @@ const struct clk_ops clk_alpha_pll_brammo_ops = {
 	.disable = clk_alpha_pll_disable,
 	.is_enabled = clk_alpha_pll_is_enabled,
 	.recalc_rate = clk_alpha_pll_recalc_rate,
-	.round_rate = clk_alpha_pll_round_rate,
+	.round_rate = clk_alpha_pll_brammo_round_rate,
 	.set_rate = clk_alpha_pll_brammo_set_rate,
 };
 EXPORT_SYMBOL_GPL(clk_alpha_pll_brammo_ops);
