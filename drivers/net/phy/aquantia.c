@@ -23,7 +23,7 @@
 #define PHY_ID_AQ2104	0x03a1b460
 #define PHY_ID_AQR105	0x03a1b4a2
 #define PHY_ID_AQR405	0x03a1b4b0
-#define PHY_ID_AQR107	0x03a1b4e1
+#define PHY_ID_AQR107	0x03a1b4e2
 
 #define AQ_PHY_MAX_VALID_MMD_REG		0xff01
 #define AQ_PHY_MAX_INVALID_MMD_REG		0xffff
@@ -292,35 +292,7 @@ static int aquantia_phy_init_debugfs_entries(struct aq_priv *priv)
 
 static int aquantia_soft_reset(struct phy_device *phydev)
 {
-	int reg, err, reset_done = 0;
-	int retries = 50;
-
-	/* clear softreset done flag before software reset*/
-	reg = phy_read_mmd(phydev, MDIO_MMD_VEND1, AQ_PHY_REG_GLOBAL_ALARMS_1);
-	if (reg < 0)
-		return reg;
-
-	reg = phy_read_mmd(phydev, MDIO_MMD_VEND1, AQ_PHY_REG_GLOBAL_CTRL_1);
-	if (reg < 0)
-		return reg;
-
-	err = phy_write_mmd(phydev, MDIO_MMD_VEND1, AQ_PHY_REG_GLOBAL_CTRL_1,
-			    reg | AQ_PHY_SOFTRESET);
-
-	while (reset_done != AQ_PHY_SOFTRESET_COMPLETED) {
-		mdelay(100);
-		if (retries-- == 0)
-			return -ETIMEDOUT;
-
-		reg = phy_read_mmd(phydev, MDIO_MMD_VEND1,
-				   AQ_PHY_REG_GLOBAL_ALARMS_1);
-		if (reg < 0)
-			return reg;
-
-		reset_done = (reg & AQ_PHY_SOFTRESET_COMPLETED);
-	}
-
-	return err;
+	return 0;
 }
 
 static int aquantia_r107_reg_init(struct phy_device *phydev)
