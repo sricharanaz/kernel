@@ -544,6 +544,3 @@
 	status = "ok";
 };
 
-&dwc_0 {
-	dr_mode = "peripheral";
-};
