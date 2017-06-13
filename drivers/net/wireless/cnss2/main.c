@@ -440,7 +440,9 @@ out:
 
 int cnss_is_fw_ready(void)
 {
-	return !!(CNSS_FW_READY & plat_env->driver_state);
+	if (test_bit(CNSS_FW_READY, &plat_env->driver_state))
+		return 1;
+	return 0;
 }
 EXPORT_SYMBOL(cnss_is_fw_ready);
 
