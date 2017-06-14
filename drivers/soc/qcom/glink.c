@@ -3713,9 +3713,14 @@ int glink_core_register_transport(struct glink_transport_if *if_ptr,
 	snprintf(log_name, sizeof(log_name), "%s_%s",
 			xprt_ptr->edge, xprt_ptr->name);
 	xprt_ptr->log_ctx = ipc_log_context_create(NUM_LOG_PAGES, log_name, 0);
-	if (!xprt_ptr->log_ctx)
+	if (!xprt_ptr->log_ctx) {
+#ifdef CONFIG_IPC_LOGGING
 		GLINK_ERR("%s: unable to create log context for [%s:%s]\n",
 				__func__, xprt_ptr->edge, xprt_ptr->name);
+#else
+		GLINK_ERR("%s: IPC Logging disabled\n", __func__);
+#endif
+	}
 
 	return 0;
 }
@@ -5771,8 +5776,13 @@ EXPORT_SYMBOL(glink_get_xprt_log_ctx);
 static int glink_init(void)
 {
 	log_ctx = ipc_log_context_create(NUM_LOG_PAGES, "glink", 0);
-	if (!log_ctx)
+	if (!log_ctx) {
+#ifdef CONFIG_IPC_LOGGING
 		GLINK_ERR("%s: unable to create log context\n", __func__);
+#else
+		GLINK_ERR("%s: IPC Logging Disabled\n", __func__);
+#endif
+	}
 	glink_debugfs_init();
 
 	return 0;
