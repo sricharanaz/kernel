@@ -627,14 +627,6 @@
 };
 
 
-&apss_clk {
-	status = "ok";
-};
-
-&blsp_dma {
-	status = "ok";
-};
-
 &serial_blsp4 {
        pinctrl-0 = <&uart_pins>;
        pinctrl-names = "default";
@@ -663,31 +655,7 @@
 	status = "ok";
 };
 
-&smem {
-	status = "ok";
-};
-
-&tcsr_mutex {
-	status = "ok";
-};
-
 &nss_crypto {
-	status = "ok";
-};
-
-&watchdog {
-	status = "ok";
-};
-
-&glink_modem {
-	status = "ok";
-};
-
-&ipc_router {
-	status = "ok";
-};
-
-&ipc_router_modem {
 	status = "ok";
 };
 
