@@ -673,6 +673,10 @@ static int clk_alpha_pll_brammo_set_rate(struct clk_hw *hw, unsigned long rate,
 	regmap_write(pll->clkr.regmap, PLL_ALPHA_U_REG(pll), a >> 32);
 	regmap_update_bits(pll->clkr.regmap, PLL_USER_CTL_REG(pll),
 			   PLL_ALPHA_EN, PLL_ALPHA_EN);
+
+	if (!clk_hw_is_enabled(hw))
+		return 0;
+
 	regmap_update_bits(pll->clkr.regmap, PLL_MODE_REG(pll), PLL_UPDATE,
 			   PLL_UPDATE);
 

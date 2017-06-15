@@ -91,7 +91,7 @@ err:
 	return 0;
 }
 
-static int update_config(struct clk_rcg2 *rcg)
+static int update_config(struct clk_rcg2 *rcg, bool check_update_clear)
 {
 	int count, ret;
 	u32 cmd;
@@ -102,6 +102,9 @@ static int update_config(struct clk_rcg2 *rcg)
 				 CMD_UPDATE, CMD_UPDATE);
 	if (ret)
 		return ret;
+
+	if (!check_update_clear)
+		return 0;
 
 	/* Wait for update to take effect */
 	for (count = 500; count > 0; count--) {
@@ -121,14 +124,19 @@ static int clk_rcg2_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_rcg2 *rcg = to_clk_rcg2(hw);
 	int ret;
+	bool check_update_clear = true;
 	u32 cfg = rcg->parent_map[index].cfg << CFG_SRC_SEL_SHIFT;
+
+	if ((rcg->flags & CLK_RCG2_HW_CONTROLLED) &&
+	    !clk_hw_is_enabled(clk_hw_get_parent_by_index(hw, index)))
+		check_update_clear = false;
 
 	ret = regmap_update_bits(rcg->clkr.regmap, RCG2_CFG(rcg),
 				 CFG_SRC_SEL_MASK, cfg);
 	if (ret)
 		return ret;
 
-	return update_config(rcg);
+	return update_config(rcg, check_update_clear);
 }
 
 /*
@@ -235,6 +243,7 @@ static int clk_rcg2_configure(struct clk_rcg2 *rcg, const struct freq_tbl *f)
 {
 	u32 cfg, mask;
 	struct clk_hw *hw = &rcg->clkr.hw;
+	bool check_update_clear = true;
 	int ret, index = qcom_find_src_index(hw, rcg->parent_map, f->src);
 
 	if (index < 0)
@@ -269,7 +278,11 @@ static int clk_rcg2_configure(struct clk_rcg2 *rcg, const struct freq_tbl *f)
 	if (ret)
 		return ret;
 
-	return update_config(rcg);
+	if ((rcg->flags & CLK_RCG2_HW_CONTROLLED) &&
+	    !clk_hw_is_enabled(clk_hw_get_parent_by_index(hw, index)))
+		check_update_clear = false;
+
+	return update_config(rcg, check_update_clear);
 }
 
 static int __clk_rcg2_set_rate(struct clk_hw *hw, unsigned long rate)
