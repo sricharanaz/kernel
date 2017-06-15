@@ -75,6 +75,19 @@
 };
 
 &tlmm {
+	mdio_pins: mdio_pinmux {
+		mdc {
+			pins = "gpio68";
+			function = "mdc";
+			bias-pull-up;
+		};
+		mdio {
+			pins = "gpio69";
+			function = "mdio";
+			bias-pull-up;
+		};
+	};
+
 	uart_pins: uart_pins {
 		mux {
 			pins = "gpio23", "gpio24";
@@ -176,6 +189,8 @@
 		#size-cells = <1>;
 		compatible = "qcom,ipq40xx-mdio";
 		reg = <0x90000 0x64>;
+		pinctrl-0 = <&mdio_pins>;
+		pinctrl-names = "default";
 		phy-reset-gpio = <&tlmm 37 0 &tlmm 63 1>;
 		phy0: ethernet-phy@0 {
 			reg = <0>;
