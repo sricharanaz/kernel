@@ -20,6 +20,42 @@ struct qcom_scm_tcsr_req {
 	u16 set;
 };
 
+struct tzbsp_log_pos_t {
+	uint16_t wrap;		/* Ring buffer wrap-around ctr */
+	uint16_t offset;	/* Ring buffer current position */
+};
+
+struct tzbsp_diag_log_t {
+	struct tzbsp_log_pos_t log_pos;	/* Ring buffer position mgmt */
+	uint8_t log_buf[1];		/* Open ended array to the end
+					 * of the 4K IMEM buffer
+					 */
+};
+
+struct tzbsp_diag_t {
+	uint32_t unused[7];	/* Unused variable is to support the
+				 * corresponding structure in trustzone
+				 */
+	uint32_t ring_off;
+	uint32_t unused1[514];
+	struct tzbsp_diag_log_t log;
+};
+
+/* Below structure to support AARCH64 TZ */
+struct tzbsp_diag_t_v8 {
+	uint32_t unused[7];	/* Unused variable is to support the
+				 * corresponding structure in trustzone
+				 * and size is varying based on AARCH64 TZ
+				 */
+	uint32_t ring_off;
+	uint32_t unused1[411];
+	struct tzbsp_diag_log_t log;
+};
+
+struct log_read {
+	uint32_t log_buf;
+	uint32_t buf_size;
+};
 
 extern int qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus);
 extern int qcom_scm_set_warm_boot_addr(void *entry, const cpumask_t *cpus);
@@ -51,8 +87,8 @@ extern int qcom_scm_regsave(u32 svc_id, u32 cmd_id, void *);
 #define TZ_INFO_GET_DIAG_ID	0x2
 #define SCM_SVC_INFO		0x6
 
-extern int qcom_scm_tz_log(struct device *, u32 svc_id, u32 cmd_id,
-					void *log_buf, u32 log_size);
+extern int qcom_scm_tz_log(u32 svc_id, u32 cmd_id, void *ker_buf, u32 *buf_len,
+				u32 **ring_off, struct tzbsp_diag_log_t **log);
 
 #define QCOM_SCM_CPU_PWR_DOWN_L2_ON	0x0
 #define QCOM_SCM_CPU_PWR_DOWN_L2_OFF	0x1
@@ -76,4 +112,5 @@ extern int qcom_scm_tzsched(const void *req, size_t req_size,
 
 extern int qcom_los_scm_call(struct device *, u32 svc_id, u32 cmd_id,
 		void *cmd_buf, size_t size);
+
 #endif

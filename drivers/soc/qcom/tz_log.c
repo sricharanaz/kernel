@@ -22,81 +22,50 @@
 #include <linux/qcom_scm.h>
 #include <linux/slab.h>
 
-#define BUF_LEN 0x1000
+/* Maximum size for buffers to support AARCH64 TZ */
+#define BUF_LEN 0x2000
+
 #define TZ_INFO_GET_DIAG_ID 0x2
 
 struct dentry *dirret, *fileret;
 
-static char ker_buf[BUF_LEN] __aligned(4096), tmp_buf[BUF_LEN];
-
-struct tzbsp_log_pos_t {
-	uint16_t wrap;		/* Ring buffer wrap-around ctr */
-	uint16_t offset;	/* Ring buffer current position */
-};
-
-struct tzbsp_diag_log_t {
-	struct tzbsp_log_pos_t log_pos;	/* Ring buffer position mgmt */
-	uint8_t log_buf[1];		/* Open ended array to the end
-					 * of the 4K IMEM buffer
-					 */
-};
-
-struct tzbsp_diag_t {
-	uint32_t unused[7];	/* Unused variable is to support the
-				 * corresponding structure in trustzone
-				 */
-	uint32_t ring_off;
-	uint32_t unused1[514];
-	struct tzbsp_diag_log_t log;
-};
-
-struct log_read {
-	uint32_t log_buf;
-	uint32_t buf_size;
-};
+static char ker_buf[BUF_LEN] __aligned(8192), tmp_buf[BUF_LEN];
 
 /* Read file operation */
 static ssize_t tz_log_read(struct file *fp, char __user *user_buffer,
 				size_t count, loff_t *position)
 {
 	int ret;
-	struct log_read rdip;
-	struct tzbsp_diag_t *tz_diag;
 	uint16_t offset;
 	uint16_t ring;
-
-	rdip.buf_size = BUF_LEN;
-	rdip.log_buf = dma_map_single(NULL, ker_buf, BUF_LEN, DMA_FROM_DEVICE);
-	ret = dma_mapping_error(NULL, rdip.log_buf);
-	if (ret != 0) {
-		pr_err("DMA Mapping Error : %d\n", ret);
-		return -EINVAL;
-	}
+	uint32_t buf_len;
+	uint32_t *ring_off;
+	struct tzbsp_diag_log_t *log;
+	uint16_t wrap;
 
 	/* SCM call to TZ to get the tz log */
-	ret = qcom_scm_tz_log(NULL, SCM_SVC_INFO, TZ_INFO_GET_DIAG_ID, &rdip,
-							sizeof(struct log_read));
-	dma_unmap_single(NULL, rdip.log_buf, BUF_LEN, DMA_FROM_DEVICE);
+	ret = qcom_scm_tz_log(SCM_SVC_INFO, TZ_INFO_GET_DIAG_ID, ker_buf,
+				&buf_len, &ring_off, &log);
 	if (ret != 0) {
-		pr_err("Error in getting tz log : %d\n", ret);
+		pr_err("Error in getting tz log\n");
 		return -EINVAL;
 	}
 
-	tz_diag = (struct tzbsp_diag_t *)ker_buf;
-	offset = tz_diag->log.log_pos.offset;
-	ring = tz_diag->ring_off;
+	offset = log->log_pos.offset;
+	ring = *ring_off;
+	wrap = log->log_pos.wrap;
 
-	if (tz_diag->log.log_pos.wrap != 0) {
+	if (wrap != 0) {
 		memcpy(tmp_buf, (ker_buf + offset + ring),
-					(BUF_LEN - offset - ring));
-		memcpy(tmp_buf + (BUF_LEN - offset - ring), (ker_buf + ring),
+					(buf_len - offset - ring));
+		memcpy(tmp_buf + (buf_len - offset - ring), (ker_buf + ring),
 					offset);
 	} else {
 		memcpy(tmp_buf, (ker_buf + ring), offset);
 	}
 
 	return simple_read_from_buffer(user_buffer, count,
-					position, tmp_buf, BUF_LEN);
+					position, tmp_buf, buf_len);
 }
 
 static const struct file_operations fops_tz_log = {
@@ -109,6 +78,7 @@ static int __init init_tz_log(void)
 	dirret = debugfs_create_dir("qcom_debug_logs", NULL);
 	fileret = debugfs_create_file("tz_log", 0444, dirret,
 					&filevalue, &fops_tz_log);
+
 	return 0;
 }
 
