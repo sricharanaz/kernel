@@ -3430,6 +3430,7 @@ static int diag_probe(struct platform_device *pdev)
 	mutex_init(&apps_data_mutex);
 	mutex_init(&driver->msg_mask_lock);
 	mutex_init(&driver->diagfwd_channel_mutex);
+	mutex_init(&driver->hdlc_recovery_mutex);
 	for (i = 0; i < NUM_PERIPHERALS; i++)
 		mutex_init(&driver->diagfwd_channel_mutex[i]);
 	init_waitqueue_head(&driver->wait_q);
