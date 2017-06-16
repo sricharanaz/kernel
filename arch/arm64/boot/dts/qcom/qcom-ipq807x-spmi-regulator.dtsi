@@ -28,6 +28,7 @@
 		regulators {
 			compatible = "qcom,pmd9655-regulators";
 			vdd_s3-supply = <&e_smps1_reg>;
+			vdd_ldo11-supply = <&e_smps1_reg>;
 
 			s3: s3 {
 				regulator-name = "pmd9655_s3";
@@ -35,6 +36,12 @@
 				regulator-max-microvolt = <1104000>;
 				regulator-always-on;
 				regulator-boot-on;
+			};
+
+			ldo11: ldo11 {
+				regulator-name = "pmd9655_ldo11";
+				regulator-min-microvolt = <1104000>;
+				regulator-max-microvolt = <3300000>;
 			};
 		};
 	};
