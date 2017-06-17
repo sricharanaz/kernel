@@ -157,14 +157,6 @@
 	};
 };
 
-&apss_clk {
-	status = "ok";
-};
-
-&blsp_dma {
-	status = "ok";
-};
-
 &serial_blsp4 {
        pinctrl-0 = <&uart_pins>;
        pinctrl-names = "default";
@@ -193,52 +185,7 @@
 	status = "ok";
 };
 
-&q6v5_wcss {
-	qca,emulation = <1>;
-	status = "disabled";
-};
-
-&apcs {
-	status = "disabled";
-};
-
-&wcss {
-	status = "disabled";
-};
-
-&smem {
-	status = "ok";
-};
-
-&tcsr_mutex_block {
-	status = "disabled";
-};
-
-&tcsr_mutex {
-	status = "ok";
-};
-
 &nss_crypto {
-	status = "disabled";
-};
-
-&watchdog {
-	status = "ok";
-};
-
-&glink_mpss_ssr {
-	status = "disabled";
-};
-
-&glink_modem {
-	status = "disabled";
-};
-
-&ipc_router {
-	status = "disabled";
-};
-
-&ipc_router_modem {
 	status = "disabled";
 };
 
