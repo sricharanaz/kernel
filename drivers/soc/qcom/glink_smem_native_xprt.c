@@ -2136,9 +2136,23 @@ static int glink_smem_native_probe(struct platform_device *pdev)
 	uint32_t irq_mask;
 	uint32_t ch_desc_size = SMEM_CH_DESC_SIZE;
 	uint32_t entry = 0;
+	uint32_t remote_proc_id;
 	struct resource *r;
 
 	node = pdev->dev.of_node;
+
+	key = "qcom,subsys-id";
+	rc = of_property_read_u32(node, key, &remote_proc_id);
+	if (rc) {
+		pr_err("%s: missing key %s\n", __func__, key);
+		return -ENODEV;
+	}
+
+	key = "ch";
+	get_entry_by_name(node, key, &entry);
+	rc = qcom_smem_alloc(remote_proc_id, entry, ch_desc_size);
+	if ((rc != -EEXIST) && (rc != 0))
+		return -EPROBE_DEFER;
 
 	einfo = kzalloc(sizeof(*einfo), GFP_KERNEL);
 	if (!einfo) {
@@ -2146,6 +2160,7 @@ static int glink_smem_native_probe(struct platform_device *pdev)
 		rc = -ENOMEM;
 		goto edge_info_alloc_fail;
 	}
+	einfo->remote_proc_id = remote_proc_id;
 
 	key = "label";
 	subsys_name = of_get_property(node, key, NULL);
@@ -2174,14 +2189,6 @@ static int glink_smem_native_probe(struct platform_device *pdev)
 	key = "irq-reg-base";
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, key);
 	if (!r) {
-		pr_err("%s: missing key %s\n", __func__, key);
-		rc = -ENODEV;
-		goto missing_key;
-	}
-
-	key = "qcom,subsys-id";
-	rc = of_property_read_u32(node, key, &einfo->remote_proc_id);
-	if (rc) {
 		pr_err("%s: missing key %s\n", __func__, key);
 		rc = -ENODEV;
 		goto missing_key;
@@ -2224,14 +2231,6 @@ static int glink_smem_native_probe(struct platform_device *pdev)
 		rc = PTR_ERR(einfo->task);
 		pr_err("%s: kthread_run failed %d\n", __func__, rc);
 		goto kthread_fail;
-	}
-
-	key = "ch";
-	get_entry_by_name(node, key, &entry);
-	rc = qcom_smem_alloc(einfo->remote_proc_id, entry, ch_desc_size);
-	if ((rc != -EEXIST) && (rc != 0)) {
-		pr_err("%s: smem alloc of ch descriptor failed\n", __func__);
-		goto smem_alloc_fail;
 	}
 
 	einfo->tx_ch_desc = qcom_smem_get(einfo->remote_proc_id, entry,

@@ -702,6 +702,10 @@ static int qcom_smem_probe(struct platform_device *pdev)
 	u32 version;
 	int ret;
 
+	hwlock_id = of_hwspin_lock_get_id(pdev->dev.of_node, 0);
+	if (hwlock_id < 0)
+		return -EPROBE_DEFER;
+
 	num_regions = 1;
 	if (of_find_property(pdev->dev.of_node, "qcom,rpm-msg-ram", NULL))
 		num_regions++;
@@ -738,12 +742,6 @@ static int qcom_smem_probe(struct platform_device *pdev)
 	ret = qcom_smem_enumerate_partitions(smem, SMEM_HOST_APPS);
 	if (ret < 0)
 		return ret;
-
-	hwlock_id = of_hwspin_lock_get_id(pdev->dev.of_node, 0);
-	if (hwlock_id < 0) {
-		dev_err(&pdev->dev, "failed to retrieve hwlock\n");
-		return hwlock_id;
-	}
 
 	smem->hwlock = hwspin_lock_request_specific(hwlock_id);
 	if (!smem->hwlock)
