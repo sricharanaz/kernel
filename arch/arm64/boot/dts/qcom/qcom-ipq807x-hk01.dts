@@ -76,16 +76,17 @@
 
 &tlmm {
 	mdio_pins: mdio_pinmux {
-		mdc {
+		mux_0 {
 			pins = "gpio68";
 			function = "mdc";
 			bias-pull-up;
 		};
-		mdio {
+		mux_1 {
 			pins = "gpio69";
 			function = "mdio";
 			bias-pull-up;
 		};
+
 	};
 
 	uart_pins: uart_pins {
