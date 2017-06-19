@@ -16,6 +16,7 @@
 
 #include <linux/device.h>
 #include "wil_platform.h"
+#include "wil_platform_ipq.h"
 
 int __init wil_platform_modinit(void)
 {
@@ -44,7 +45,11 @@ void *wil_platform_init(struct device *dev, struct wil_platform_ops *ops,
 		return NULL;
 	}
 
-	/* platform specific init functions should be called here */
+	handle = ipq_11ad_dev_init(ops, rops, wil_handle);
+	if (handle)
+		return handle;
+
+	/* other platform specific init functions should be called here */
 
 	return handle;
 }
