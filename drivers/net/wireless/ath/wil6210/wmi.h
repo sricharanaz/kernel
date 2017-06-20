@@ -1405,7 +1405,8 @@ struct wmi_acs_passive_scan_complete_event {
 	 */
 	__le16 filled;
 	u8 num_scanned_channels;
-	u8 reserved;
+	/* enum scan_status */
+	u8 status;
 	struct scan_acs_info scan_info_list[0];
 } __packed;
 

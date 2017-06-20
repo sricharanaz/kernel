@@ -712,6 +712,11 @@ struct wil6210_priv {
 #if defined(CONFIG_WIL6210_NSS_SUPPORT)
 	struct nss_virt_if_handle *nss_handle;
 #endif
+	bool survey_ready;
+	struct {
+		struct wmi_acs_passive_scan_complete_event evt;
+		struct scan_acs_info ch_info[4];
+	} __packed survey_reply;
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)

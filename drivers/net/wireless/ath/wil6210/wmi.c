@@ -461,6 +461,36 @@ static void wmi_evt_scan_complete(struct wil6210_priv *wil, int id,
 	mutex_unlock(&wil->p2p_wdev_mutex);
 }
 
+static void wmi_evt_survey_complete(struct wil6210_priv *wil, int id,
+				    void *d, int len)
+{
+	struct wmi_acs_passive_scan_complete_event *evt =
+			(struct wmi_acs_passive_scan_complete_event *)d;
+
+	int expected_size = sizeof(struct wmi_acs_passive_scan_complete_event) +
+			    evt->num_scanned_channels *
+			    sizeof(struct scan_acs_info);
+
+	if (evt->status != WMI_SCAN_SUCCESS) {
+		wil_err(wil, "Survey event failed with error 0x%08x\n",
+			evt->status);
+		wil->survey_reply.evt.status = evt->status;
+		goto out;
+	}
+
+	if (len < expected_size) {
+		wil_err(wil, "Survey event size is too small (%d): expected %d channels\n",
+			len, evt->num_scanned_channels);
+		wil->survey_reply.evt.status = WMI_SCAN_FAILED;
+		goto out;
+	}
+
+	memcpy(&wil->survey_reply, d, sizeof(wil->survey_reply));
+out:
+	wil->survey_ready = true;
+	wake_up_interruptible(&wil->wq);
+}
+
 static void wmi_evt_connect(struct wil6210_priv *wil, int id, void *d, int len)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
@@ -820,18 +850,19 @@ static const struct {
 	void (*handler)(struct wil6210_priv *wil, int eventid,
 			void *data, int data_len);
 } wmi_evt_handlers[] = {
-	{WMI_READY_EVENTID,		wmi_evt_ready},
+	{WMI_READY_EVENTID,			wmi_evt_ready},
 	{WMI_FW_READY_EVENTID,			wmi_evt_ignore},
-	{WMI_RX_MGMT_PACKET_EVENTID,	wmi_evt_rx_mgmt},
+	{WMI_RX_MGMT_PACKET_EVENTID,		wmi_evt_rx_mgmt},
 	{WMI_TX_MGMT_PACKET_EVENTID,		wmi_evt_tx_mgmt},
-	{WMI_SCAN_COMPLETE_EVENTID,	wmi_evt_scan_complete},
-	{WMI_CONNECT_EVENTID,		wmi_evt_connect},
-	{WMI_DISCONNECT_EVENTID,	wmi_evt_disconnect},
-	{WMI_EAPOL_RX_EVENTID,		wmi_evt_eapol_rx},
-	{WMI_BA_STATUS_EVENTID,		wmi_evt_ba_status},
-	{WMI_RCP_ADDBA_REQ_EVENTID,	wmi_evt_addba_rx_req},
-	{WMI_DELBA_EVENTID,		wmi_evt_delba},
-	{WMI_VRING_EN_EVENTID,		wmi_evt_vring_en},
+	{WMI_SCAN_COMPLETE_EVENTID,		wmi_evt_scan_complete},
+	{WMI_ACS_PASSIVE_SCAN_COMPLETE_EVENTID, wmi_evt_survey_complete},
+	{WMI_CONNECT_EVENTID,			wmi_evt_connect},
+	{WMI_DISCONNECT_EVENTID,		wmi_evt_disconnect},
+	{WMI_EAPOL_RX_EVENTID,			wmi_evt_eapol_rx},
+	{WMI_BA_STATUS_EVENTID,			wmi_evt_ba_status},
+	{WMI_RCP_ADDBA_REQ_EVENTID,		wmi_evt_addba_rx_req},
+	{WMI_DELBA_EVENTID,			wmi_evt_delba},
+	{WMI_VRING_EN_EVENTID,			wmi_evt_vring_en},
 	{WMI_DATA_PORT_OPEN_EVENTID,		wmi_evt_ignore},
 };
 
