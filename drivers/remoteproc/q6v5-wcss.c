@@ -30,6 +30,8 @@
 #include <linux/elf.h>
 #include <soc/qcom/subsystem_restart.h>
 
+static int debug_wcss;
+
 #define WCSS_CRASH_REASON_SMEM 421
 #define WCNSS_PAS_ID		6
 #define QCOM_MDT_TYPE_MASK      (7 << 24)
@@ -88,6 +90,8 @@ struct q6v5_rproc_pdata {
 	struct subsys_device *subsys;
 	struct subsys_desc subsys_desc;
 	struct completion stop_done;
+	struct completion err_ready;
+	unsigned int err_ready_irq;
 	struct qcom_smem_state *state;
 	unsigned stop_bit;
 	unsigned shutdown_bit;
@@ -120,7 +124,6 @@ static void wcss_powerdown(struct q6v5_rproc_pdata *pdata)
 {
 	unsigned int nretry = 0;
 	unsigned long val = 0;
-	int ret = 0;
 
 	/* Assert WCSS/Q6 HALTREQ - 1 */
 	nretry = 0;
@@ -199,7 +202,6 @@ static void q6_powerdown(struct q6v5_rproc_pdata *pdata)
 	int i = 0;
 	unsigned int nretry = 0;
 	unsigned long val = 0;
-	int ret = 0;
 
 	/* Enable WCSS Block reset - 9 */
 	val = readl(pdata->gcc_bcr_base + GCC_WCSS_BCR);
@@ -301,7 +303,6 @@ static int q6_rproc_stop(struct rproc *rproc)
 	struct device *dev = rproc->dev.parent;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct q6v5_rproc_pdata *pdata = platform_get_drvdata(pdev);
-	unsigned long val = 0;
 	int ret = 0;
 
 	pdata->running = false;
@@ -318,8 +319,27 @@ static int q6_rproc_stop(struct rproc *rproc)
 
 	/* Q6 Power down */
 	q6_powerdown(pdata);
+	disable_irq(pdata->err_ready_irq);
 
 	return ret;
+}
+
+static int wait_for_err_ready(struct q6v5_rproc_pdata *pdata)
+{
+	int ret;
+
+wait_again:
+	ret = wait_for_completion_timeout(&pdata->err_ready,
+					  msecs_to_jiffies(10000));
+	if (!ret) {
+		if (debug_wcss)
+			goto wait_again;
+		pr_err("[%s]: Error ready timed out\n",
+				pdata->subsys_desc.name);
+		return -ETIMEDOUT;
+	}
+
+	return 0;
 }
 
 static int q6_rproc_start(struct rproc *rproc)
@@ -331,6 +351,8 @@ static int q6_rproc_start(struct rproc *rproc)
 	unsigned long val = 0;
 	unsigned int nretry = 0;
 	int ret = 0;
+
+	enable_irq(pdata->err_ready_irq);
 
 	if (pdata->secure) {
 		ret = qcom_scm_pas_auth_and_reset(WCNSS_PAS_ID);
@@ -401,20 +423,28 @@ static int q6_rproc_start(struct rproc *rproc)
 	/* Remove QDSP6 I/O clamp */
 	writel(0x30FFFFF, pdata->q6_base + QDSP6SS_PWR_CTL);
 
+	if (debug_wcss)
+		writel(0x20000001, pdata->q6_base + QDSP6SS_DBG_CFG);
+
 	/* Bring Q6 out of reset and stop the core */
 	writel(0x5, pdata->q6_base + QDSP6SS_RESET);
 
 	/* Retain debugger state during next QDSP6 reset */
-	writel(0x0, pdata->q6_base + QDSP6SS_DBG_CFG);
+	if (!debug_wcss)
+		writel(0x0, pdata->q6_base + QDSP6SS_DBG_CFG);
+
 	/* Turn on the QDSP6 core clock */
 	writel(0x102, pdata->q6_base + QDSP6SS_GFMUX_CTL);
 	/* Enable the core to run */
 	writel(0x4, pdata->q6_base + QDSP6SS_RESET);
 
 skip_reset:
-	pdata->running = true;
 
-	return 0;
+	ret = wait_for_err_ready(pdata);
+	if (!ret)
+		pdata->running = true;
+
+	return ret;
 }
 
 static void *q6_da_to_va(struct rproc *rproc, u64 da, int len)
@@ -431,6 +461,16 @@ static struct rproc_ops q6v5_rproc_ops = {
 };
 
 static struct rproc_fw_ops q6_fw_ops;
+
+static irqreturn_t wcss_err_ready_intr_handler(int irq, void *dev_id)
+{
+	struct q6v5_rproc_pdata *pdata = dev_id;
+
+	pr_info("Subsystem error monitoring/handling services are up\n");
+
+	complete(&pdata->err_ready);
+	return IRQ_HANDLED;
+}
 
 static irqreturn_t wcss_err_fatal_intr_handler(int irq, void *dev_id)
 {
@@ -492,6 +532,7 @@ static int start_q6(const struct subsys_desc *subsys)
 	int ret = 0;
 
 	reinit_completion(&pdata->stop_done);
+	reinit_completion(&pdata->err_ready);
 	pdata->subsys_desc.ramdump_disable = 1;
 	ret = rproc_add(rproc);
 	if (ret)
@@ -767,6 +808,24 @@ static int q6_rproc_probe(struct platform_device *pdev)
 
 	rproc->fw_ops = &q6_fw_ops;
 
+	q6v5_rproc_pdata->err_ready_irq = platform_get_irq_byname(pdev,
+						"qcom,gpio-err-ready");
+	if (q6v5_rproc_pdata->err_ready_irq < 0) {
+		pr_err("Can't get err-ready irq number %d\n",
+			q6v5_rproc_pdata->err_ready_irq);
+		goto free_rproc;
+	}
+	ret = devm_request_threaded_irq(&pdev->dev,
+				q6v5_rproc_pdata->err_ready_irq,
+				NULL, wcss_err_ready_intr_handler,
+				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				"error_ready_interrupt", q6v5_rproc_pdata);
+	if (ret < 0) {
+		pr_err("Can't register err ready handler\n");
+		goto free_rproc;
+	}
+	disable_irq(q6v5_rproc_pdata->err_ready_irq);
+
 	q6v5_rproc_pdata->state = qcom_smem_state_get(&pdev->dev, "stop",
 			&q6v5_rproc_pdata->stop_bit);
 	if (IS_ERR(q6v5_rproc_pdata->state)) {
@@ -804,6 +863,7 @@ static int q6_rproc_probe(struct platform_device *pdev)
 	}
 
 	init_completion(&q6v5_rproc_pdata->stop_done);
+	init_completion(&q6v5_rproc_pdata->err_ready);
 	q6v5_rproc_pdata->running = false;
 
 	return 0;
@@ -870,3 +930,5 @@ module_platform_driver(q6_rproc_driver);
 
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("QCA Remote Processor control driver");
+
+module_param(debug_wcss, int, 0644);

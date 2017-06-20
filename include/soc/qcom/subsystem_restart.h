@@ -77,7 +77,6 @@ struct subsys_desc {
 	int is_not_loadable;
 	int err_fatal_gpio;
 	unsigned int err_fatal_irq;
-	unsigned int err_ready_irq;
 	unsigned int stop_ack_irq;
 	unsigned int wdog_bite_irq;
 	unsigned int generic_irq;
