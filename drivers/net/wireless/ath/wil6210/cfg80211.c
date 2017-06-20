@@ -19,6 +19,7 @@
 #include <net/netlink.h>
 #include "wil6210.h"
 #include "wmi.h"
+#include "ftm.h"
 
 #define WIL_MAX_ROC_DURATION_MS 5000
 
@@ -151,14 +152,19 @@ nla_policy wil_rf_sector_cfg_policy[QCA_ATTR_DMG_RF_SECTOR_CFG_MAX + 1] = {
 
 enum qca_nl80211_vendor_subcmds {
 	QCA_NL80211_VENDOR_SUBCMD_DO_ACS = 54,
+	QCA_NL80211_VENDOR_SUBCMD_LOC_GET_CAPA = 128,
+	QCA_NL80211_VENDOR_SUBCMD_FTM_START_SESSION = 129,
+	QCA_NL80211_VENDOR_SUBCMD_FTM_ABORT_SESSION = 130,
+	QCA_NL80211_VENDOR_SUBCMD_FTM_MEAS_RESULT = 131,
+	QCA_NL80211_VENDOR_SUBCMD_FTM_SESSION_DONE = 132,
+	QCA_NL80211_VENDOR_SUBCMD_FTM_CFG_RESPONDER = 133,
+	QCA_NL80211_VENDOR_SUBCMD_AOA_MEAS = 134,
+	QCA_NL80211_VENDOR_SUBCMD_AOA_ABORT_MEAS = 135,
+	QCA_NL80211_VENDOR_SUBCMD_AOA_MEAS_RESULT = 136,
 	QCA_NL80211_VENDOR_SUBCMD_DMG_RF_GET_SECTOR_CFG = 139,
 	QCA_NL80211_VENDOR_SUBCMD_DMG_RF_SET_SECTOR_CFG = 140,
 	QCA_NL80211_VENDOR_SUBCMD_DMG_RF_GET_SELECTED_SECTOR = 141,
 	QCA_NL80211_VENDOR_SUBCMD_DMG_RF_SET_SELECTED_SECTOR = 142,
-};
-
-enum qca_nl80211_vendor_subcmds_index {
-	QCA_NL80211_VENDOR_SUBCMD_DO_ACS_INDEX,
 };
 
 static int wil_do_acs(struct wiphy *wiphy, struct wireless_dev *wdev,
@@ -178,13 +184,55 @@ static int wil_rf_sector_set_selected(struct wiphy *wiphy,
 
 /* vendor specific commands */
 static const struct wiphy_vendor_command wil_nl80211_vendor_commands[] = {
-	[QCA_NL80211_VENDOR_SUBCMD_DO_ACS_INDEX] = {
+	{
 		.info.vendor_id = QCA_NL80211_VENDOR_ID,
 		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_DO_ACS,
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
 			 WIPHY_VENDOR_CMD_NEED_NETDEV |
 			 WIPHY_VENDOR_CMD_NEED_RUNNING,
 		.doit = wil_do_acs
+	},
+	{
+		.info.vendor_id = QCA_NL80211_VENDOR_ID,
+		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_LOC_GET_CAPA,
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
+			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.doit = wil_ftm_get_capabilities
+	},
+	{
+		.info.vendor_id = QCA_NL80211_VENDOR_ID,
+		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_FTM_START_SESSION,
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
+			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.doit = wil_ftm_start_session
+	},
+	{
+		.info.vendor_id = QCA_NL80211_VENDOR_ID,
+		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_FTM_ABORT_SESSION,
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
+			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.doit = wil_ftm_abort_session
+	},
+	{
+		.info.vendor_id = QCA_NL80211_VENDOR_ID,
+		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_FTM_CFG_RESPONDER,
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
+			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.doit = wil_ftm_configure_responder
+	},
+	{
+		.info.vendor_id = QCA_NL80211_VENDOR_ID,
+		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_AOA_MEAS,
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
+			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.doit = wil_aoa_start_measurement
+	},
+	{
+		.info.vendor_id = QCA_NL80211_VENDOR_ID,
+		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_AOA_ABORT_MEAS,
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
+			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.doit = wil_aoa_abort_measurement
 	},
 	{
 		.info.vendor_id = QCA_NL80211_VENDOR_ID,
@@ -220,9 +268,21 @@ static const struct wiphy_vendor_command wil_nl80211_vendor_commands[] = {
 
 /* vendor specific events */
 static const struct nl80211_vendor_cmd_info wil_nl80211_vendor_events[] = {
-	[QCA_NL80211_VENDOR_SUBCMD_DO_ACS_INDEX] = {
+	[QCA_NL80211_VENDOR_EVENT_DO_ACS_INDEX] = {
 			.vendor_id = QCA_NL80211_VENDOR_ID,
 			.subcmd = QCA_NL80211_VENDOR_SUBCMD_DO_ACS
+	},
+	[QCA_NL80211_VENDOR_EVENT_FTM_MEAS_RESULT_INDEX] = {
+			.vendor_id = QCA_NL80211_VENDOR_ID,
+			.subcmd = QCA_NL80211_VENDOR_SUBCMD_FTM_MEAS_RESULT
+	},
+	[QCA_NL80211_VENDOR_EVENT_FTM_SESSION_DONE_INDEX] = {
+			.vendor_id = QCA_NL80211_VENDOR_ID,
+			.subcmd = QCA_NL80211_VENDOR_SUBCMD_FTM_SESSION_DONE
+	},
+	[QCA_NL80211_VENDOR_EVENT_AOA_MEAS_RESULT_INDEX] = {
+			.vendor_id = QCA_NL80211_VENDOR_ID,
+			.subcmd = QCA_NL80211_VENDOR_SUBCMD_AOA_MEAS_RESULT
 	},
 };
 
@@ -2060,7 +2120,7 @@ static void wil_acs_report_channel(struct wil6210_priv *wil)
 
 	vendor_event = cfg80211_vendor_event_alloc(
 		wil_to_wiphy(wil), NULL, 2 * sizeof(u8) + 4 + NLMSG_HDRLEN,
-		QCA_NL80211_VENDOR_SUBCMD_DO_ACS_INDEX, GFP_KERNEL);
+		QCA_NL80211_VENDOR_EVENT_DO_ACS_INDEX, GFP_KERNEL);
 	if (!vendor_event) {
 		wil_err(wil, "cfg80211_vendor_event_alloc failed\n");
 		return;
