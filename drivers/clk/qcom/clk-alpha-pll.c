@@ -621,18 +621,19 @@ static int clk_alpha_pll_huayra_set_rate(struct clk_hw *hw, unsigned long rate,
 	 * Huayra PLL supports PLL dynamic programming. User can change L_VAL,
 	 * without having to go through the power on sequence.
 	 */
-	if (cur_alpha == a) {
+	if (clk_hw_is_enabled(hw)) {
+		if (cur_alpha != a) {
+			pr_err("clock needs to be gated %s\n", clk_hw_get_name(hw));
+			return -EBUSY;
+		}
+
 		regmap_write(pll->clkr.regmap, PLL_L_REG(pll), l);
 		/* Ensure that the write above goes to detect L val change. */
 		mb();
 		return wait_for_pll_enable_lock(pll);
 	}
 
-	if (clk_hw_is_enabled(hw)) {
-		pr_err("clock needs to be gated %s\n", clk_hw_get_name(hw));
-		return -EBUSY;
-	}
-
+	regmap_write(pll->clkr.regmap, PLL_L_REG(pll), l);
 	regmap_write(pll->clkr.regmap, PLL_ALPHA_REG(pll), a);
 
 	if (a == 0)
