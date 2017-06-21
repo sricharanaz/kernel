@@ -85,7 +85,7 @@ static struct snd_soc_dai_link ipq8074_snd_dai[] = {
 		.cpu_dai_name	= "qca-i2s-dai",
 		.platform_name	= "7709000.qca-pcm-i2s",
 		.codec_dai_name	= "qca-i2s-codec-dai",
-		.codec_name	= "qca_codec.1-0012",
+		.codec_name	= "qca_codec.0-0012",
 		.dai_fmt = (SND_SOC_DAIFMT_I2S |
 				SND_SOC_DAIFMT_NB_NF |
 				SND_SOC_DAIFMT_CBS_CFS),
@@ -96,7 +96,7 @@ static struct snd_soc_dai_link ipq8074_snd_dai[] = {
 		.cpu_dai_name	= "qca-tdm-dai",
 		.platform_name	= "7709000.qca-pcm-tdm",
 		.codec_dai_name	= "qca-tdm-codec-dai",
-		.codec_name	= "qca_codec.1-0012",
+		.codec_name	= "qca_codec.0-0012",
 	},
 };
 
