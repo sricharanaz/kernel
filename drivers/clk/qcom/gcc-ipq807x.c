@@ -4686,7 +4686,7 @@ static const struct alpha_pll_config audio_pll_config = {
 
 static const struct alpha_pll_config ubi32_pll_config = {
 	.l = 0x4e,
-	.config_ctl_val = 0x200d6aa8,
+	.config_ctl_val = 0x200d4aa8,
 	.config_ctl_hi_val = 0x3c2,
 	.main_output_mask = BIT(0),
 	.aux_output_mask = BIT(1),
@@ -4700,7 +4700,7 @@ static const struct alpha_pll_config nss_crypto_pll_config = {
 	.l = 0x3e,
 	.alpha = 0x0,
 	.alpha_hi = 0x80,
-	.config_ctl_val = 0x4001051b,
+	.config_ctl_val = 0x4001055b,
 	.main_output_mask = BIT(0),
 	.pre_div_val = 0x0,
 	.pre_div_mask = GENMASK(14, 12),
