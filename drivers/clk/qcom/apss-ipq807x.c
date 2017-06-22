@@ -47,11 +47,24 @@ enum {
 	P_APSS_PLL
 };
 
+static const u32 apss_pll_regs_offsets[] = {
+	[ALPHA_PLL_MODE] = 0x00,
+	[ALPHA_PLL_L_VAL] = 0x08,
+	[ALPHA_PLL_ALPHA_VAL] = 0x10,
+	[ALPHA_PLL_ALPHA_VAL_U] = 0xff,
+	[ALPHA_PLL_USER_CTL] = 0x18,
+	[ALPHA_PLL_USER_CTL_U] = 0xff,
+	[ALPHA_PLL_CONFIG_CTL] = 0x20,
+	[ALPHA_PLL_CONFIG_CTL_U] = 0x24,
+	[ALPHA_PLL_TEST_CTL] = 0x30,
+	[ALPHA_PLL_TEST_CTL_U] = 0x34,
+	[ALPHA_PLL_STATUS] = 0x28,
+};
+
 static struct clk_alpha_pll apss_pll_early = {
 	.offset = 0x5000,
+	.regs_offsets = apss_pll_regs_offsets,
 	.flags = SUPPORTS_16BIT_ALPHA | SUPPORTS_64BIT_CTL,
-	.l_offset = 0x4,
-	.alpha_offset = 0x8,
 	.clkr = {
 		.enable_reg = 0x5000,
 		.enable_mask = BIT(0),
@@ -68,8 +81,7 @@ static struct clk_alpha_pll apss_pll_early = {
 
 static struct clk_alpha_pll_postdiv apss_pll = {
 	.offset = 0x5000,
-	.l_offset = 0x4,
-	.alpha_offset = 0x8,
+	.regs_offsets = apss_pll_regs_offsets,
 	.width = 2,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "apss_pll",
