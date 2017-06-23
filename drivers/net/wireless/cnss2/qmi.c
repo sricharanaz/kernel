@@ -26,15 +26,12 @@
 #define BDF_FILE_NAME_PREFIX		"bdwlan.b"
 
 unsigned int wlfw_service_instance_id;
-#ifdef CONFIG_CNSS2_DEBUG
 static unsigned long qmi_timeout = 3000;
 module_param(qmi_timeout, ulong, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(qmi_timeout, "Timeout for QMI message in milliseconds");
+EXPORT_SYMBOL(qmi_timeout);
 
 #define QMI_WLFW_TIMEOUT_MS		qmi_timeout
-#else
-#define QMI_WLFW_TIMEOUT_MS		3000
-#endif
 
 static bool daemon_support;
 module_param(daemon_support, bool, S_IRUSR | S_IWUSR);
@@ -362,6 +359,55 @@ out:
 	return ret;
 }
 
+int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
+		struct cnss_plat_data *plat_priv, unsigned int remaining)
+{
+	int ret;
+	const struct firmware *fw;
+	void *bdf_addr = NULL;
+
+	if (!bdf_valid)
+		return -EINVAL;
+
+	ret = request_firmware(&fw, "IPQ8074/bdwlan.bin",
+		&plat_priv->plat_dev->dev);
+
+	if (ret) {
+		cnss_pr_err("Failed to get BDF file IPQ8074/bdwlan.bin");
+		return ret;
+	}
+
+	bdf_addr = ioremap(Q6_BDF_ADDR, BDF_MAX_SIZE);
+
+	if (!bdf_addr) {
+		cnss_pr_err("ERROR. not able to ioremap BDF location\n");
+		ret = -EIO;
+		goto out;
+	}
+
+	cnss_pr_info("fw entry size %d data %p\n", fw->size, fw->data);
+
+	if (fw->size <= BDF_MAX_SIZE) {
+		memcpy(bdf_addr, fw->data, fw->size);
+		req->total_size_valid = 1;
+		req->total_size = fw->size;
+		req->data_valid = 0;
+		req->end_valid = 1;
+		req->end = 1;
+	} else {
+		cnss_pr_info("bdf size %d > segsz %d\n",
+			fw->size, BDF_MAX_SIZE);
+		req->data_len = remaining;
+		req->end = 1;
+	}
+
+	iounmap(bdf_addr);
+out:
+
+	release_firmware(fw);
+	return ret;
+}
+
 int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv)
 {
 	struct wlfw_bdf_download_req_msg_v01 *req;
@@ -434,6 +480,8 @@ bypass_bdf:
 			req->data_len = remaining;
 			req->end = 1;
 		}
+
+		cnss_wlfw_load_bdf(req, plat_priv, remaining);
 
 		memcpy(req->data, temp, req->data_len);
 
