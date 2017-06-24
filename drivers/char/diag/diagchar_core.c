@@ -3142,8 +3142,13 @@ void diag_ws_release()
 static void diag_debug_init(void)
 {
 	diag_ipc_log = ipc_log_context_create(DIAG_IPC_LOG_PAGES, "diag", 0);
-	if (!diag_ipc_log)
+	if (!diag_ipc_log) {
+#ifdef CONFIG_IPC_LOGGING
 		pr_err("diag: Failed to create IPC logging context\n");
+#else
+		pr_err("diag: IPC Logging disabled\n");
+#endif
+	}
 	/*
 	 * Set the bit mask here as per diag_ipc_logging.h to enable debug logs
 	 * to be logged to IPC
