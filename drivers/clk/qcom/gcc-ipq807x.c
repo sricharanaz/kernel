@@ -419,8 +419,51 @@ static const struct parent_map gcc_xo_gpll0_gpll6_gpll0_out_main_div2_map[] = {
 	{ P_GPLL0_DIV2, 3 },
 };
 
+static const u32 spark_pll_regs_offsets[] = {
+	[ALPHA_PLL_MODE] = 0x00,
+	[ALPHA_PLL_L_VAL] = 0x04,
+	[ALPHA_PLL_ALPHA_VAL] = 0x08,
+	[ALPHA_PLL_ALPHA_VAL_U] = 0x0c,
+	[ALPHA_PLL_USER_CTL] = 0x10,
+	[ALPHA_PLL_USER_CTL_U] = 0x14,
+	[ALPHA_PLL_CONFIG_CTL] = 0x18,
+	[ALPHA_PLL_CONFIG_CTL_U] = 0xff,
+	[ALPHA_PLL_TEST_CTL] = 0x1c,
+	[ALPHA_PLL_TEST_CTL_U] = 0x20,
+	[ALPHA_PLL_STATUS] = 0x24,
+};
+
+static const u32 brammo_pll_regs_offsets[] = {
+	[ALPHA_PLL_MODE] = 0x00,
+	[ALPHA_PLL_L_VAL] = 0x04,
+	[ALPHA_PLL_ALPHA_VAL] = 0x08,
+	[ALPHA_PLL_ALPHA_VAL_U] = 0x0c,
+	[ALPHA_PLL_USER_CTL] = 0x10,
+	[ALPHA_PLL_USER_CTL_U] = 0xff,
+	[ALPHA_PLL_CONFIG_CTL] = 0x18,
+	[ALPHA_PLL_CONFIG_CTL_U] = 0xff,
+	[ALPHA_PLL_TEST_CTL] = 0x1c,
+	[ALPHA_PLL_TEST_CTL_U] = 0xff,
+	[ALPHA_PLL_STATUS] = 0x24,
+};
+
+static const u32 huayra_pll_regs_offsets[] = {
+	[ALPHA_PLL_MODE] = 0x00,
+	[ALPHA_PLL_L_VAL] = 0x04,
+	[ALPHA_PLL_ALPHA_VAL] = 0x08,
+	[ALPHA_PLL_ALPHA_VAL_U] = 0xff,
+	[ALPHA_PLL_USER_CTL] = 0x10,
+	[ALPHA_PLL_USER_CTL_U] = 0xff,
+	[ALPHA_PLL_CONFIG_CTL] = 0x14,
+	[ALPHA_PLL_CONFIG_CTL_U] = 0x18,
+	[ALPHA_PLL_TEST_CTL] = 0x1c,
+	[ALPHA_PLL_TEST_CTL_U] = 0x20,
+	[ALPHA_PLL_STATUS] = 0x24,
+};
+
 static struct clk_alpha_pll gpll0_main = {
 	.offset = 0x21000,
+	.regs_offsets = spark_pll_regs_offsets,
 	.clkr = {
 		.enable_reg = 0x0b000,
 		.enable_mask = BIT(0),
@@ -452,6 +495,7 @@ static struct clk_fixed_factor gpll0_out_main_div2 = {
 
 static struct clk_alpha_pll_postdiv gpll0 = {
 	.offset = 0x21000,
+	.regs_offsets = spark_pll_regs_offsets,
 	.width = 4,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gpll0",
@@ -466,6 +510,7 @@ static struct clk_alpha_pll_postdiv gpll0 = {
 
 static struct clk_alpha_pll ubi32_pll_main = {
 	.offset = 0x25000,
+	.regs_offsets = huayra_pll_regs_offsets,
 	.flags = SUPPORTS_16BIT_ALPHA | SUPPORTS_64BIT_CTL,
 	.clkr = {
 		.enable_reg = 0x0b000,
@@ -483,6 +528,7 @@ static struct clk_alpha_pll ubi32_pll_main = {
 
 static struct clk_alpha_pll_postdiv ubi32_pll = {
 	.offset = 0x25000,
+	.regs_offsets = huayra_pll_regs_offsets,
 	.width = 2,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "ubi32_pll",
@@ -497,6 +543,7 @@ static struct clk_alpha_pll_postdiv ubi32_pll = {
 
 static struct clk_alpha_pll gpll6_main = {
 	.offset = 0x37000,
+	.regs_offsets = brammo_pll_regs_offsets,
 	.clkr = {
 		.enable_reg = 0x0b000,
 		.enable_mask = BIT(7),
@@ -514,6 +561,7 @@ static struct clk_alpha_pll gpll6_main = {
 
 static struct clk_alpha_pll_postdiv gpll6 = {
 	.offset = 0x37000,
+	.regs_offsets = brammo_pll_regs_offsets,
 	.width = 2,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gpll6",
@@ -528,6 +576,7 @@ static struct clk_alpha_pll_postdiv gpll6 = {
 
 static struct clk_alpha_pll gpll4_main = {
 	.offset = 0x24000,
+	.regs_offsets = spark_pll_regs_offsets,
 	.clkr = {
 		.enable_reg = 0x0b000,
 		.enable_mask = BIT(5),
@@ -545,6 +594,7 @@ static struct clk_alpha_pll gpll4_main = {
 
 static struct clk_alpha_pll_postdiv gpll4 = {
 	.offset = 0x24000,
+	.regs_offsets = spark_pll_regs_offsets,
 	.width = 4,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gpll4",
@@ -559,6 +609,7 @@ static struct clk_alpha_pll_postdiv gpll4 = {
 
 static struct clk_alpha_pll audio_pll_main = {
 	.offset = 0x4b000,
+	.regs_offsets = brammo_pll_regs_offsets,
 	.clkr = {
 		.enable_reg = 0x0b000,
 		.enable_mask = BIT(1),
@@ -575,6 +626,7 @@ static struct clk_alpha_pll audio_pll_main = {
 
 static struct clk_alpha_pll_postdiv audio_pll = {
 	.offset = 0x4b000,
+	.regs_offsets = brammo_pll_regs_offsets,
 	.width = 2,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "audio_pll",
@@ -624,6 +676,7 @@ static struct clk_fixed_factor pcnoc_clk_src = {
 
 static struct clk_alpha_pll gpll2_main = {
 	.offset = 0x4a000,
+	.regs_offsets = spark_pll_regs_offsets,
 	.clkr = {
 		.enable_reg = 0x0b000,
 		.enable_mask = BIT(2),
@@ -641,6 +694,7 @@ static struct clk_alpha_pll gpll2_main = {
 
 static struct clk_alpha_pll_postdiv gpll2 = {
 	.offset = 0x4a000,
+	.regs_offsets = spark_pll_regs_offsets,
 	.width = 4,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "gpll2",
@@ -655,6 +709,7 @@ static struct clk_alpha_pll_postdiv gpll2 = {
 
 static struct clk_alpha_pll nss_crypto_pll_main = {
 	.offset = 0x22000,
+	.regs_offsets = spark_pll_regs_offsets,
 	.clkr = {
 		.enable_reg = 0x0b000,
 		.enable_mask = BIT(4),
@@ -671,6 +726,7 @@ static struct clk_alpha_pll nss_crypto_pll_main = {
 
 static struct clk_alpha_pll_postdiv nss_crypto_pll = {
 	.offset = 0x22000,
+	.regs_offsets = spark_pll_regs_offsets,
 	.width = 4,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "nss_crypto_pll",
@@ -4630,7 +4686,7 @@ static const struct alpha_pll_config audio_pll_config = {
 
 static const struct alpha_pll_config ubi32_pll_config = {
 	.l = 0x4e,
-	.config_ctl_val = 0x200d6aa8,
+	.config_ctl_val = 0x200d4aa8,
 	.config_ctl_hi_val = 0x3c2,
 	.main_output_mask = BIT(0),
 	.aux_output_mask = BIT(1),
@@ -4644,7 +4700,7 @@ static const struct alpha_pll_config nss_crypto_pll_config = {
 	.l = 0x3e,
 	.alpha = 0x0,
 	.alpha_hi = 0x80,
-	.config_ctl_val = 0x4001051b,
+	.config_ctl_val = 0x4001055b,
 	.main_output_mask = BIT(0),
 	.pre_div_val = 0x0,
 	.pre_div_mask = GENMASK(14, 12),

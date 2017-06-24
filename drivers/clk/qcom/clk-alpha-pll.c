@@ -20,7 +20,6 @@
 #include "clk-alpha-pll.h"
 #include "common.h"
 
-#define PLL_MODE		0x00
 # define PLL_OUTCTRL		BIT(0)
 # define PLL_BYPASSNL		BIT(1)
 # define PLL_RESET_N		BIT(2)
@@ -39,24 +38,11 @@
 # define PLL_ACTIVE_FLAG	BIT(30)
 # define PLL_LOCK_DET		BIT(31)
 
-#define PLL_L_VAL		0x04
-#define PLL_ALPHA_VAL		0x08
-#define PLL_ALPHA_VAL_U		0x0c
-
-#define PLL_USER_CTL		0x10
 # define PLL_POST_DIV_SHIFT	8
 # define PLL_ALPHA_EN		BIT(24)
 # define PLL_ALPHA_MODE		BIT(25)
 # define PLL_VCO_SHIFT		20
 # define PLL_VCO_MASK		0x3
-
-#define PLL_USER_CTL_U		0x14
-
-#define PLL_CONFIG_CTL		0x18
-#define PLL_CONFIG_CTL_U	0x20
-#define PLL_TEST_CTL		0x1c
-#define PLL_TEST_CTL_U		0x20
-#define PLL_STATUS		0x24
 
 #define PLL_HUAYRA_M_WIDTH		8
 #define PLL_HUAYRA_M_SHIFT		8
@@ -72,25 +58,28 @@
 #define ALPHA_REG_16BIT_WIDTH	16
 #define ALPHA_BITWIDTH		32
 
-#define PLL_MODE_REG(pll)	(pll->offset + PLL_MODE)
-#define PLL_L_REG(pll)		(pll->offset + PLL_L_VAL + pll->l_offset)
-#define PLL_ALPHA_REG(pll)	(pll->offset + PLL_ALPHA_VAL + \
-				 pll->alpha_offset)
-#define PLL_ALPHA_U_REG(pll)	(pll->offset + PLL_ALPHA_VAL_U + \
-				 pll->alpha_offset)
-#define PLL_USER_CTL_REG(pll)	(pll->offset + PLL_USER_CTL + \
-				 pll->alpha_offset)
-#define PLL_USER_CTL_U_REG(pll)	(pll->offset + PLL_USER_CTL_U + \
-				 pll->alpha_offset)
-#define PLL_CONFIG_CTL_REG(pll)	(pll->offset + PLL_CONFIG_CTL + \
-				 pll->alpha_offset)
-#define PLL_TEST_CTL_REG(pll)	(pll->offset + PLL_TEST_CTL + \
-				 pll->alpha_offset)
-#define PLL_TEST_CTL_U_REG(pll)	(pll->offset + PLL_TEST_U_CTL + \
-				 pll->alpha_offset)
-#define PLL_STATUS_REG(pll)	(pll->offset + PLL_STATUS + pll->alpha_offset)
-#define PLL_CONFIG_CTL_U_REG(pll)	(pll->offset + PLL_CONFIG_CTL_U + \
-					 pll->alpha_offset)
+#define PLL_MODE_REG(pll)	(pll->offset + \
+				 pll->regs_offsets[ALPHA_PLL_MODE])
+#define PLL_L_REG(pll)		(pll->offset + \
+				 pll->regs_offsets[ALPHA_PLL_L_VAL])
+#define PLL_ALPHA_REG(pll)	(pll->offset + \
+				 pll->regs_offsets[ALPHA_PLL_ALPHA_VAL])
+#define PLL_ALPHA_U_REG(pll)	(pll->offset + \
+				 pll->regs_offsets[ALPHA_PLL_ALPHA_VAL_U])
+#define PLL_USER_CTL_REG(pll)	(pll->offset + \
+				 pll->regs_offsets[ALPHA_PLL_USER_CTL])
+#define PLL_USER_CTL_U_REG(pll)	(pll->offset + \
+				 pll->regs_offsets[ALPHA_PLL_USER_CTL_U])
+#define PLL_CONFIG_CTL_REG(pll)	(pll->offset + \
+				 pll->regs_offsets[ALPHA_PLL_CONFIG_CTL])
+#define PLL_TEST_CTL_REG(pll)	(pll->offset + \
+				 pll->regs_offsets[ALPHA_PLL_TEST_CTL])
+#define PLL_TEST_CTL_U_REG(pll)	(pll->offset + \
+				 pll->regs_offsets[ALPHA_PLL_TEST_CTL_U])
+#define PLL_STATUS_REG(pll)	(pll->offset + \
+				 pll->regs_offsets[ALPHA_PLL_STATUS])
+#define PLL_CONFIG_CTL_U_REG(pll)	(pll->offset + \
+					 pll->regs_offsets[ALPHA_PLL_CONFIG_CTL_U])
 
 #define to_clk_alpha_pll(_hw) container_of(to_clk_regmap(_hw), \
 					   struct clk_alpha_pll, clkr)
@@ -621,18 +610,19 @@ static int clk_alpha_pll_huayra_set_rate(struct clk_hw *hw, unsigned long rate,
 	 * Huayra PLL supports PLL dynamic programming. User can change L_VAL,
 	 * without having to go through the power on sequence.
 	 */
-	if (cur_alpha == a) {
+	if (clk_hw_is_enabled(hw)) {
+		if (cur_alpha != a) {
+			pr_err("clock needs to be gated %s\n", clk_hw_get_name(hw));
+			return -EBUSY;
+		}
+
 		regmap_write(pll->clkr.regmap, PLL_L_REG(pll), l);
 		/* Ensure that the write above goes to detect L val change. */
 		mb();
 		return wait_for_pll_enable_lock(pll);
 	}
 
-	if (clk_hw_is_enabled(hw)) {
-		pr_err("clock needs to be gated %s\n", clk_hw_get_name(hw));
-		return -EBUSY;
-	}
-
+	regmap_write(pll->clkr.regmap, PLL_L_REG(pll), l);
 	regmap_write(pll->clkr.regmap, PLL_ALPHA_REG(pll), a);
 
 	if (a == 0)
