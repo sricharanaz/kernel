@@ -466,24 +466,6 @@
 		uniphy_access_mode = "local bus";
 	};
 
-	edma@3ab00000 {
-		compatible = "qcom,edma";
-		reg = <0x3ab00000 0x76900>;
-		reg-names = "edma-reg-base";
-		qcom,txdesc-ring-start = <23>;
-		qcom,txdesc-rings = <1>;
-		qcom,txcmpl-ring-start = <7>;
-		qcom,txcmpl-rings = <1>;
-		qcom,rxfill-ring-start = <7>;
-		qcom,rxfill-rings = <1>;
-		qcom,rxdesc-ring-start = <15>;
-		qcom,rxdesc-rings = <1>;
-		interrupts = <0 345 4>,
-			   <0 353 4>,
-			   <0 361 4>,
-			   <0 344 4>;
-	};
-
 	dp1 {
 		device_type = "network";
 		compatible = "qcom,nss-dp";
@@ -555,111 +537,12 @@
 		qcom,phy-mdio-addr = <7>;
 		phy-mode = "sgmii";
 	};
-
-	nss-common {
-		compatible = "qcom,nss-common";
-		reg = <0x01868010 0x1000>;
-		reg-names = "nss-misc-reset";
-	};
-
-	nss0: nss@40000000 {
-		compatible = "qcom,nss";
-		interrupts = <0 377 0x1>, <0 378 0x1>, <0 379 0x1>, <0 380 0x1>,
-			     <0 381 0x1>, <0 382 0x1>, <0 383 0x1>;
-		reg = <0x39000000 0x1000>, <0x38000000 0x30000>,
-		      <0x0b111000 0x1000>;
-		reg-names = "nphys", "vphys", "qgic-phys";
-		clocks = <&gcc GCC_NSS_NOC_CLK>, <&gcc GCC_NSS_PTP_REF_CLK>,
-			 <&gcc GCC_NSS_CSR_CLK>, <&gcc GCC_NSS_CFG_CLK>,
-			 <&gcc GCC_NSS_IMEM_CLK>,
-			 <&gcc GCC_NSSNOC_QOSGEN_REF_CLK>,
-			 <&gcc GCC_MEM_NOC_NSS_AXI_CLK>,
-			 <&gcc GCC_NSSNOC_SNOC_CLK>,
-			 <&gcc GCC_NSSNOC_TIMEOUT_REF_CLK>,
-			 <&gcc GCC_NSS_CE_AXI_CLK>, <&gcc GCC_NSS_CE_APB_CLK>,
-			 <&gcc GCC_NSSNOC_CE_AXI_CLK>,
-			 <&gcc GCC_NSSNOC_CE_APB_CLK>,
-			 <&gcc GCC_NSSNOC_UBI0_AHB_CLK>,
-			 <&gcc GCC_UBI0_CORE_CLK>, <&gcc GCC_UBI0_AHB_CLK>,
-			 <&gcc GCC_UBI0_AXI_CLK>, <&gcc GCC_UBI0_MPT_CLK>,
-			 <&gcc GCC_UBI0_NC_AXI_CLK>;
-		clock-names = "nss-noc-clk", "nss-ptp-ref-clk", "nss-csr-clk",
-			      "nss-cfg-clk", "nss-imem-clk",
-			      "nss-nssnoc-qosgen-ref-clk",
-			      "nss-mem-noc-nss-axi-clk", "nss-nssnoc-snoc-clk",
-			      "nss-nssnoc-timeout-ref-clk", "nss-ce-axi-clk",
-			      "nss-ce-apb-clk", "nss-nssnoc-ce-axi-clk",
-			      "nss-nssnoc-ce-apb-clk", "nss-nssnoc-ahb-clk",
-			      "nss-core-clk", "nss-ahb-clk", "nss-axi-clk",
-			      "nss-mpt-clk", "nss-nc-axi-clk";
-		qcom,id = <0>;
-		qcom,num-queue = <4>;
-		qcom,num-irq = <7>;
-		qcom,load-addr = <0x40000000>;
-		qcom,bridge-enabled;
-		qcom,ipv4-enabled;
-		qcom,ipv6-enabled;
-		qcom,wlanredirect-enabled;
-		qcom,tun6rd-enabled;
-		qcom,l2tpv2-enabled;
-		qcom,gre-enabled;
-		qcom,map-t-enabled;
-		qcom,portid-enabled;
-		qcom,ppe-enabled;
-		qcom,pppoe-enabled;
-		qcom,pptp-enabled;
-		qcom,tunipip6-enabled;
-		qcom,shaping-enabled;
-		qcom,wlan-dataplane-offload-enabled;
-		qcom,vlan-enabled;
-	};
-
-	nss1: nss@40800000 {
-		compatible = "qcom,nss";
-		interrupts = <0 390 0x1>, <0 391 0x1>, <0 392 0x1>, <0 393 0x1>,
-				<0 394 0x1>, <0 395 0x1>, <0 396 0x1>;
-		reg = <0x39400000 0x1000>, <0x38030000 0x30000>,
-			<0x0b111000 0x1000>;
-		reg-names = "nphys", "vphys", "qgic-phys";
-		clocks = <&gcc GCC_NSS_NOC_CLK>, <&gcc GCC_NSS_PTP_REF_CLK>,
-			 <&gcc GCC_NSS_CSR_CLK>, <&gcc GCC_NSS_CFG_CLK>,
-			 <&gcc GCC_NSS_IMEM_CLK>,
-			 <&gcc GCC_NSSNOC_QOSGEN_REF_CLK>,
-			 <&gcc GCC_MEM_NOC_NSS_AXI_CLK>,
-			 <&gcc GCC_NSSNOC_SNOC_CLK>,
-			 <&gcc GCC_NSSNOC_TIMEOUT_REF_CLK>,
-			 <&gcc GCC_NSS_CE_AXI_CLK>, <&gcc GCC_NSS_CE_APB_CLK>,
-			 <&gcc GCC_NSSNOC_CE_AXI_CLK>,
-			 <&gcc GCC_NSSNOC_CE_APB_CLK>,
-			 <&gcc GCC_NSSNOC_UBI1_AHB_CLK>,
-			 <&gcc GCC_UBI1_CORE_CLK>, <&gcc GCC_UBI1_AHB_CLK>,
-			 <&gcc GCC_UBI1_AXI_CLK>, <&gcc GCC_UBI1_MPT_CLK>,
-			 <&gcc GCC_UBI1_NC_AXI_CLK>;
-		clock-names = "nss-noc-clk", "nss-ptp-ref-clk", "nss-csr-clk",
-			      "nss-cfg-clk", "nss-imem-clk",
-			      "nss-nssnoc-qosgen-ref-clk",
-			      "nss-mem-noc-nss-axi-clk", "nss-nssnoc-snoc-clk",
-			      "nss-nssnoc-timeout-ref-clk", "nss-ce-axi-clk",
-			      "nss-ce-apb-clk", "nss-nssnoc-ce-axi-clk",
-			      "nss-nssnoc-ce-apb-clk", "nss-nssnoc-ahb-clk",
-			      "nss-core-clk", "nss-ahb-clk", "nss-axi-clk",
-			      "nss-mpt-clk", "nss-nc-axi-clk";
-		qcom,id = <1>;
-		qcom,num-queue = <4>;
-		qcom,num-irq = <7>;
-		qcom,load-addr = <0x40800000>;
-		qcom,capwap-enabled;
-		qcom,dtls-enabled;
-		qcom,crypto-enabled;
-		qcom,ipsec-enabled;
-	};
 };
 
-
 &serial_blsp4 {
-       pinctrl-0 = <&uart_pins>;
-       pinctrl-names = "default";
-       status = "ok";
+	pinctrl-0 = <&uart_pins>;
+	pinctrl-names = "default";
+	status = "ok";
 };
 
 &spi_0 { /* BLSP1 QUP1 */
