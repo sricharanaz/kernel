@@ -255,5 +255,7 @@
 #define QDSS_AT_CLK_SRC				236
 #define GCC_QDSS_AT_CLK				237
 #define GCC_QDSS_DAP_CLK			238
+#define ADSS_PWM_CLK_SRC			239
+#define GCC_ADSS_PWM_CLK			240
 
 #endif

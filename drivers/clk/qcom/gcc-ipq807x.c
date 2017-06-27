@@ -1577,6 +1577,25 @@ struct clk_rcg2 ubi_mpt_clk_src = {
 	},
 };
 
+struct freq_tbl ftbl_adss_pwm_clk_src[] = {
+	F(19200000, P_XO, 1, 0, 0),
+	F(200000000, P_GPLL0, 4, 0, 0),
+	{ }
+};
+
+struct clk_rcg2 adss_pwm_clk_src = {
+	.cmd_rcgr = 0x1c008,
+	.freq_tbl = ftbl_adss_pwm_clk_src,
+	.hid_width = 5,
+	.parent_map = gcc_xo_gpll0_map,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "adss_pwm_clk_src",
+		.parent_names = gcc_xo_gpll0,
+		.num_parents = 2,
+		.ops = &clk_rcg2_ops,
+	},
+};
+
 struct freq_tbl ftbl_blsp1_qup_i2c_apps_clk_src[] = {
 	F(19200000, P_XO, 1, 0, 0),
 	F(25000000, P_GPLL0_DIV2, 16, 0, 0),
@@ -2199,6 +2218,24 @@ static struct clk_regmap_mux usb1_pipe_clk_src = {
 			.num_parents = 2,
 			.ops = &clk_regmap_mux_closest_ops,
 			.flags = CLK_SET_RATE_PARENT,
+		},
+	},
+};
+
+static struct clk_branch gcc_adss_pwm_clk = {
+	.halt_reg = 0x1c020,
+	.halt_bit = 31,
+	.clkr = {
+		.enable_reg = 0x1c020,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_adss_pwm_clk",
+			.parent_names = (const char *[]){
+				"adss_pwm_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
 		},
 	},
 };
@@ -4918,6 +4955,7 @@ static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[NSS_UBI0_CLK_SRC] = &nss_ubi0_clk_src.clkr,
 	[NSS_UBI1_CLK_SRC] = &nss_ubi1_clk_src.clkr,
 	[UBI_MPT_CLK_SRC] = &ubi_mpt_clk_src.clkr,
+	[ADSS_PWM_CLK_SRC] = &adss_pwm_clk_src.clkr,
 	[BLSP1_QUP1_I2C_APPS_CLK_SRC] = &blsp1_qup1_i2c_apps_clk_src.clkr,
 	[BLSP1_QUP1_SPI_APPS_CLK_SRC] = &blsp1_qup1_spi_apps_clk_src.clkr,
 	[BLSP1_QUP2_I2C_APPS_CLK_SRC] = &blsp1_qup2_i2c_apps_clk_src.clkr,
@@ -4955,6 +4993,7 @@ static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[USB1_AUX_CLK_SRC] = &usb1_aux_clk_src.clkr,
 	[USB1_MOCK_UTMI_CLK_SRC] = &usb1_mock_utmi_clk_src.clkr,
 	[USB1_PIPE_CLK_SRC] = &usb1_pipe_clk_src.clkr,
+	[GCC_ADSS_PWM_CLK] = &gcc_adss_pwm_clk.clkr,
 	[GCC_APSS_AHB_CLK] = &gcc_apss_ahb_clk.clkr,
 	[GCC_APSS_AXI_CLK] = &gcc_apss_axi_clk.clkr,
 	[GCC_BLSP1_AHB_CLK] = &gcc_blsp1_ahb_clk.clkr,
