@@ -17,7 +17,10 @@
 
 #define WLFW_SERVICE_INS_ID_V01_QCA6290		1
 #define WLFW_SERVICE_INS_ID_V01_QCA8074		2
+#define Q6_BDF_ADDR 0x4FD40000
+#define BDF_MAX_SIZE 131072
 struct cnss_plat_data;
+extern int bdf_valid;
 
 int cnss_qmi_init(struct cnss_plat_data *plat_priv);
 void cnss_qmi_deinit(struct cnss_plat_data *plat_priv);
@@ -26,6 +29,8 @@ int cnss_wlfw_server_exit(struct cnss_plat_data *plat_priv);
 int cnss_wlfw_respond_mem_send_sync(struct cnss_plat_data *plat_priv);
 int cnss_wlfw_tgt_cap_send_sync(struct cnss_plat_data *plat_priv);
 int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv);
+int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
+		struct cnss_plat_data *plat_priv, unsigned int remaining);
 int cnss_wlfw_wlan_mode_send_sync(struct cnss_plat_data *plat_priv,
 				  enum wlfw_driver_mode_enum_v01 mode);
 int cnss_wlfw_wlan_cfg_send_sync(struct cnss_plat_data *plat_priv,
