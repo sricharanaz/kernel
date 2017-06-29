@@ -20,7 +20,6 @@
 #define Q6_BDF_ADDR 0x4FD40000
 #define BDF_MAX_SIZE 131072
 struct cnss_plat_data;
-extern int bdf_valid;
 
 int cnss_qmi_init(struct cnss_plat_data *plat_priv);
 void cnss_qmi_deinit(struct cnss_plat_data *plat_priv);

@@ -52,7 +52,6 @@ MODULE_PARM_DESC(qmi_bypass, "Bypass QMI from platform driver");
 
 extern int wlfw_service_instance_id;
 static bool enable_waltest;
-int bdf_valid;
 #ifdef CONFIG_CNSS2_DEBUG
 module_param(enable_waltest, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(enable_waltest, "Enable to handle firmware waltest");
@@ -1568,32 +1567,13 @@ static ssize_t cnss_fs_ready_store(struct device *dev,
 	return count;
 }
 
-static ssize_t cnss_bdf_valid_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf,
-				   size_t count)
-{
-	if (sscanf(buf, "%du", &bdf_valid) != 1)
-		return -EINVAL;
-	cnss_pr_info("bdf_valid is %d\n", bdf_valid);
-	return count;
-}
-
 static DEVICE_ATTR(fs_ready, S_IWUSR | S_IWGRP, NULL, cnss_fs_ready_store);
-static DEVICE_ATTR(bdf_valid, S_IWUSR | S_IWGRP, NULL, cnss_bdf_valid_store);
 
 static int cnss_create_sysfs(struct cnss_plat_data *plat_priv)
 {
 	int ret = 0;
 
 	ret = device_create_file(&plat_priv->plat_dev->dev, &dev_attr_fs_ready);
-	if (ret) {
-		cnss_pr_err("Failed to create device file, err = %d\n", ret);
-		goto out;
-	}
-
-	ret = device_create_file(&plat_priv->plat_dev->dev,
-					&dev_attr_bdf_valid);
 	if (ret) {
 		cnss_pr_err("Failed to create device file, err = %d\n", ret);
 		goto out;
@@ -1607,7 +1587,6 @@ out:
 static void cnss_remove_sysfs(struct cnss_plat_data *plat_priv)
 {
 	device_remove_file(&plat_priv->plat_dev->dev, &dev_attr_fs_ready);
-	device_remove_file(&plat_priv->plat_dev->dev, &dev_attr_bdf_valid);
 }
 
 static int cnss_event_work_init(struct cnss_plat_data *plat_priv)
