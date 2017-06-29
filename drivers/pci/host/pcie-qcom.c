@@ -182,6 +182,13 @@ struct qcom_pcie_resources_v3 {
 	struct clk *axi_s_clk;
 	struct clk *ahb_clk;
 	struct clk *aux_clk;
+	struct reset_control *axi_m_reset;
+	struct reset_control *axi_s_reset;
+	struct reset_control *pipe_reset;
+	struct reset_control *axi_m_sticky_reset;
+	struct reset_control *ahb_reset;
+	struct reset_control *sticky_reset;
+	struct reset_control *sleep_reset;
 
 	struct regulator *vdda;
 	struct regulator *vdda_phy;
@@ -498,6 +505,7 @@ static int qcom_pcie_get_resources_v2(struct qcom_pcie *pcie)
 	return 0;
 }
 
+
 static int qcom_pcie_get_resources_v3(struct qcom_pcie *pcie)
 {
 	struct qcom_pcie_resources_v3 *res = &pcie->res.v3;
@@ -534,6 +542,34 @@ static int qcom_pcie_get_resources_v3(struct qcom_pcie *pcie)
 	res->aux_clk = devm_clk_get(dev, "aux");
 	if (IS_ERR(res->aux_clk))
 		return PTR_ERR(res->aux_clk);
+
+	res->axi_m_reset = devm_reset_control_get(dev, "axi_m");
+	if (IS_ERR(res->axi_m_reset))
+		return PTR_ERR(res->axi_m_reset);
+
+	res->axi_s_reset = devm_reset_control_get(dev, "axi_s");
+	if (IS_ERR(res->axi_s_reset))
+		return PTR_ERR(res->axi_s_reset);
+
+	res->pipe_reset = devm_reset_control_get(dev, "pipe");
+	if (IS_ERR(res->pipe_reset))
+		return PTR_ERR(res->pipe_reset);
+
+	res->axi_m_sticky_reset = devm_reset_control_get(dev, "axi_m_sticky");
+	if (IS_ERR(res->axi_m_sticky_reset))
+		return PTR_ERR(res->axi_m_sticky_reset);
+
+	res->sticky_reset = devm_reset_control_get(dev, "sticky");
+	if (IS_ERR(res->sticky_reset))
+		return PTR_ERR(res->sticky_reset);
+
+	res->ahb_reset = devm_reset_control_get(dev, "ahb");
+	if (IS_ERR(res->ahb_reset))
+		return PTR_ERR(res->ahb_reset);
+
+	res->sleep_reset = devm_reset_control_get(dev, "sleep");
+	if (IS_ERR(res->sleep_reset))
+		return PTR_ERR(res->sleep_reset);
 
 	return 0;
 }
@@ -956,6 +992,30 @@ static void qcom_pcie_deinit_v3(struct qcom_pcie *pcie)
 	regulator_disable(res->vdda_refclk);
 }
 
+static void qcom_pcie_v3_reset(struct qcom_pcie *pcie)
+{
+	struct qcom_pcie_resources_v3 *res = &pcie->res.v3;
+	/* Assert pcie_pipe_ares */
+	reset_control_assert(res->pipe_reset);
+	reset_control_assert(res->sleep_reset);
+	reset_control_assert(res->sticky_reset);
+	reset_control_assert(res->axi_m_reset);
+	reset_control_assert(res->axi_s_reset);
+	reset_control_assert(res->ahb_reset);
+	reset_control_assert(res->axi_m_sticky_reset);
+	usleep_range(10000, 12000); /* wait 12ms */
+
+	reset_control_deassert(res->pipe_reset);
+	reset_control_deassert(res->sleep_reset);
+	reset_control_deassert(res->sticky_reset);
+	reset_control_deassert(res->axi_m_reset);
+	reset_control_deassert(res->axi_s_reset);
+	reset_control_deassert(res->ahb_reset);
+	reset_control_deassert(res->axi_m_sticky_reset);
+	usleep_range(10000, 12000); /* wait 12ms */
+	wmb(); /* ensure data is written to hw register */
+}
+
 static int qcom_pcie_enable_resources_v3(struct qcom_pcie *pcie)
 {
 	struct qcom_pcie_resources_v3 *res = &pcie->res.v3;
@@ -1048,6 +1108,7 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 {
 	int ret;
 
+	qcom_pcie_v3_reset(pcie);
 	if (!pcie->is_emulation)
 		qcom_ep_reset_assert(pcie);
 
