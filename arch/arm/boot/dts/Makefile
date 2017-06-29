@@ -545,10 +545,6 @@ dtb-$(CONFIG_ARCH_QCOM) += \
 	qcom-msm8660-surf.dtb \
 	qcom-msm8960-cdp.dtb \
 	qcom-msm8974-sony-xperia-honami.dtb \
-	qcom-ipq807x-hwk01.dtb \
-	qcom-ipq807x-hwk01-wifi.dtb \
-	qcom-ipq807x-hwk01-wifi-virtio.dtb \
-	qcom-ipq807x-virtio.dtb \
 	qcom-ipq807x-hk01.dtb \
 	qcom-ipq807x-hk02.dtb \
 	qcom-ipq807x-hk05.dtb \
