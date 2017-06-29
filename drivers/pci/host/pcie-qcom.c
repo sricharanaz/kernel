@@ -177,10 +177,12 @@ struct qcom_pcie_resources_v2 {
 };
 
 struct qcom_pcie_resources_v3 {
+	struct clk *sys_noc_clk;
 	struct clk *axi_m_clk;
 	struct clk *axi_s_clk;
 	struct clk *ahb_clk;
 	struct clk *aux_clk;
+
 	struct regulator *vdda;
 	struct regulator *vdda_phy;
 	struct regulator *vdda_refclk;
@@ -512,6 +514,10 @@ static int qcom_pcie_get_resources_v3(struct qcom_pcie *pcie)
 	res->vdda_refclk = devm_regulator_get(dev, "vdda_refclk");
 	if (IS_ERR(res->vdda_refclk))
 		return PTR_ERR(res->vdda_refclk);
+
+	res->sys_noc_clk = devm_clk_get(dev, "sys_noc");
+	if (IS_ERR(res->sys_noc_clk))
+		return PTR_ERR(res->sys_noc_clk);
 
 	res->axi_m_clk = devm_clk_get(dev, "axi_m");
 	if (IS_ERR(res->axi_m_clk))
@@ -940,6 +946,7 @@ static void qcom_pcie_deinit_v3(struct qcom_pcie *pcie)
 {
 	struct qcom_pcie_resources_v3 *res = &pcie->res.v3;
 
+	clk_disable_unprepare(res->sys_noc_clk);
 	clk_disable_unprepare(res->axi_m_clk);
 	clk_disable_unprepare(res->axi_s_clk);
 	clk_disable_unprepare(res->ahb_clk);
@@ -971,6 +978,12 @@ static int qcom_pcie_enable_resources_v3(struct qcom_pcie *pcie)
 	if (ret) {
 		dev_err(dev, "cannot enable vdda_phy regulator\n");
 		goto err_vdda_phy;
+	}
+
+	ret = clk_prepare_enable(res->sys_noc_clk);
+	if (ret) {
+		dev_err(dev, "cannot prepare/enable core clock\n");
+		goto err_clk_sys_noc;
 	}
 
 	ret = clk_prepare_enable(res->axi_m_clk);
@@ -1020,6 +1033,8 @@ err_clk_ahb:
 err_clk_axi_s:
 	clk_disable_unprepare(res->axi_m_clk);
 err_clk_axi_m:
+	clk_disable_unprepare(res->sys_noc_clk);
+err_clk_sys_noc:
 	regulator_disable(res->vdda_phy);
 err_vdda_phy:
 	regulator_disable(res->vdda_refclk);
