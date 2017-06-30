@@ -43,7 +43,8 @@ static void diag_mask_update_work_fn(struct work_struct *work)
 		mutex_lock(&driver->cntl_lock);
 		driver->mask_update ^= PERIPHERAL_MASK(peripheral);
 		mutex_unlock(&driver->cntl_lock);
-		diag_send_updates_peripheral(peripheral);
+		if (peripheral == PERIPHERAL_WCNSS)
+			diag_send_updates_peripheral(peripheral);
 	}
 }
 
