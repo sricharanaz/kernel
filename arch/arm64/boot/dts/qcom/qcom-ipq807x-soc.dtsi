@@ -1170,14 +1170,16 @@
 			ranges;
 			reg = <0x8AF8800 0x100>;
 			reg-names = "qscratch_base";
-			clocks = <&gcc GCC_USB0_MASTER_CLK>,
+			clocks = <&gcc GCC_SYS_NOC_USB0_AXI_CLK>,
+				<&gcc GCC_SNOC_BUS_TIMEOUT2_AHB_CLK>,
+				<&gcc GCC_USB0_MASTER_CLK>,
 				<&gcc GCC_USB0_SLEEP_CLK>,
-				<&gcc GCC_USB0_MOCK_UTMI_CLK>,
-				<&gcc GCC_SYS_NOC_USB0_AXI_CLK>;
-			clock-names = "master",
+				<&gcc GCC_USB0_MOCK_UTMI_CLK>;
+			clock-names = "sys_noc_axi",
+				"snoc_bus_timeout2",
+				"master",
 				"sleep",
-				"mock_utmi",
-				"sys_noc_axi";
+				"mock_utmi";
 			assigned-clocks = <&gcc GCC_SYS_NOC_USB0_AXI_CLK>,
 					  <&gcc GCC_USB0_MASTER_CLK>,
 					  <&gcc GCC_USB0_MOCK_UTMI_CLK>;
@@ -1211,14 +1213,16 @@
 			ranges;
 			reg = <0x8CF8800 0x100>;
 			reg-names = "qscratch_base";
-			clocks = <&gcc GCC_USB1_MASTER_CLK>,
+			clocks = <&gcc GCC_SYS_NOC_USB1_AXI_CLK>,
+				<&gcc GCC_SNOC_BUS_TIMEOUT3_AHB_CLK>,
+				<&gcc GCC_USB1_MASTER_CLK>,
 				<&gcc GCC_USB1_SLEEP_CLK>,
-				<&gcc GCC_USB1_MOCK_UTMI_CLK>,
-				<&gcc GCC_SYS_NOC_USB1_AXI_CLK>;
-			clock-names = "master",
+				<&gcc GCC_USB1_MOCK_UTMI_CLK>;
+			clock-names = "sys_noc_axi",
+				"snoc_bus_timeout3",
+				"master",
 				"sleep",
-				"mock_utmi",
-				"sys_noc_axi";
+				"mock_utmi";
 
 			assigned-clocks = <&gcc GCC_SYS_NOC_USB1_AXI_CLK>,
 					  <&gcc GCC_USB1_MASTER_CLK>,
