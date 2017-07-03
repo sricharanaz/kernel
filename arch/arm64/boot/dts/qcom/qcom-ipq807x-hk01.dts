@@ -655,3 +655,11 @@
 	vqmmc-supply = <&ldo11>;
 	status = "ok";
 };
+
+&qpic_lcd {
+	status = "ok";
+};
+
+&qpic_lcd_panel {
+	status = "ok";
+};
