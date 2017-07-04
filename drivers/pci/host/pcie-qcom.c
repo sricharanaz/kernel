@@ -123,6 +123,11 @@
 #define PCIE20_MPS_MASK			__mask(7, 5)
 #define PCIE20_MPS(x)			__set(x, 7, 5)
 
+#define AXI_CLK_RATE		200000000
+
+#define PCIE20_v3_PARF_SLV_ADDR_SPACE_SIZE	0x358
+#define SLV_ADDR_SPACE_SZ                       0x10000000
+
 struct qcom_pcie_resources_v0 {
 	struct clk *iface_clk;
 	struct clk *core_clk;
@@ -172,16 +177,19 @@ struct qcom_pcie_resources_v2 {
 };
 
 struct qcom_pcie_resources_v3 {
-	struct clk *boot_clk;
+	struct clk *sys_noc_clk;
 	struct clk *axi_m_clk;
 	struct clk *axi_s_clk;
 	struct clk *ahb_clk;
 	struct clk *aux_clk;
-	struct clk *pipe_clk;
-	struct clk *phy_clk;
-	struct reset_control *pci_reset;
-	struct reset_control *phy_reset;
-	struct reset_control *phy1_reset;
+	struct reset_control *axi_m_reset;
+	struct reset_control *axi_s_reset;
+	struct reset_control *pipe_reset;
+	struct reset_control *axi_m_sticky_reset;
+	struct reset_control *ahb_reset;
+	struct reset_control *sticky_reset;
+	struct reset_control *sleep_reset;
+
 	struct regulator *vdda;
 	struct regulator *vdda_phy;
 	struct regulator *vdda_refclk;
@@ -497,6 +505,7 @@ static int qcom_pcie_get_resources_v2(struct qcom_pcie *pcie)
 	return 0;
 }
 
+
 static int qcom_pcie_get_resources_v3(struct qcom_pcie *pcie)
 {
 	struct qcom_pcie_resources_v3 *res = &pcie->res.v3;
@@ -514,9 +523,9 @@ static int qcom_pcie_get_resources_v3(struct qcom_pcie *pcie)
 	if (IS_ERR(res->vdda_refclk))
 		return PTR_ERR(res->vdda_refclk);
 
-	res->boot_clk = devm_clk_get(dev, "boot");
-	if (IS_ERR(res->boot_clk))
-		return PTR_ERR(res->boot_clk);
+	res->sys_noc_clk = devm_clk_get(dev, "sys_noc");
+	if (IS_ERR(res->sys_noc_clk))
+		return PTR_ERR(res->sys_noc_clk);
 
 	res->axi_m_clk = devm_clk_get(dev, "axi_m");
 	if (IS_ERR(res->axi_m_clk))
@@ -534,25 +543,33 @@ static int qcom_pcie_get_resources_v3(struct qcom_pcie *pcie)
 	if (IS_ERR(res->aux_clk))
 		return PTR_ERR(res->aux_clk);
 
-	res->pipe_clk = devm_clk_get(dev, "pipe");
-	if (IS_ERR(res->pipe_clk))
-		return PTR_ERR(res->pipe_clk);
+	res->axi_m_reset = devm_reset_control_get(dev, "axi_m");
+	if (IS_ERR(res->axi_m_reset))
+		return PTR_ERR(res->axi_m_reset);
 
-	res->phy_clk = devm_clk_get(dev, "phy");
-	if (IS_ERR(res->phy_clk))
-		return PTR_ERR(res->phy_clk);
+	res->axi_s_reset = devm_reset_control_get(dev, "axi_s");
+	if (IS_ERR(res->axi_s_reset))
+		return PTR_ERR(res->axi_s_reset);
 
-	res->pci_reset = devm_reset_control_get(dev, "pci");
-	if (IS_ERR(res->pci_reset))
-		return PTR_ERR(res->pci_reset);
+	res->pipe_reset = devm_reset_control_get(dev, "pipe");
+	if (IS_ERR(res->pipe_reset))
+		return PTR_ERR(res->pipe_reset);
 
-	res->phy_reset = devm_reset_control_get(dev, "phy");
-	if (IS_ERR(res->phy_reset))
-		return PTR_ERR(res->phy_reset);
+	res->axi_m_sticky_reset = devm_reset_control_get(dev, "axi_m_sticky");
+	if (IS_ERR(res->axi_m_sticky_reset))
+		return PTR_ERR(res->axi_m_sticky_reset);
 
-	res->phy1_reset = devm_reset_control_get(dev, "phy1");
-	if (IS_ERR(res->phy1_reset))
-		return PTR_ERR(res->phy1_reset);
+	res->sticky_reset = devm_reset_control_get(dev, "sticky");
+	if (IS_ERR(res->sticky_reset))
+		return PTR_ERR(res->sticky_reset);
+
+	res->ahb_reset = devm_reset_control_get(dev, "ahb");
+	if (IS_ERR(res->ahb_reset))
+		return PTR_ERR(res->ahb_reset);
+
+	res->sleep_reset = devm_reset_control_get(dev, "sleep");
+	if (IS_ERR(res->sleep_reset))
+		return PTR_ERR(res->sleep_reset);
 
 	return 0;
 }
@@ -965,20 +982,38 @@ static void qcom_pcie_deinit_v3(struct qcom_pcie *pcie)
 {
 	struct qcom_pcie_resources_v3 *res = &pcie->res.v3;
 
-	reset_control_assert(res->pci_reset);
-	reset_control_assert(res->phy_reset);
-	reset_control_assert(res->phy1_reset);
-	usleep_range(10000, 12000); /* wait 12ms */
-	clk_disable_unprepare(res->boot_clk);
+	clk_disable_unprepare(res->sys_noc_clk);
 	clk_disable_unprepare(res->axi_m_clk);
 	clk_disable_unprepare(res->axi_s_clk);
 	clk_disable_unprepare(res->ahb_clk);
 	clk_disable_unprepare(res->aux_clk);
-	clk_disable_unprepare(res->pipe_clk);
-	clk_disable_unprepare(res->phy_clk);
 	regulator_disable(res->vdda);
 	regulator_disable(res->vdda_phy);
 	regulator_disable(res->vdda_refclk);
+}
+
+static void qcom_pcie_v3_reset(struct qcom_pcie *pcie)
+{
+	struct qcom_pcie_resources_v3 *res = &pcie->res.v3;
+	/* Assert pcie_pipe_ares */
+	reset_control_assert(res->pipe_reset);
+	reset_control_assert(res->sleep_reset);
+	reset_control_assert(res->sticky_reset);
+	reset_control_assert(res->axi_m_reset);
+	reset_control_assert(res->axi_s_reset);
+	reset_control_assert(res->ahb_reset);
+	reset_control_assert(res->axi_m_sticky_reset);
+	usleep_range(10000, 12000); /* wait 12ms */
+
+	reset_control_deassert(res->pipe_reset);
+	reset_control_deassert(res->sleep_reset);
+	reset_control_deassert(res->sticky_reset);
+	reset_control_deassert(res->axi_m_reset);
+	reset_control_deassert(res->axi_s_reset);
+	reset_control_deassert(res->ahb_reset);
+	reset_control_deassert(res->axi_m_sticky_reset);
+	usleep_range(10000, 12000); /* wait 12ms */
+	wmb(); /* ensure data is written to hw register */
 }
 
 static int qcom_pcie_enable_resources_v3(struct qcom_pcie *pcie)
@@ -1005,10 +1040,10 @@ static int qcom_pcie_enable_resources_v3(struct qcom_pcie *pcie)
 		goto err_vdda_phy;
 	}
 
-	ret = clk_prepare_enable(res->boot_clk);
+	ret = clk_prepare_enable(res->sys_noc_clk);
 	if (ret) {
-		dev_err(dev, "cannot prepare/enable boot clock\n");
-		goto err_boot;
+		dev_err(dev, "cannot prepare/enable core clock\n");
+		goto err_clk_sys_noc;
 	}
 
 	ret = clk_prepare_enable(res->axi_m_clk);
@@ -1017,9 +1052,21 @@ static int qcom_pcie_enable_resources_v3(struct qcom_pcie *pcie)
 		goto err_clk_axi_m;
 	}
 
+	ret = clk_set_rate(res->axi_m_clk, AXI_CLK_RATE);
+	if (ret) {
+		dev_err(dev, "MClk rate set failed (%d)\n", ret);
+		goto err_clk_axi_m;
+	}
+
 	ret = clk_prepare_enable(res->axi_s_clk);
 	if (ret) {
 		dev_err(dev, "cannot prepare/enable axi slave clock\n");
+		goto err_clk_axi_s;
+	}
+
+	ret = clk_set_rate(res->axi_s_clk, AXI_CLK_RATE);
+	if (ret) {
+		dev_err(dev, "MClk rate set failed (%d)\n", ret);
 		goto err_clk_axi_s;
 	}
 
@@ -1035,26 +1082,10 @@ static int qcom_pcie_enable_resources_v3(struct qcom_pcie *pcie)
 		goto err_clk_aux;
 	}
 
-	ret = clk_prepare_enable(res->pipe_clk);
-	if (ret) {
-		dev_err(dev, "cannot prepare/enable pipe clock\n");
-		goto err_clk_pipe;
-	}
-
-	ret = clk_prepare_enable(res->phy_clk);
-	if (ret) {
-		dev_err(dev, "cannot prepare/enable phy clock\n");
-		goto err_clk_phy;
-	}
-
 	udelay(1);
 
 	return 0;
 
-err_clk_phy:
-	clk_disable_unprepare(res->pipe_clk);
-err_clk_pipe:
-	clk_disable_unprepare(res->aux_clk);
 err_clk_aux:
 	clk_disable_unprepare(res->ahb_clk);
 err_clk_ahb:
@@ -1062,8 +1093,8 @@ err_clk_ahb:
 err_clk_axi_s:
 	clk_disable_unprepare(res->axi_m_clk);
 err_clk_axi_m:
-	clk_disable_unprepare(res->boot_clk);
-err_boot:
+	clk_disable_unprepare(res->sys_noc_clk);
+err_clk_sys_noc:
 	regulator_disable(res->vdda_phy);
 err_vdda_phy:
 	regulator_disable(res->vdda_refclk);
@@ -1072,22 +1103,6 @@ err_refclk:
 	return ret;
 }
 
-
-static void qcom_pcie_v3_reset(struct qcom_pcie *pcie)
-{
-	struct qcom_pcie_resources_v3 *res = &pcie->res.v3;
-
-	reset_control_assert(res->pci_reset);
-	reset_control_assert(res->phy_reset);
-	reset_control_assert(res->phy1_reset);
-	usleep_range(10000, 30000); /* wait 30ms */
-
-	reset_control_deassert(res->phy_reset);
-	reset_control_deassert(res->phy1_reset);
-	reset_control_deassert(res->pci_reset);
-	usleep_range(10000, 30000); /* wait 30ms */
-	wmb(); /* ensure data is written to hw register */
-}
 
 static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 {
@@ -1098,6 +1113,12 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 		qcom_ep_reset_assert(pcie);
 
 	ret = qcom_pcie_enable_resources_v3(pcie);
+	if (ret)
+		return ret;
+
+	writel(SLV_ADDR_SPACE_SZ, pcie->parf + PCIE20_v3_PARF_SLV_ADDR_SPACE_SIZE);
+
+	ret = phy_power_on(pcie->phy);
 	if (ret)
 		return ret;
 

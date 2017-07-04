@@ -1250,6 +1250,19 @@
 			};
 		};
 
+		pcie_phy0: phy@86000 {
+			compatible = "qca,pcie-qmp-phy";
+			reg = <0x86000 0x1000>;
+			#phy-cells = <0>;
+			clocks = <&gcc GCC_PCIE0_PIPE_CLK>;
+			clock-names = "pipe_clk";
+
+			resets = <&gcc GCC_PCIE0_PHY_BCR>,
+				<&gcc GCC_PCIE0PHY_PHY_BCR>;
+			reset-names = "phy",
+				      "phy_phy";
+		};
+
 		pcie0: pci@20000000 {
 			compatible = "qcom,pcie-ipq807x";
 			reg =  <0x20000000 0xf1d
@@ -1263,6 +1276,9 @@
 			num-lanes = <1>;
 			#address-cells = <3>;
 			#size-cells = <2>;
+
+			phys = <&pcie_phy0>;
+			phy-names = "pciephy";
 
 			ranges = <0x81000000 0 0x20200000 0x20200000
 				  0 0x00100000   /* downstream I/O */
@@ -1281,31 +1297,48 @@
 					 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
 					<0 0 0 4 &intc 0 83
 					 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
-			clocks = <&gcc GCC_DUMMY_CLK>,
-				 <&gcc GCC_DUMMY_CLK>,
-				 <&gcc GCC_DUMMY_CLK>,
-				 <&gcc GCC_DUMMY_CLK>,
-				 <&gcc GCC_DUMMY_CLK>,
-				 <&gcc GCC_DUMMY_CLK>,
-				 <&gcc GCC_DUMMY_CLK>;
-			clock-names = "boot",
+
+			clocks = <&gcc GCC_SYS_NOC_PCIE0_AXI_CLK>,
+				 <&gcc GCC_PCIE0_AXI_M_CLK>,
+				 <&gcc GCC_PCIE0_AXI_S_CLK>,
+				 <&gcc GCC_PCIE0_AHB_CLK>,
+				 <&gcc GCC_PCIE0_AUX_CLK>;
+
+			clock-names = "sys_noc",
 				      "axi_m",
 				      "axi_s",
 				      "ahb",
-				      "aux",
-				      "pipe",
-				      "phy";
-
-			resets = <&gcc GCC_PCIE0_BCR>,
-				 <&gcc GCC_PCIE0_PHY_BCR>,
-				 <&gcc GCC_PCIE0PHY_PHY_BCR>;
-			reset-names = "pci",
-				      "phy",
-				      "phy1";
+				      "aux";
+			resets = <&gcc GCC_PCIE0_PIPE_ARES>,
+				 <&gcc GCC_PCIE0_SLEEP_ARES>,
+				 <&gcc GCC_PCIE0_CORE_STICKY_ARES>,
+				 <&gcc GCC_PCIE0_AXI_MASTER_ARES>,
+				 <&gcc GCC_PCIE0_AXI_SLAVE_ARES>,
+				 <&gcc GCC_PCIE0_AHB_ARES>,
+				 <&gcc GCC_PCIE0_AXI_MASTER_STICKY_ARES>;
+			reset-names = "pipe",
+				      "sleep",
+				      "sticky",
+				      "axi_m",
+				      "axi_s",
+				      "ahb",
+				      "axi_m_sticky";
 
 			perst-gpio = <&tlmm 58 1>;
-			is_emulation = <1>;
-			status = "disabled";
+			status = "ok";
+		};
+
+		pcie_phy1: phy@8e000 {
+			compatible = "qca,pcie-qmp-phy";
+			reg = <0x8e000 0x1000>;
+			#phy-cells = <0>;
+			clocks = <&gcc GCC_PCIE1_PIPE_CLK>;
+			clock-names = "pipe_clk";
+
+			resets = <&gcc GCC_PCIE1_PHY_BCR>,
+				<&gcc GCC_PCIE1PHY_PHY_BCR>;
+			reset-names = "phy",
+				      "phy_phy";
 		};
 
 		pcie1: pci@10000000 {
@@ -1321,6 +1354,9 @@
 			num-lanes = <1>;
 			#address-cells = <3>;
 			#size-cells = <2>;
+
+			phys = <&pcie_phy1>;
+			phy-names = "pciephy";
 
 			ranges = <0x81000000 0 0x10200000 0x10200000
 				  0 0x00100000   /* downstream I/O */
@@ -1339,31 +1375,34 @@
 					 IRQ_TYPE_LEVEL_HIGH>, /* int_c */
 					<0 0 0 4 &intc 0 145
 					 IRQ_TYPE_LEVEL_HIGH>; /* int_d */
-			clocks = <&gcc GCC_DUMMY_CLK>,
-				 <&gcc GCC_DUMMY_CLK>,
-				 <&gcc GCC_DUMMY_CLK>,
-				 <&gcc GCC_DUMMY_CLK>,
-				 <&gcc GCC_DUMMY_CLK>,
-				 <&gcc GCC_DUMMY_CLK>,
-				 <&gcc GCC_DUMMY_CLK>;
-			clock-names = "boot",
+
+			clocks = <&gcc GCC_SYS_NOC_PCIE1_AXI_CLK>,
+				 <&gcc GCC_PCIE1_AXI_M_CLK>,
+				 <&gcc GCC_PCIE1_AXI_S_CLK>,
+				 <&gcc GCC_PCIE1_AHB_CLK>,
+				 <&gcc GCC_PCIE1_AUX_CLK>;
+			clock-names = "sys_noc",
 				      "axi_m",
 				      "axi_s",
 				      "ahb",
-				      "aux",
-				      "pipe",
-				      "phy";
-
-			resets = <&gcc GCC_PCIE0_BCR>,
-				 <&gcc GCC_PCIE0_PHY_BCR>,
-				 <&gcc GCC_PCIE0PHY_PHY_BCR>;
-			reset-names = "pci",
-				      "phy",
-				      "phy1";
+				      "aux";
+			resets = <&gcc GCC_PCIE1_PIPE_ARES>,
+				 <&gcc GCC_PCIE1_SLEEP_ARES>,
+				 <&gcc GCC_PCIE1_CORE_STICKY_ARES>,
+				 <&gcc GCC_PCIE1_AXI_MASTER_ARES>,
+				 <&gcc GCC_PCIE1_AXI_SLAVE_ARES>,
+				 <&gcc GCC_PCIE1_AHB_ARES>,
+				 <&gcc GCC_PCIE1_AXI_MASTER_STICKY_ARES>;
+			reset-names = "pipe",
+				      "sleep",
+				      "sticky",
+				      "axi_m",
+				      "axi_s",
+				      "ahb",
+				      "axi_m_sticky";
 
 			perst-gpio = <&tlmm 61 1>;
-			is_emulation = <1>;
-			status = "disabled";
+			status = "ok";
 		};
 
 		qcom: ledc@191E000  {

@@ -3708,7 +3708,7 @@ static struct clk_branch gcc_pcie0_axi_m_clk = {
 	.halt_reg = 0x75008,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x76008,
+		.enable_reg = 0x75008,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_pcie0_axi_m_clk",
@@ -3726,10 +3726,28 @@ static struct clk_branch gcc_pcie0_axi_s_clk = {
 	.halt_reg = 0x7500c,
 	.halt_bit = 31,
 	.clkr = {
-		.enable_reg = 0x7600c,
+		.enable_reg = 0x7500c,
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_pcie0_axi_s_clk",
+			.parent_names = (const char *[]){
+				"pcie0_axi_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
+static struct clk_branch gcc_sys_noc_pcie0_axi_clk = {
+	.halt_reg = 0x26048,
+	.halt_bit = 31,
+	.clkr = {
+		.enable_reg = 0x26048,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_sys_noc_pcie0_axi_clk",
 			.parent_names = (const char *[]){
 				"pcie0_axi_clk_src"
 			},
@@ -3821,6 +3839,24 @@ static struct clk_branch gcc_pcie1_axi_s_clk = {
 		.enable_mask = BIT(0),
 		.hw.init = &(struct clk_init_data){
 			.name = "gcc_pcie1_axi_s_clk",
+			.parent_names = (const char *[]){
+				"pcie1_axi_clk_src"
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
+static struct clk_branch gcc_sys_noc_pcie1_axi_clk = {
+	.halt_reg = 0x2604c,
+	.halt_bit = 31,
+	.clkr = {
+		.enable_reg = 0x2604c,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_sys_noc_pcie1_axi_clk",
 			.parent_names = (const char *[]){
 				"pcie1_axi_clk_src"
 			},
@@ -4894,11 +4930,13 @@ static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[GCC_PCIE0_AUX_CLK] = &gcc_pcie0_aux_clk.clkr,
 	[GCC_PCIE0_AXI_M_CLK] = &gcc_pcie0_axi_m_clk.clkr,
 	[GCC_PCIE0_AXI_S_CLK] = &gcc_pcie0_axi_s_clk.clkr,
+	[GCC_SYS_NOC_PCIE0_AXI_CLK] = &gcc_sys_noc_pcie0_axi_clk.clkr,
 	[GCC_PCIE0_PIPE_CLK] = &gcc_pcie0_pipe_clk.clkr,
 	[GCC_PCIE1_AHB_CLK] = &gcc_pcie1_ahb_clk.clkr,
 	[GCC_PCIE1_AUX_CLK] = &gcc_pcie1_aux_clk.clkr,
 	[GCC_PCIE1_AXI_M_CLK] = &gcc_pcie1_axi_m_clk.clkr,
 	[GCC_PCIE1_AXI_S_CLK] = &gcc_pcie1_axi_s_clk.clkr,
+	[GCC_SYS_NOC_PCIE1_AXI_CLK] = &gcc_sys_noc_pcie1_axi_clk.clkr,
 	[GCC_PCIE1_PIPE_CLK] = &gcc_pcie1_pipe_clk.clkr,
 	[GCC_PRNG_AHB_CLK] = &gcc_prng_ahb_clk.clkr,
 	[GCC_QPIC_AHB_CLK] = &gcc_qpic_ahb_clk.clkr,
@@ -5065,6 +5103,20 @@ static const struct qcom_reset_map gcc_ipq807x_resets[] = {
 	[GCC_NSSNOC_ATB_ARES] = { 0x68010, 29 },
 	[GCC_NSSNOC_QOSGEN_REF_ARES] = { 0x68010, 30 },
 	[GCC_NSSNOC_TIMEOUT_REF_ARES] = { 0x68010, 31 },
+	[GCC_PCIE0_PIPE_ARES] = { 0x75040, 0 },
+	[GCC_PCIE0_SLEEP_ARES] = { 0x75040, 1 },
+	[GCC_PCIE0_CORE_STICKY_ARES] = { 0x75040, 2 },
+	[GCC_PCIE0_AXI_MASTER_ARES] = { 0x75040, 3 },
+	[GCC_PCIE0_AXI_SLAVE_ARES] = { 0x75040, 4 },
+	[GCC_PCIE0_AHB_ARES] = { 0x75040, 5 },
+	[GCC_PCIE0_AXI_MASTER_STICKY_ARES] = { 0x75040, 6 },
+	[GCC_PCIE1_PIPE_ARES] = { 0x76040, 0 },
+	[GCC_PCIE1_SLEEP_ARES] = { 0x76040, 1 },
+	[GCC_PCIE1_CORE_STICKY_ARES] = { 0x76040, 2 },
+	[GCC_PCIE1_AXI_MASTER_ARES] = { 0x76040, 3 },
+	[GCC_PCIE1_AXI_SLAVE_ARES] = { 0x76040, 4 },
+	[GCC_PCIE1_AHB_ARES] = { 0x76040, 5 },
+	[GCC_PCIE1_AXI_MASTER_STICKY_ARES] = { 0x76040, 6 },
 };
 
 static int clk_dummy_is_enabled(struct clk_hw *hw)
