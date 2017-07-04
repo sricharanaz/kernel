@@ -365,15 +365,21 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 	int ret;
 	const struct firmware *fw;
 	void *bdf_addr = NULL;
+	char filename[30];
 
-	if (!bdf_valid)
-		return -EINVAL;
+	if (0xFF == plat_priv->board_info.board_id)
+		snprintf(filename, sizeof(filename), "IPQ8074/"
+					DEFAULT_BDF_FILE_NAME);
+	else
+		snprintf(filename, sizeof(filename), "IPQ8074/"
+			 BDF_FILE_NAME_PREFIX "%02x",
+			 plat_priv->board_info.board_id);
 
-	ret = request_firmware(&fw, "IPQ8074/bdwlan.bin",
+	ret = request_firmware(&fw, filename,
 		&plat_priv->plat_dev->dev);
 
 	if (ret) {
-		cnss_pr_err("Failed to get BDF file IPQ8074/bdwlan.bin");
+		cnss_pr_err("Failed to get BDF file %s", filename);
 		return ret;
 	}
 
@@ -385,7 +391,7 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 		goto out;
 	}
 
-	cnss_pr_info("fw entry size %d data %p\n", fw->size, fw->data);
+	cnss_pr_info("BDF %s downloaded. size %d\n", filename, fw->size);
 
 	if (fw->size <= BDF_MAX_SIZE) {
 		memcpy(bdf_addr, fw->data, fw->size);
@@ -435,6 +441,12 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv)
 			 BDF_FILE_NAME_PREFIX "%02d",
 			 plat_priv->board_info.board_id);
 
+	if (plat_priv->device_id == QCA8074_DEVICE_ID) {
+		temp = filename;
+		remaining = MAX_BDF_FILE_NAME;
+		goto bypass_bdf;
+	}
+
 	ret = request_firmware(&fw_entry, filename, &plat_priv->plat_dev->dev);
 	if (ret) {
 		cnss_pr_err("Failed to load BDF: %s\n", filename);
@@ -481,7 +493,8 @@ bypass_bdf:
 			req->end = 1;
 		}
 
-		cnss_wlfw_load_bdf(req, plat_priv, remaining);
+		if (plat_priv->device_id == QCA8074_DEVICE_ID)
+			cnss_wlfw_load_bdf(req, plat_priv, remaining);
 
 		memcpy(req->data, temp, req->data_len);
 
