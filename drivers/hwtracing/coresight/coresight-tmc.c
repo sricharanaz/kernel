@@ -1904,8 +1904,6 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	if (ret)
 		return ret;
 
-	pm_runtime_put(&adev->dev);
-
 	if (drvdata->config_type == TMC_CONFIG_TYPE_ETR) {
 		ret = tmc_etr_bam_init(adev, drvdata);
 		if (ret)
@@ -1975,6 +1973,8 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 	ret = misc_register(&drvdata->miscdev);
 	if (ret)
 		goto err_misc_register;
+
+	pm_runtime_put(&adev->dev);
 
 	dev_info(dev, "TMC initialized\n");
 	return 0;
