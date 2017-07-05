@@ -858,7 +858,6 @@
 			clock-names = "core", "aon";
 			dmas = <&qpic_bam 6>;
 			dma-names = "chan";
-			qcom,bam_timeout = <10000>;
 			status = "disabled";
 		};
 
