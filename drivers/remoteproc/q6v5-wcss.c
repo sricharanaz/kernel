@@ -32,6 +32,9 @@
 
 static int debug_wcss;
 
+#define DEBUG_WCSS_BREAK_AT_START	1
+#define DEBUG_WCSS_NO_RESTART		2
+
 #define WCSS_CRASH_REASON_SMEM 421
 #define WCNSS_PAS_ID		6
 #define QCOM_MDT_TYPE_MASK      (7 << 24)
@@ -423,14 +426,14 @@ static int q6_rproc_start(struct rproc *rproc)
 	/* Remove QDSP6 I/O clamp */
 	writel(0x30FFFFF, pdata->q6_base + QDSP6SS_PWR_CTL);
 
-	if (debug_wcss)
+	if (debug_wcss & DEBUG_WCSS_BREAK_AT_START)
 		writel(0x20000001, pdata->q6_base + QDSP6SS_DBG_CFG);
 
 	/* Bring Q6 out of reset and stop the core */
 	writel(0x5, pdata->q6_base + QDSP6SS_RESET);
 
 	/* Retain debugger state during next QDSP6 reset */
-	if (!debug_wcss)
+	if (!(debug_wcss & DEBUG_WCSS_BREAK_AT_START))
 		writel(0x0, pdata->q6_base + QDSP6SS_DBG_CFG);
 
 	/* Turn on the QDSP6 core clock */
@@ -487,6 +490,11 @@ static irqreturn_t wcss_err_fatal_intr_handler(int irq, void *dev_id)
 	else
 		pr_err("Fatal error received no message!\n");
 
+	if (debug_wcss & DEBUG_WCSS_NO_RESTART) {
+		pr_info("WCSS Restart is disabled, Ignoring fatal error.\n");
+		return IRQ_HANDLED;
+	}
+
 	subsys_set_crash_status(pdata->subsys, CRASH_STATUS_ERR_FATAL);
 	subsystem_restart_dev(pdata->subsys);
 	return IRQ_HANDLED;
@@ -517,6 +525,11 @@ static irqreturn_t wcss_wdog_bite_intr_handler(int irq, void *dev_id)
 		pr_err("Watchdog bite received from wcss software!: %s\n", msg);
 	else
 		pr_err("Watchdog bit received no message!\n");
+
+	if (debug_wcss & DEBUG_WCSS_NO_RESTART) {
+		pr_info("WCSS Restart is disabled, Ignoring WDOG Bite.\n");
+		return IRQ_HANDLED;
+	}
 
 	subsys_set_crash_status(pdata->subsys, CRASH_STATUS_WDOG_BITE);
 	subsystem_restart_dev(pdata->subsys);
