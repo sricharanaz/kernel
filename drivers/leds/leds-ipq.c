@@ -151,6 +151,7 @@ static void ipq_set_led_brightness_set(struct led_classdev *led_cdev,
 	ipq_set_led_blink_set(led_cdev, &delay_on, &delay_off);
 	writel(reg, LEDC_ADDR(LEDC_CG6_OFFSET));
 }
+EXPORT_SYMBOL(ipq_set_led_brightness_set);
 
 int ipq_led_source_select(int led_num, enum led_source src_type)
 {

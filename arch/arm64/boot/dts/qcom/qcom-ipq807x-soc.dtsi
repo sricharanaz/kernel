@@ -18,6 +18,8 @@
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-ipq807x.h>
 #include <dt-bindings/clock/qca,apss-ipq807x.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	psci {
@@ -1515,13 +1517,16 @@
 			status = "ok";
 		};
 
-		qcom: ledc@191E000  {
+		ledc: ledc@191E000  {
 			compatible = "qca,ledc";
 			reg = <0x191E000 0x20070>;
 			reg-names = "ledc_base_addr";
-			qcom,tcsr_ledc_values = <0x320195 0xA418820 0x16A4A0E6 \
-				0x2307B9AC 0x16AD272 0xFFFFFFFF 0x0 0x0 \
-				0x7D006F 0x0 0x10482090 0x3FFFFE4>;
+			qcom,tcsr_ledc_values = <0x0320193 0x2739CE60 \
+						0x2739CE73 0x2739CE73 \
+						0x0139CE73 0xFFFFFFFF \
+						0xFFFFFFFF 0x00000000 \
+						0x007D0020 0x00000005 \
+						0x10482094 0x03FFFFF1>;
 			qcom,ledc_blink_indices_cnt = <4>;
 			qcom,ledc_blink_indices = <19 20 21 22>;
 			status = "disabled";
