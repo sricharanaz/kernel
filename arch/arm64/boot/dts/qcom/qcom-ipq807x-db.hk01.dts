@@ -29,6 +29,17 @@
 	aliases {
 		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
 		sdhc2 = &sdhc_2; /* SDC2 SD slot */
+
+		/*
+		 * Aliases as required by u-boot
+		 * to patch MAC addresses
+		 */
+		ethernet0 = "/soc/dp1";
+		ethernet1 = "/soc/dp2";
+		ethernet2 = "/soc/dp3";
+		ethernet3 = "/soc/dp4";
+		ethernet4 = "/soc/dp5";
+		ethernet5 = "/soc/dp6";
 	};
 
 	chosen {
