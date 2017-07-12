@@ -5117,6 +5117,7 @@ static const struct qcom_reset_map gcc_ipq807x_resets[] = {
 	[GCC_PCIE1_AXI_SLAVE_ARES] = { 0x76040, 4 },
 	[GCC_PCIE1_AHB_ARES] = { 0x76040, 5 },
 	[GCC_PCIE1_AXI_MASTER_STICKY_ARES] = { 0x76040, 6 },
+	[GCC_PPE_FULL_RESET] = { 0x68014, 0, 0xf0000},
 };
 
 static int clk_dummy_is_enabled(struct clk_hw *hw)
