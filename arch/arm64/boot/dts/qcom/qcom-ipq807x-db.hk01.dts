@@ -765,7 +765,3 @@
 	vqmmc-supply = <&ldo11>;
 	status = "ok";
 };
-
-&dwc_0 {
-	dr_mode = "peripheral";
-};
