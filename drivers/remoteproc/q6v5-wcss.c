@@ -680,6 +680,7 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 			if (ret) {
 				dev_err(dev_rproc, "can't to load %s\n",
 						segment_name);
+				iounmap(ptr);
 				break;
 			}
 			memcpy_toio(ptr, fw->data, fw->size);
@@ -690,6 +691,7 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 		if (memsz > filesz)
 			memset_io(ptr + filesz, 0, memsz - filesz);
 
+		iounmap(ptr);
 	}
 	kfree(segment_name);
 	return ret;
