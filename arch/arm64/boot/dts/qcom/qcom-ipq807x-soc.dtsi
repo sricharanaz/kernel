@@ -252,7 +252,6 @@
 			always-on;
 		};
 
-
 		gcc: qcom,gcc@1800000 {
 			compatible = "qcom,gcc-ipq807x";
 			reg = <0x1800000 0x80000>;
@@ -694,6 +693,7 @@
 			qcom,id = <0>;
 			qcom,num-queue = <4>;
 			qcom,num-irq = <7>;
+			qcom,num-pri = <4>;
 			qcom,load-addr = <0x40000000>;
 			qcom,bridge-enabled;
 			qcom,ipv4-enabled;
@@ -756,6 +756,7 @@
 			qcom,id = <1>;
 			qcom,num-queue = <4>;
 			qcom,num-irq = <7>;
+			qcom,num-pri = <4>;
 			qcom,load-addr = <0x40800000>;
 			qcom,capwap-enabled;
 			qcom,dtls-enabled;
