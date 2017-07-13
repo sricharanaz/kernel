@@ -1739,42 +1739,6 @@
 			#clock-cells = <0>;
 		};
 
-		uniphy0_gcc_rx_clk {
-			compatible = "fixed-clock";
-			clock-frequency = <125000000>;
-			#clock-cells = <0>;
-		};
-
-		uniphy0_gcc_tx_clk {
-			compatible = "fixed-clock";
-			clock-frequency = <125000000>;
-			#clock-cells = <0>;
-		};
-
-		uniphy1_gcc_rx_clk {
-			compatible = "fixed-clock";
-			clock-frequency = <312500000>;
-			#clock-cells = <0>;
-		};
-
-		uniphy1_gcc_tx_clk {
-			compatible = "fixed-clock";
-			clock-frequency = <312500000>;
-			#clock-cells = <0>;
-		};
-
-		uniphy2_gcc_rx_clk {
-			compatible = "fixed-clock";
-			clock-frequency = <312500000>;
-			#clock-cells = <0>;
-		};
-
-		uniphy2_gcc_tx_clk {
-			compatible = "fixed-clock";
-			clock-frequency = <312500000>;
-			#clock-cells = <0>;
-		};
-
 		bias_pll_cc_clk {
 			compatible = "fixed-clock";
 			clock-frequency = <300000000>;
