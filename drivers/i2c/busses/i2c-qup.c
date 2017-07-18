@@ -633,14 +633,12 @@ static int qup_sg_set_buf(struct scatterlist *sg, void *buf,
 	int ret;
 
 	sg_set_buf(sg, buf, buflen);
+	ret = dma_map_sg(qup->dev, sg, 1, dir);
+	if (!ret)
+		return -EINVAL;
 
-	if (!map) {
+	if (!map)
 		sg_dma_address(sg) = tg->addr + ((u8 *)buf - tg->start);
-	} else {
-		ret = dma_map_sg(qup->dev, sg, 1, dir);
-		if (!ret)
-			return -EINVAL;
-	}
 
 	return 0;
 }
@@ -1347,8 +1345,6 @@ static int qup_i2c_xfer_v2(struct i2c_adapter *adap,
 			}
 		}
 	}
-
-	idx = 0;
 
 	do {
 		if (msgs[idx].len == 0) {
