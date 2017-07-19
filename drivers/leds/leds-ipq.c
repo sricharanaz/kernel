@@ -25,7 +25,7 @@
 #define LEDC_BASE_REG_OFFSET	0x20040
 #define LEDC_REG_SIZE	4
 #define BUF_NAME_LEN	25
-#define MAX_BLINK_IDX	4
+#define MAX_BLINK_IDX	13
 #define LEDC_DRV_NAME	"ipq-leds"
 #define LEDC_ADDR(x)	(ledc_base_addr + LEDC_BASE_REG_OFFSET + \
 				(LEDC_REG_SIZE * (x)))
