@@ -199,6 +199,19 @@
 			bias-disable;
 		};
 	};
+
+	ledc_pins: ledc_pinmux {
+		led_clk {
+			pins = "gpio18";
+			function = "led0";
+			bias-pull-down;
+		};
+		led_data {
+			pins = "gpio19";
+			function = "led1";
+			bias-pull-down;
+		};
+	};
 };
 
 &soc {
@@ -658,5 +671,11 @@
 };
 
 &qpic_lcd_panel {
+	status = "ok";
+};
+
+&ledc {
+	pinctrl-0 = <&ledc_pins>;
+	pinctrl-names = "default";
 	status = "ok";
 };
