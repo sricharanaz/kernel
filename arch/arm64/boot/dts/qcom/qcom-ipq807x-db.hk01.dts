@@ -642,7 +642,7 @@
 	qcom,bus-speed-mode = "HS200_1p8v", "DDR_1p8v";
 	pinctrl-0 = <&sd_pins>;
 	pinctrl-names = "default";
-	cd-gpios = <&tlmm 63 1>;
+	cd-gpios = <&tlmm 50 1>;
 	vqmmc-supply = <&ldo11>;
 	status = "ok";
 };
