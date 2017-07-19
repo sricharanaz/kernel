@@ -39,7 +39,7 @@ static int debug_wcss;
 #define WCNSS_PAS_ID		6
 #define QCOM_MDT_TYPE_MASK      (7 << 24)
 #define QCOM_MDT_TYPE_HASH      (2 << 24)
-#define STOP_ACK_TIMEOUT_MS 10000
+#define STOP_ACK_TIMEOUT_MS 2000
 
 #define QDSP6SS_RST_EVB 0x10
 #define QDSP6SS_RESET 0x14
