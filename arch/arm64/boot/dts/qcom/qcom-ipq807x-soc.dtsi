@@ -1524,8 +1524,8 @@
 						0x2739CE73 0x2739CE73 \
 						0x0139CE73 0xFFFFFFFF \
 						0x00000000 0xFFFFFFFF \
-						0x007D0020 0x00000000 \
-						0x10482094 0x03FFFFF1>;
+						0x007D0820 0x00000000 \
+						0x10482094 0x03FFFFE1>;
 			qcom,ledc_blink_indices_cnt = <13>;
 			qcom,ledc_blink_indices = <5 6 7 14 13 1 9 10 2 11 12 3 4>;
 			status = "disabled";

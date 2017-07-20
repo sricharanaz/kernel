@@ -211,6 +211,11 @@
 			function = "led1";
 			bias-pull-down;
 		};
+		led_clr {
+			pins = "gpio20";
+			function = "led2";
+			bias-pull-up;
+		};
 	};
 };
 
