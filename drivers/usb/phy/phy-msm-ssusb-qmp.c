@@ -351,7 +351,6 @@ struct msm_ssphy_qmp {
 	struct clk		*ref_clk_src;
 	struct clk		*ref_clk;
 	struct clk		*aux_clk;
-	struct clk		*cfg_ahb_clk;
 	struct clk		*pipe_clk;
 	struct reset_control	*phy_reset;
 	struct reset_control	*phy_phy_reset;
@@ -560,7 +559,6 @@ static int msm_ssphy_qmp_init(struct usb_phy *uphy)
 		if (phy->ref_clk)
 			clk_prepare_enable(phy->ref_clk);
 		clk_prepare_enable(phy->aux_clk);
-		clk_prepare_enable(phy->cfg_ahb_clk);
 		clk_set_rate(phy->pipe_clk, 125000000);
 		clk_prepare_enable(phy->pipe_clk);
 		phy->clk_enabled = true;
@@ -749,7 +747,6 @@ static int msm_ssphy_qmp_set_suspend(struct usb_phy *uphy, int suspend)
 		else
 			msm_ssusb_qmp_enable_autonomous(phy, 1);
 
-		clk_disable_unprepare(phy->cfg_ahb_clk);
 		clk_disable_unprepare(phy->aux_clk);
 		clk_disable_unprepare(phy->pipe_clk);
 		if (phy->ref_clk)
@@ -769,7 +766,6 @@ static int msm_ssphy_qmp_set_suspend(struct usb_phy *uphy, int suspend)
 			if (phy->ref_clk)
 				clk_prepare_enable(phy->ref_clk);
 			clk_prepare_enable(phy->aux_clk);
-			clk_prepare_enable(phy->cfg_ahb_clk);
 			phy->clk_enabled = true;
 		}
 		if (!phy->cable_connected) {
@@ -831,15 +827,6 @@ static int msm_ssphy_qmp_probe(struct platform_device *pdev)
 	}
 
 	clk_set_rate(phy->aux_clk, clk_round_rate(phy->aux_clk, ULONG_MAX));
-
-	phy->cfg_ahb_clk = devm_clk_get(dev, "cfg_ahb_clk");
-	if (IS_ERR(phy->cfg_ahb_clk)) {
-		ret = PTR_ERR(phy->cfg_ahb_clk);
-		phy->cfg_ahb_clk = NULL;
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "failed to get cfg_ahb_clk\n");
-		goto err;
-	}
 
 	phy->pipe_clk = devm_clk_get(dev, "pipe_clk");
 	if (IS_ERR(phy->pipe_clk)) {
@@ -1085,9 +1072,7 @@ static int msm_ssphy_qmp_remove(struct platform_device *pdev)
 		regulator_disable(phy->vdd);
 	msm_ssusb_qmp_config_vdd(phy, 0);
 	clk_disable_unprepare(phy->aux_clk);
-	clk_disable_unprepare(phy->cfg_ahb_clk);
 	clk_disable_unprepare(phy->pipe_clk);
-	kfree(phy);
 	return 0;
 }
 

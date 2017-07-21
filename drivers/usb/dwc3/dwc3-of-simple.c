@@ -121,7 +121,7 @@ static int dwc3_of_simple_remove(struct platform_device *pdev)
 	struct device		*dev = &pdev->dev;
 	int			i;
 
-	for (i = 0; i < simple->num_clocks; i++) {
+	for (i = (simple->num_clocks-1); i >= 0; i--) {
 		clk_disable_unprepare(simple->clks[i]);
 		clk_put(simple->clks[i]);
 	}

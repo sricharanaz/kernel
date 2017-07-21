@@ -113,7 +113,6 @@ struct qusb_phy {
 
 	struct clk		*ref_clk_src;
 	struct clk		*ref_clk;
-	struct clk		*cfg_ahb_clk;
 	struct clk		*phy_reset;
 
 	struct regulator	*vdd;
@@ -156,22 +155,25 @@ static void qusb_phy_enable_clocks(struct qusb_phy *qphy, bool on)
 	dev_dbg(qphy->phy.dev, "%s(): clocks_enabled:%d on:%d\n",
 			__func__, qphy->clocks_enabled, on);
 
-	if (!qphy->clocks_enabled && on) {
-		clk_prepare_enable(qphy->ref_clk_src);
-		clk_prepare_enable(qphy->ref_clk);
-		clk_prepare_enable(qphy->cfg_ahb_clk);
-		qphy->clocks_enabled = true;
-	}
+	if (!IS_ERR(qphy->ref_clk_src) && !(IS_ERR(qphy->ref_clk))) {
 
-	if (qphy->clocks_enabled && !on) {
-		clk_disable_unprepare(qphy->ref_clk);
-		clk_disable_unprepare(qphy->ref_clk_src);
-		clk_disable_unprepare(qphy->cfg_ahb_clk);
-		qphy->clocks_enabled = false;
-	}
+		if (!qphy->clocks_enabled && on) {
+			clk_prepare_enable(qphy->ref_clk_src);
+			clk_prepare_enable(qphy->ref_clk);
+			qphy->clocks_enabled = true;
+		}
 
-	dev_dbg(qphy->phy.dev, "%s(): clocks_enabled:%d\n", __func__,
-						qphy->clocks_enabled);
+		if (qphy->clocks_enabled && !on) {
+			clk_disable_unprepare(qphy->ref_clk);
+			clk_disable_unprepare(qphy->ref_clk_src);
+			qphy->clocks_enabled = false;
+		}
+
+		dev_dbg(qphy->phy.dev, "%s(): clocks_enabled:%d\n", __func__,
+							qphy->clocks_enabled);
+	} else {
+		pr_debug("%s():ref_clk_src or ref_clk not found\n", __func__);
+	}
 }
 
 static int qusb_phy_config_vdd(struct qusb_phy *qphy, int high)
@@ -783,10 +785,6 @@ static int qusb_phy_probe(struct platform_device *pdev)
 	else
 		clk_set_rate(qphy->ref_clk, 19200000);
 
-	qphy->cfg_ahb_clk = devm_clk_get(dev, "cfg_ahb_clk");
-	if (IS_ERR(qphy->cfg_ahb_clk))
-		return PTR_ERR(qphy->cfg_ahb_clk);
-
 	qphy->phy_reset = devm_reset_control_get(dev, "usb2_phy_reset");
 	if (IS_ERR(qphy->phy_reset))
 		return PTR_ERR(qphy->phy_reset);
@@ -889,7 +887,6 @@ static int qusb_phy_remove(struct platform_device *pdev)
 	usb_remove_phy(&qphy->phy);
 
 	if (qphy->clocks_enabled) {
-		clk_disable_unprepare(qphy->cfg_ahb_clk);
 		clk_disable_unprepare(qphy->ref_clk);
 		clk_disable_unprepare(qphy->ref_clk_src);
 		qphy->clocks_enabled = false;

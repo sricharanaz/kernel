@@ -1097,21 +1097,13 @@
 						0x808>;
 
 			clocks = <&gcc GCC_USB0_AUX_CLK>,
-				 <&gcc GCC_USB0_PIPE_CLK>,
-				 <&gcc GCC_USB0_PHY_CFG_AHB_CLK>,
-				 <&gcc 0>,/*clk_gcc_usb3_phy_reset>,*/
-				 <&gcc 0>,/*clk_gcc_usb3phy_phy_reset>,*/
-				 <&gcc 0>,/*clk_bb_clk1>,*/
-				 <&gcc 0>;/*clk_gcc_usb_ss_ref_clk>;*/
+				 <&gcc GCC_USB0_PIPE_CLK>;
 
-			clock-names = "aux_clk", "pipe_clk", "cfg_ahb_clk", "phy_reset",
-				      "phy_phy_reset", "ref_clk_src", "ref_clk";
+			clock-names = "aux_clk", "pipe_clk";
 
-			resets = <&gcc GCC_USB0_BCR>,
-				 <&gcc GCC_USB0_PHY_BCR>,
+			resets =  <&gcc GCC_USB0_PHY_BCR>,
 				 <&gcc GCC_USB3PHY_0_PHY_BCR>;
-			reset-names = "usb3_reset",
-				      "usb3_phy_reset",
+			reset-names = "usb3_phy_reset",
 				      "usb3phy_phy_reset";
 
 			status = "disabled";
@@ -1206,21 +1198,13 @@
 						0x808>;
 
 			clocks = <&gcc GCC_USB1_AUX_CLK>,
-				 <&gcc GCC_USB1_PIPE_CLK>,
-				 <&gcc GCC_USB1_PHY_CFG_AHB_CLK>,
-				 <&gcc 0>,/*clk_gcc_usb3_phy_reset>,*/
-				 <&gcc 0>,/*clk_gcc_usb3phy_phy_reset>,*/
-				 <&gcc 0>,/*clk_bb_clk1>,*/
-				 <&gcc 0>;/*clk_gcc_usb_ss_ref_clk>;*/
+				 <&gcc GCC_USB1_PIPE_CLK>;
 
-			clock-names = "aux_clk", "pipe_clk", "cfg_ahb_clk", "phy_reset",
-				      "phy_phy_reset", "ref_clk_src", "ref_clk";
+			clock-names = "aux_clk", "pipe_clk";
 
-			resets = <&gcc GCC_USB1_BCR>,
-				 <&gcc GCC_USB1_PHY_BCR>,
+			resets = <&gcc GCC_USB1_PHY_BCR>,
 				 <&gcc GCC_USB3PHY_1_PHY_BCR>;
-			reset-names = "usb3_reset",
-				      "usb3_phy_reset",
+			reset-names = "usb3_phy_reset",
 				      "usb3phy_phy_reset";
 
 			status = "disabled";
@@ -1248,14 +1232,6 @@
 				  0x80 0x04
 				  0x9F 0x1C>;
 			  phy_type= "utmi";
-
-			  clocks = <&gcc 0>, /*clk_bb_clk1*/
-				 <&gcc 0>, /*clk_gcc_qusb_ref_clk*/
-				 <&gcc GCC_USB0_PHY_CFG_AHB_CLK>,
-				 <&gcc 0>; /*clk_gcc_qusb2_phy_reset*/
-
-			  clock-names = "ref_clk_src", "ref_clk", "cfg_ahb_clk",
-				  "phy_reset";
 
 			resets = <&gcc GCC_QUSB2_0_PHY_BCR>;
 			reset-names = "usb2_phy_reset";
@@ -1286,14 +1262,6 @@
 
 			  phy_type= "utmi";
 
-			  clocks = <&gcc 0>, /*clk_bb_clk1*/
-				 <&gcc 0>, /*clk_gcc_qusb_ref_clk*/
-				 <&gcc GCC_USB1_PHY_CFG_AHB_CLK>,
-				 <&gcc 0>; /*clk_gcc_qusb2_phy_reset*/
-
-			  clock-names = "ref_clk_src", "ref_clk", "cfg_ahb_clk",
-				  "phy_reset";
-
 			resets = <&gcc GCC_QUSB2_1_PHY_BCR>;
 			reset-names = "usb2_phy_reset";
 
@@ -1307,16 +1275,22 @@
 			ranges;
 			reg = <0x8AF8800 0x100>;
 			reg-names = "qscratch_base";
-			clocks = <&gcc GCC_SYS_NOC_USB0_AXI_CLK>,
-				<&gcc GCC_SNOC_BUS_TIMEOUT2_AHB_CLK>,
+			clocks = <&gcc GCC_SNOC_BUS_TIMEOUT2_AHB_CLK>,
+				<&gcc GCC_SYS_NOC_USB0_AXI_CLK>,
 				<&gcc GCC_USB0_MASTER_CLK>,
 				<&gcc GCC_USB0_SLEEP_CLK>,
-				<&gcc GCC_USB0_MOCK_UTMI_CLK>;
-			clock-names = "sys_noc_axi",
-				"snoc_bus_timeout2",
+				<&gcc GCC_USB0_MOCK_UTMI_CLK>,
+				<&gcc GCC_USB0_PHY_CFG_AHB_CLK>,
+				<&gcc GCC_USB0_AUX_CLK>,
+				<&gcc GCC_USB0_PIPE_CLK>;
+			clock-names = "snoc_bus_timeout2",
+				"sys_noc_axi",
 				"master",
 				"sleep",
-				"mock_utmi";
+				"mock_utmi",
+				"cfg_ahb_clk",
+				"aux_clk",
+				"pipe_clk";
 			assigned-clocks = <&gcc GCC_SYS_NOC_USB0_AXI_CLK>,
 					  <&gcc GCC_USB0_MASTER_CLK>,
 					  <&gcc GCC_USB0_MOCK_UTMI_CLK>;
@@ -1350,16 +1324,22 @@
 			ranges;
 			reg = <0x8CF8800 0x100>;
 			reg-names = "qscratch_base";
-			clocks = <&gcc GCC_SYS_NOC_USB1_AXI_CLK>,
-				<&gcc GCC_SNOC_BUS_TIMEOUT3_AHB_CLK>,
+			clocks = <&gcc GCC_SNOC_BUS_TIMEOUT3_AHB_CLK>,
+				<&gcc GCC_SYS_NOC_USB1_AXI_CLK>,
 				<&gcc GCC_USB1_MASTER_CLK>,
 				<&gcc GCC_USB1_SLEEP_CLK>,
-				<&gcc GCC_USB1_MOCK_UTMI_CLK>;
-			clock-names = "sys_noc_axi",
-				"snoc_bus_timeout3",
+				<&gcc GCC_USB1_MOCK_UTMI_CLK>,
+				 <&gcc GCC_USB1_PHY_CFG_AHB_CLK>,
+				 <&gcc GCC_USB1_AUX_CLK>,
+				 <&gcc GCC_USB1_PIPE_CLK>;
+			clock-names = "snoc_bus_timeout3",
+				"sys_noc_axi",
 				"master",
 				"sleep",
-				"mock_utmi";
+				"mock_utmi",
+				"cfg_ahb_clk",
+				"aux_clk",
+				"pipe_clk";
 
 			assigned-clocks = <&gcc GCC_SYS_NOC_USB1_AXI_CLK>,
 					  <&gcc GCC_USB1_MASTER_CLK>,
