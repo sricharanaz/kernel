@@ -32,12 +32,18 @@ extern unsigned short rx_ring_overflow_thrsh;
 extern int agg_wsize;
 extern u32 vring_idle_trsh;
 extern bool rx_align_2;
+extern bool rx_large_buf;
 extern bool debug_fw;
 extern bool disable_ap_sme;
 
 #define WIL_NAME "wil6210"
-#define WIL_FW_NAME_DEFAULT "wil6210.fw" /* code Sparrow B0 */
-#define WIL_FW_NAME_SPARROW_PLUS "wil6210_sparrow_plus.fw" /* code Sparrow D0 */
+
+#define WIL_FW_NAME_DEFAULT "wil6210.fw"
+#define WIL_FW_NAME_FTM_DEFAULT "wil6210_ftm.fw"
+
+#define WIL_FW_NAME_SPARROW_PLUS "wil6210_sparrow_plus.fw"
+#define WIL_FW_NAME_FTM_SPARROW_PLUS "wil6210_sparrow_plus_ftm.fw"
+
 #define WIL_BOARD_FILE_NAME "wil6210.brd" /* board & radio parameters */
 
 #define WIL_DEFAULT_BUS_REQUEST_KBPS 128000 /* ~1Gbps */
@@ -52,7 +58,8 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 	return (x >> b0) & ((1 << (b1 - b0 + 1)) - 1);
 }
 
-#define WIL6210_MEM_SIZE (2*1024*1024UL)
+#define WIL6210_MIN_MEM_SIZE (2 * 1024 * 1024UL)
+#define WIL6210_MAX_MEM_SIZE (4 * 1024 * 1024UL)
 
 #define WIL_TX_Q_LEN_DEFAULT		(4000)
 #define WIL_RX_RING_SIZE_ORDER_DEFAULT	(10)
@@ -411,6 +418,7 @@ enum { /* for wil6210_priv.status */
 	wil_status_irqen, /* FIXME: interrupts enabled - for debug */
 	wil_status_napi_en, /* NAPI enabled protected by wil->mutex */
 	wil_status_resetting, /* reset in progress */
+	wil_status_suspended, /* suspend completed, device is suspended */
 	wil_status_last /* keep last */
 };
 
@@ -592,6 +600,7 @@ extern u8 led_polarity;
 
 struct wil6210_priv {
 	struct pci_dev *pdev;
+	u32 bar_size;
 	struct wireless_dev *wdev;
 	void __iomem *csr;
 	DECLARE_BITMAP(status, wil_status_last);
@@ -656,6 +665,7 @@ struct wil6210_priv {
 	struct work_struct probe_client_worker;
 	/* DMA related */
 	struct vring vring_rx;
+	unsigned int rx_buf_len;
 	struct vring vring_tx[WIL6210_MAX_TX_RINGS];
 	struct vring_tx_data vring_tx_data[WIL6210_MAX_TX_RINGS];
 	u8 vring2cid_tid[WIL6210_MAX_TX_RINGS][2]; /* [0] - CID, [1] - TID */
@@ -690,6 +700,8 @@ struct wil6210_priv {
 
 	/* High Access Latency Policy voting */
 	struct wil_halp halp;
+
+	enum wmi_ps_profile_type ps_profile;
 
 #ifdef CONFIG_PM
 #ifdef CONFIG_PM_SLEEP
@@ -799,12 +811,6 @@ void wil_memcpy_fromio_32(void *dst, const volatile void __iomem *src,
 			  size_t count);
 void wil_memcpy_toio_32(volatile void __iomem *dst, const void *src,
 			size_t count);
-void wil_memcpy_fromio_halp_vote(struct wil6210_priv *wil, void *dst,
-				 const volatile void __iomem *src,
-				 size_t count);
-void wil_memcpy_toio_halp_vote(struct wil6210_priv *wil,
-			       volatile void __iomem *dst,
-			       const void *src, size_t count);
 
 void *wil_if_alloc(struct device *dev);
 void wil_if_free(struct wil6210_priv *wil);
@@ -812,6 +818,8 @@ int wil_if_add(struct wil6210_priv *wil);
 void wil_if_remove(struct wil6210_priv *wil);
 int wil_priv_init(struct wil6210_priv *wil);
 void wil_priv_deinit(struct wil6210_priv *wil);
+int wil_ps_update(struct wil6210_priv *wil,
+		  enum wmi_ps_profile_type ps_profile);
 int wil_reset(struct wil6210_priv *wil, bool no_fw);
 void wil_fw_error_recovery(struct wil6210_priv *wil);
 void wil_set_recovery_state(struct wil6210_priv *wil, int state);
