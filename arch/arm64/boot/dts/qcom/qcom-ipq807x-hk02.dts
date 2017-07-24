@@ -356,11 +356,17 @@
 						sp = <36>;
 						cfg = <0 8 0 8>;
 					};
+					group@1 {
+						sp = <37>;
+						cfg = <1 9 1 9>;
+					};
 				};
 				l0scheduler {
 					group@0 {
 						ucast_queue = <144>;
+						ucast_loop_pri = <16>;
 						mcast_queue = <272>;
+						mcast_loop_pri = <4>;
 						cfg = <36 0 48 0 48>;
 					};
 				};
@@ -372,11 +378,17 @@
 						sp = <40>;
 						cfg = <0 12 0 12>;
 					};
+					group@1 {
+						sp = <41>;
+						cfg = <1 13 1 13>;
+					};
 				};
 				l0scheduler {
 					group@0 {
 						ucast_queue = <160>;
+						ucast_loop_pri = <16>;
 						mcast_queue = <276>;
+						mcast_loop_pri = <4>;
 						cfg = <40 0 64 0 64>;
 					};
 				};
@@ -388,11 +400,17 @@
 						sp = <44>;
 						cfg = <0 16 0 16>;
 					};
+					group@1 {
+						sp = <45>;
+						cfg = <1 17 1 17>;
+					};
 				};
 				l0scheduler {
 					group@0 {
 						ucast_queue = <176>;
+						ucast_loop_pri = <16>;
 						mcast_queue = <280>;
+						mcast_loop_pri = <4>;
 						cfg = <44 0 80 0 80>;
 					};
 				};
@@ -404,11 +422,17 @@
 						sp = <48>;
 						cfg = <0 20 0 20>;
 					};
+					group@1 {
+						sp = <49>;
+						cfg = <1 21 1 21>;
+					};
 				};
 				l0scheduler {
 					group@0 {
 						ucast_queue = <192>;
+						ucast_loop_pri = <16>;
 						mcast_queue = <284>;
+						mcast_loop_pri = <4>;
 						cfg = <48 0 96 0 96>;
 					};
 				};
@@ -420,11 +444,17 @@
 						sp = <52>;
 						cfg = <0 24 0 24>;
 					};
+					group@1 {
+						sp = <53>;
+						cfg = <1 25 1 25>;
+					};
 				};
 				l0scheduler {
 					group@0 {
 						ucast_queue = <208>;
+						ucast_loop_pri = <16>;
 						mcast_queue = <288>;
+						mcast_loop_pri = <4>;
 						cfg = <52 0 112 0 112>;
 					};
 				};
@@ -436,11 +466,17 @@
 						sp = <56>;
 						cfg = <0 28 0 28>;
 					};
+					group@1 {
+						sp = <57>;
+						cfg = <1 29 1 29>;
+					};
 				};
 				l0scheduler {
 					group@0 {
 						ucast_queue = <224>;
+						ucast_loop_pri = <16>;
 						mcast_queue = <292>;
+						mcast_loop_pri = <4>;
 						cfg = <56 0 128 0 128>;
 					};
 				};
