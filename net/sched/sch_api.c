@@ -308,6 +308,7 @@ struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
 out:
 	return q;
 }
+EXPORT_SYMBOL(qdisc_lookup);
 
 static struct Qdisc *qdisc_leaf(struct Qdisc *p, u32 classid)
 {
