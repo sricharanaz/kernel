@@ -29,6 +29,11 @@
 #define TSENS_THRESHOLD_MAX_CODE	0x3ff
 #define TSENS_THRESHOLD_MIN_CODE	0x0
 #define TSENS_CONVERSION(n)		((n * 4) + 0x60)
+#define TSENS_CONVERSION_DEFAULT	0x1b3416a /* For Uncalibrated devices 
+						     SLOPE : 0xCD0
+						     CZERO : 0x16A
+						     SHIFT : 3
+						   */
 
 #define TSENS_SN_EN_ALL	(BIT(3) | BIT(4) | BIT(5) | BIT(6) | BIT(7) \
 			| BIT(8) | BIT(9) | BIT(10) | BIT(11) | BIT(12) \
@@ -229,9 +234,20 @@ static int init_ipq807x(struct tsens_device *tmdev)
 
 	/* Assert sw reset */
 	ret = regmap_update_bits(tmdev->map, TSENS_CNTL_ADDR,
-					TSENS_SN_SW_RST, TSENS_SN_SW_RST);
+					TSENS_SN_SW_RST, 1);
 	if (ret)
 		return ret;
+
+	/* De-assert TSENS enable */
+	ret = regmap_update_bits(tmdev->map, TSENS_CNTL_ADDR,
+					TSENS_SN_CTRL_EN, 0);
+	if (ret)
+		return ret;
+
+	/* Update conversion registers with default values */
+	for (i = 0; i < tmdev->num_sensors; i++)
+		regmap_write(tmdev->map, TSENS_CONVERSION(i),
+						TSENS_CONVERSION_DEFAULT);
 
 	/* Update measure period to 2ms */
 	regmap_write(tmdev->map, TSENS_MEASURE_PERIOD_ADDR,
@@ -298,8 +314,6 @@ static int get_temp_ipq807x(struct tsens_device *tmdev, int id, int *temp)
 			last_temp |= (~(TSENS_TM_CODE_BIT_MASK));
 
 		*temp = last_temp/10;
-
-		ret = regmap_read(tmdev->map, TSENS_CONVERSION(id), &trdy);
 
 		return 0;
 	} while (time_before(jiffies, timeout));
