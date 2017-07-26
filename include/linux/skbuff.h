@@ -710,6 +710,12 @@ struct sk_buff {
 				*data;
 	unsigned int		truesize;
 	atomic_t		users;
+#ifdef CONFIG_DEBUG_OBJECTS_SKBUFF
+#define DEBUG_OBJECTS_SKBUFF_STACKSIZE	20
+	void			*free_addr[DEBUG_OBJECTS_SKBUFF_STACKSIZE];
+	void			*alloc_addr[DEBUG_OBJECTS_SKBUFF_STACKSIZE];
+	u32			sum;
+#endif
 };
 
 #ifdef __KERNEL__
