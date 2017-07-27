@@ -197,7 +197,7 @@ static void mhi_buf_tbl_clear(struct diag_mhi_info *mhi_info)
 	struct diag_mhi_buf_tbl_t *item = NULL;
 	struct diag_mhi_ch_t *ch = NULL;
 
-	if (!mhi_info || !mhi_info->enabled)
+	if (!mhi_info)
 		return;
 
 	/* Clear all the pending reads */
@@ -406,8 +406,11 @@ static void mhi_read_done_work_fn(struct work_struct *work)
 		 * buffers here and do not forward them to the mux layer.
 		 */
 		if ((atomic_read(&(mhi_info->read_ch.opened)))) {
-			diag_remote_dev_read_done(mhi_info->dev_id, buf,
+			err = diag_remote_dev_read_done(mhi_info->dev_id, buf,
 						  result.bytes_xferd);
+			if (err)
+				mhi_buf_tbl_remove(mhi_info, TYPE_MHI_READ_CH,
+					buf, result.bytes_xferd);
 		} else {
 			mhi_buf_tbl_remove(mhi_info, TYPE_MHI_READ_CH, buf,
 					   result.bytes_xferd);
@@ -550,6 +553,8 @@ static void mhi_notifier(struct mhi_cb_info *cb_info)
 	struct mhi_result *result = NULL;
 	struct diag_mhi_ch_t *ch = NULL;
 	void *buf = NULL;
+	struct diag_mhi_info *mhi_info = NULL;
+	unsigned long flags;
 
 	if (!cb_info)
 		return;
@@ -601,13 +606,6 @@ static void mhi_notifier(struct mhi_cb_info *cb_info)
 		queue_work(diag_mhi[index].mhi_wq,
 			   &(diag_mhi[index].open_work));
 		break;
-	case MHI_CB_MHI_DISABLED:
-		DIAG_LOG(DIAG_DEBUG_BRIDGE,
-			 "received mhi disabled notifiation port: %d ch: %d\n",
-			 index, ch->type);
-		atomic_set(&(ch->opened), 0);
-		__mhi_close(&diag_mhi[index], CHANNELS_CLOSED);
-		break;
 	case MHI_CB_XFER:
 		/*
 		 * If the channel is a read channel, this is a read
@@ -633,6 +631,24 @@ static void mhi_notifier(struct mhi_cb_info *cb_info)
 		diag_remote_dev_write_done(diag_mhi[index].dev_id, buf,
 					   result->bytes_xferd,
 					   diag_mhi[index].id);
+		break;
+	case MHI_CB_MHI_DISABLED:
+	case MHI_CB_SYS_ERROR:
+	case MHI_CB_MHI_SHUTDOWN:
+		DIAG_LOG(DIAG_DEBUG_BRIDGE,
+			 "received mhi link down cb: %d port: %d ch: %d\n",
+			 cb_info->cb_reason, index, ch->type);
+		mhi_info = &diag_mhi[index];
+		if (!mhi_info->enabled)
+			return;
+		spin_lock_irqsave(&mhi_info->lock, flags);
+		mhi_info->enabled = 0;
+		spin_unlock_irqrestore(&mhi_info->lock, flags);
+		atomic_set(&(mhi_info->read_ch.opened), 0);
+		atomic_set(&(mhi_info->write_ch.opened), 0);
+		flush_workqueue(mhi_info->mhi_wq);
+		mhi_buf_tbl_clear(mhi_info);
+		diag_remote_dev_close(mhi_info->dev_id);
 		break;
 	default:
 		pr_err("diag: In %s, invalid cb reason 0x%x\n", __func__,
@@ -667,6 +683,20 @@ static int diag_mhi_register_ch(int id, struct diag_mhi_ch_t *ch)
 	ch->client_info.node_name = "qcom,mhi";
 	ch->client_info.user_data = (void *)(uintptr_t)ctxt;
 	return mhi_register_channel(&ch->hdl, &ch->client_info);
+}
+
+static void diag_mhi_dev_exit(int dev)
+{
+	struct diag_mhi_info *mhi_info = NULL;
+
+	mhi_info = &diag_mhi[dev];
+	if (!mhi_info)
+		return;
+	if (mhi_info->mhi_wq)
+		destroy_workqueue(mhi_info->mhi_wq);
+	mhi_close(mhi_info->id);
+	if (mhi_info->mempool_init)
+		diagmem_exit(driver, mhi_info->mempool);
 }
 
 int diag_mhi_init()
@@ -714,22 +744,16 @@ int diag_mhi_init()
 
 	return 0;
 fail:
-	diag_mhi_exit();
+	diag_mhi_dev_exit(i);
 	return -ENOMEM;
 }
 
 void diag_mhi_exit()
 {
 	int i;
-	struct diag_mhi_info *mhi_info = NULL;
 
 	for (i = 0; i < NUM_MHI_DEV; i++) {
-		mhi_info = &diag_mhi[i];
-		if (mhi_info->mhi_wq)
-			destroy_workqueue(mhi_info->mhi_wq);
-		mhi_close(mhi_info->id);
-		if (mhi_info->mempool_init)
-			diagmem_exit(driver, mhi_info->mempool);
+		diag_mhi_dev_exit(i);
 	}
 }
 

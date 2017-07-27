@@ -34,7 +34,7 @@
 
 		mhi_wlan: qcom,mhi@1 {
 			compatible = "qcom,mhi";
-			qcom,pci-dev_id = <0xabcd>;
+			qcom,pci-dev_id = <0x1100>;
 			qcom,pci-domain = <0>;
 			qcom,pci-bus = <1>;
 			qcom,pci-slot = <0>;
@@ -59,8 +59,8 @@
 			mhi-chan-cfg-16 = <0x10 0x40 0x1 0x92>;
 			mhi-chan-cfg-17 = <0x11 0x40 0x1 0xa2>;
 			mhi-event-rings = <2>;
-			mhi-event-cfg-0 = <0xa 0x0 0x1 0 0x31>;
-			mhi-event-cfg-1 = <0x80 0x1 0x1 0 0x31>;
+			mhi-event-cfg-0 = <0xa 0x0 0x1 0 1 0x31>;
+			mhi-event-cfg-1 = <0x80 0x1 0x1 0 1 0x31>;
 		};
 
 		qcom,ipc_router_external_wlan_xprt {
