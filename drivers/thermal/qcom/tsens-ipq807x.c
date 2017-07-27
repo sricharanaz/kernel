@@ -35,9 +35,9 @@
 						     SHIFT : 3
 						   */
 
-#define TSENS_SN_EN_ALL	(BIT(3) | BIT(4) | BIT(5) | BIT(6) | BIT(7) \
-			| BIT(8) | BIT(9) | BIT(10) | BIT(11) | BIT(12) \
-			| BIT(13) | BIT(14) | BIT(15))
+/* Do not use Sensor IDs 1, 2 and 3 */
+#define TSENS_SN_EN_ALL	(BIT(3) | BIT(7) | BIT(8) | BIT(9) | BIT(10) \
+			| BIT(11) | BIT(12) | BIT(13) | BIT(14) | BIT(15))
 #define TSENS_SN_CTRL_EN		BIT(0)
 #define TSENS_SN_SW_RST			BIT(1)
 #define TSENS_SN_ADC_CLK_SEL		BIT(2)
@@ -57,14 +57,15 @@
 #define TSENS_TM_LOWER_INT_MASK(n)	((n) & 0xffff)
 #define TSENS_TM_UPPER_LOWER_INT_STATUS		0x1008
 #define TSENS_TM_UPPER_LOWER_INT_CLEAR		0x100c
-#define TSENS_TM_UPPER_INT_CLEAR_SET		0xffff0000
-#define TSENS_TM_LOWER_INT_CLEAR_SET		0xffff
+#define TSENS_TM_UPPER_INT_CLEAR_SET(n)		(1 << (n + 16))
+#define TSENS_TM_LOWER_INT_CLEAR_SET(n)		(1 << n)
 #define TSENS_TM_UPPER_LOWER_INT_MASK		0x1010
 #define TSENS_TM_UPPER_INT_SET(n)		(1 << (n + 16))
+#define TSENS_TM_LOWER_INT_SET(n)               (1 << n)
 
 #define TSENS_TM_CRITICAL_INT_STATUS		0x1014
 #define TSENS_TM_CRITICAL_INT_CLEAR		0x1018
-#define TSENS_TM_CRITICAL_INT_CLEAR_SET		0xffff
+#define TSENS_TM_CRITICAL_INT_CLEAR_SET(n)	(1 << n)
 #define TSENS_TM_CRITICAL_INT_MASK		0x101c
 
 #define TSENS_TM_UPPER_LOWER_THRESHOLD(n)	((n * 4) + 0x1020)
@@ -88,8 +89,8 @@
 #define TSENS_TM_SN_LAST_TEMP_MASK		0xfff
 
 #define MAX_SENSOR				16
-#define MAX_TEMP				0xFF
-#define MIN_TEMP				0x0
+#define MAX_TEMP				204 /* Celcius */
+#define MIN_TEMP				0   /* Celcius */
 
 /* Trips: from very hot to very cold */
 enum tsens_trip_type {
@@ -126,7 +127,7 @@ static void tsens_scheduler_fn(struct work_struct *work)
 {
 	struct tsens_device *tmdev = container_of(work, struct tsens_device,
 					tsens_work);
-	int i;
+	int i, reg_thr, th_upper = 0, th_lower = 0;
 	u32 reg_val, reg_addr;
 
 	/*Check whether TSENS is enabled */
@@ -138,25 +139,25 @@ static void tsens_scheduler_fn(struct work_struct *work)
 	for (i = 0; i < tmdev->num_sensors; i++) {
 		regmap_read(tmdev->map, tmdev->sensor[i].status, &reg_val);
 
-		/* Check whether critical threshold is hit */
-		if (reg_val & TSENS_TM_SN_STATUS_CRITICAL_STATUS) {
-			reg_val = TSENS_TM_CRITICAL_INT_CLEAR_SET;
-			reg_addr = TSENS_TM_CRITICAL_INT_CLEAR;
-		}
+		/* Check whether the temp is valid */
+		if (!(reg_val & TSENS_TM_SN_STATUS_VALID_BIT))
+			continue;
+
 		/* Check whether upper threshold is hit */
-		else if (reg_val & TSENS_TM_SN_STATUS_UPPER_STATUS) {
-			reg_val = TSENS_TM_UPPER_INT_CLEAR_SET;
+		if (reg_val & TSENS_TM_SN_STATUS_UPPER_STATUS) {
+			reg_thr |= TSENS_TM_UPPER_INT_CLEAR_SET(i);
 			reg_addr = TSENS_TM_UPPER_LOWER_INT_CLEAR;
+			th_upper = 1;
 		}
 		/* Check whether lower threshold is hit */
-		else if (reg_val & TSENS_TM_SN_STATUS_LOWER_STATUS) {
-			reg_val = TSENS_TM_LOWER_INT_CLEAR_SET;
+		if (reg_val & TSENS_TM_SN_STATUS_LOWER_STATUS) {
+			reg_thr |= TSENS_TM_LOWER_INT_CLEAR_SET(i);
 			reg_addr = TSENS_TM_UPPER_LOWER_INT_CLEAR;
-		} else
-			/* Do nothing */
-			return;
+			th_lower = 1;
+		}
 
-		regmap_write(tmdev->map, reg_addr, reg_val);
+		if (th_upper || th_lower)
+			regmap_write(tmdev->map, reg_addr, reg_val);
 		/* Notify user space */
 		schedule_work(&tmdev->sensor[i].notify_work);
 	}
@@ -336,6 +337,9 @@ static int set_trip_temp_ipq807x(void *data, int trip, int temp)
 
 	if ((temp < MIN_TEMP) && (temp > MAX_TEMP))
 		return -EINVAL;
+
+	/* Convert temp to the required format */
+	temp = temp * 10;
 
 	tmdev = s->tmdev;
 	reg_th_offset = TSENS_TM_UPPER_LOWER_THRESHOLD(s->id);
