@@ -134,6 +134,18 @@ static void qpic_bam_cb(void *param)
 	complete(&qpic_res->completion);
 }
 
+void mdss_qpic_dma_pages_ops(dma_addr_t base, size_t size,
+			     void page_ops(struct page *page))
+{
+	dma_addr_t cur;
+	struct page *page;
+
+	for (cur = base; cur < base + size; cur += PAGE_SIZE) {
+		page = pfn_to_page(cur >> PAGE_SHIFT);
+		page_ops(page);
+	}
+}
+
 int mdss_qpic_alloc_fb_mem(struct msm_fb_data_type *mfd)
 {
 	size_t size;
@@ -151,33 +163,44 @@ int mdss_qpic_alloc_fb_mem(struct msm_fb_data_type *mfd)
 		return 0;
 	}
 
+	if (!qpic_res->cmd_buf_virt) {
+		qpic_res->cmd_buf_virt = dma_alloc_writecombine(
+			&qpic_res->pdev->dev, QPIC_MAX_CMD_BUF_SIZE,
+			&qpic_res->cmd_buf_phys, GFP_KERNEL);
+		if (!qpic_res->cmd_buf_virt) {
+			pr_err("%s cmd buf allocation failed", __func__);
+			return -ENOMEM;
+		}
+
+		pr_debug("%s cmd_buf virt=%x phys=%x", __func__,
+			(int)qpic_res->cmd_buf_virt,
+			qpic_res->cmd_buf_phys);
+	}
+
 	if (!qpic_res->fb_virt) {
 		qpic_res->fb_virt = (void *)dmam_alloc_coherent(
 						&qpic_res->pdev->dev,
 						size,
 						&qpic_res->fb_phys,
 						GFP_KERNEL);
+		if (!qpic_res->fb_virt) {
+			pr_err("%s fb allocation failed", __func__);
+			dma_free_writecombine(&qpic_res->pdev->dev,
+					      QPIC_MAX_CMD_BUF_SIZE,
+					      qpic_res->cmd_buf_virt,
+					      qpic_res->cmd_buf_phys);
+			qpic_res->cmd_buf_virt = NULL;
+			return -ENOMEM;
+		}
+
 		pr_debug("%s size=%d vir_addr=%x phys_addr=%x",
 			__func__, size, (int)qpic_res->fb_virt,
 			(int)qpic_res->fb_phys);
-		if (!qpic_res->fb_virt) {
-			pr_err("%s fb allocation failed", __func__);
-			return -ENOMEM;
-		}
+
+		qpic_res->fb_size = size;
+		mdss_qpic_dma_pages_ops(qpic_res->fb_phys, size, get_page);
 	}
 
-	if (!qpic_res->cmd_buf_virt) {
-		qpic_res->cmd_buf_virt = dma_alloc_writecombine(
-			&qpic_res->pdev->dev, QPIC_MAX_CMD_BUF_SIZE,
-			&qpic_res->cmd_buf_phys, GFP_KERNEL);
-		pr_debug("%s cmd_buf virt=%x phys=%x", __func__,
-			(int)qpic_res->cmd_buf_virt,
-			qpic_res->cmd_buf_phys);
-		if (!qpic_res->cmd_buf_virt) {
-			pr_err("%s cmd buf allocation failed", __func__);
-			return -ENOMEM;
-		}
-	}
 	mfd->fbi->fix.smem_start = qpic_res->fb_phys;
 	mfd->fbi->screen_base = qpic_res->fb_virt;
 	mfd->fbi->fix.smem_len = size;
@@ -661,6 +684,16 @@ static int mdss_qpic_remove(struct platform_device *pdev)
 {
 	if (qpic_res->chan)
 		dma_release_channel(qpic_res->chan);
+
+	if (qpic_res->fb_virt)
+		mdss_qpic_dma_pages_ops(qpic_res->fb_phys,
+					qpic_res->fb_size, put_page);
+
+	if (!qpic_res->cmd_buf_virt)
+		dma_free_writecombine(&qpic_res->pdev->dev,
+				      QPIC_MAX_CMD_BUF_SIZE,
+				      qpic_res->cmd_buf_virt,
+				      qpic_res->cmd_buf_phys);
 
 	return 0;
 }

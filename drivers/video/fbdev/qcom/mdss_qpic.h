@@ -70,6 +70,7 @@ struct qpic_data_type {
 	u32 res_init;
 	void *fb_virt;
 	u32 fb_phys;
+	size_t fb_size;
 	void *cmd_buf_virt;
 	u32 cmd_buf_phys;
 	u32 irq_requested;
