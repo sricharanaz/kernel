@@ -5232,6 +5232,12 @@ static const struct qcom_reset_map gcc_ipq807x_resets[] = {
 	[GCC_PCIE1_AHB_ARES] = { 0x76040, 5 },
 	[GCC_PCIE1_AXI_MASTER_STICKY_ARES] = { 0x76040, 6 },
 	[GCC_PPE_FULL_RESET] = { 0x68014, 0, 0xf0000},
+	[GCC_UNIPHY0_SOFT_RESET] = { 0x56004, 0, 0x3ff2},
+	[GCC_UNIPHY0_XPCS_RESET] = { 0x56004, 2 },
+	[GCC_UNIPHY1_SOFT_RESET] = { 0x56104, 0, 0x32},
+	[GCC_UNIPHY1_XPCS_RESET] = { 0x56104, 2 },
+	[GCC_UNIPHY2_SOFT_RESET] = { 0x56204, 0, 0x32},
+	[GCC_UNIPHY2_XPCS_RESET] = { 0x56204, 2 },
 };
 
 static const struct of_device_id gcc_ipq807x_match_table[] = {
