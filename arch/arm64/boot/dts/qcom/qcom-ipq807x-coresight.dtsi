@@ -31,8 +31,8 @@
 		coresight-ctis = <&cti0 &cti8>;
 		coresight-name = "coresight-tmc-etr";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "apb_pclk", "core_a_clk";
 
 		port{
@@ -52,8 +52,8 @@
 
 		coresight-name = "coresight-replicator";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "apb_pclk", "core_a_clk";
 
 		ports{
@@ -89,8 +89,8 @@
 		coresight-name = "coresight-tmc-etf";
 		arm,default-sink;
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "apb_pclk", "core_a_clk";
 
 		ports{
@@ -124,8 +124,8 @@
 
 		coresight-name = "coresight-funnel-in0";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "apb_pclk", "core_a_clk";
 
 		ports {
@@ -199,8 +199,8 @@
 
 		coresight-name = "coresight-funnel-center";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "apb_pclk", "core_a_clk";
 
 		ports {
@@ -234,8 +234,8 @@
 
 		coresight-name = "coresight-funnel-right";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "apb_pclk", "core_a_clk";
 
 		ports {
@@ -270,8 +270,8 @@
 
 		coresight-name = "coesight-funnel-mm";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "apb_pclk", "core_a_clk";
 
 		ports {
@@ -305,8 +305,8 @@
 
 		coresight-name = "coresight-funnel-cam";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "apb_pclk", "core_a_clk";
 
 		port{
@@ -325,8 +325,8 @@
 
 		coresight-name = "coresight-funnel-apss1";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "apb_pclk", "core_a_clk";
 
 		ports {
@@ -360,8 +360,8 @@
 
 		coresight-name = "coresight-funnel-apss0";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "apb_pclk", "core_a_clk";
 
 		ports {
@@ -419,8 +419,8 @@
 		coresight-name = "coresight-etm0";
 		cpu = <&CPU0>;
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "apb_pclk", "core_a_clk";
 
 		port{
@@ -439,8 +439,8 @@
 		coresight-name = "coresight-etm1";
 		cpu = <&CPU1>;
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "apb_pclk", "core_a_clk";
 
 		port{
@@ -459,8 +459,8 @@
 		coresight-name = "coresight-etm2";
 		cpu = <&CPU2>;
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "apb_pclk", "core_a_clk";
 
 		port{
@@ -479,8 +479,8 @@
 		coresight-name = "coresight-etm3";
 		cpu = <&CPU3>;
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "apb_pclk", "core_a_clk";
 
 		port{
@@ -513,8 +513,8 @@
 
 		coresight-name = "coresight-stm";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "apb_pclk", "core_a_clk";
 
 		port{
@@ -531,8 +531,8 @@
 
 		coresight-name = "coresight-cti0";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -543,8 +543,8 @@
 
 		coresight-name = "coresight-cti1";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -555,8 +555,8 @@
 
 		coresight-name = "coresight-cti2";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -567,8 +567,8 @@
 
 		coresight-name = "coresight-cti3";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -579,8 +579,8 @@
 
 		coresight-name = "coresight-cti4";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -591,8 +591,8 @@
 
 		coresight-name = "coresight-cti5";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -603,8 +603,8 @@
 
 		coresight-name = "coresight-cti6";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -615,8 +615,8 @@
 
 		coresight-name = "coresight-cti7";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -627,8 +627,8 @@
 
 		coresight-name = "coresight-cti8";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -639,8 +639,8 @@
 
 		coresight-name = "coresight-cti9";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -651,8 +651,8 @@
 
 		coresight-name = "coresight-cti10";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -663,8 +663,8 @@
 
 		coresight-name = "coresight-cti11";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -675,8 +675,8 @@
 
 		coresight-name = "coresight-cti12";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -687,8 +687,8 @@
 
 		coresight-name = "coresight-cti13";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -699,8 +699,8 @@
 
 		coresight-name = "coresight-cti14";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -711,8 +711,8 @@
 
 		coresight-name = "coresight-cti15";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -724,8 +724,8 @@
 		coresight-name = "coresight-cti-cpu0";
 		cpu = <&CPU0>;
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -737,8 +737,8 @@
 		coresight-name = "coresight-cti-cpu1";
 		cpu = <&CPU1>;
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -750,8 +750,8 @@
 		coresight-name = "coresight-cti-cpu2";
 		cpu = <&CPU2>;
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -763,8 +763,8 @@
 		coresight-name = "coresight-cti-cpu3";
 		cpu = <&CPU3>;
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -775,8 +775,8 @@
 
 		coresight-name = "coresight-cti-rpm-cpu0";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -788,8 +788,8 @@
 		coresight-name = "coresight-csr";
 		qcom,blk-size = <1>;
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 
@@ -804,8 +804,8 @@
 		qcom,dbgui-data-offset = <0x130>;
 		qcom,dbgui-size = <64>;
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 
 		port{
@@ -825,8 +825,8 @@
 		qcom,tpda-atid = <64>;
 		qcom,cmb-elem-size = <0 32>;
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 
 		ports {
@@ -856,8 +856,8 @@
 
 		coresight-name = "coresight-tpdm-dcc";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 
 		port{
@@ -884,8 +884,8 @@
 
 		coresight-name = "coresight-hwevent";
 
-		clocks = <&gcc GCC_DUMMY_CLK>,
-			 <&gcc GCC_DUMMY_CLK>;
+		clocks = <&gcc GCC_QDSS_DAP_CLK>,
+			 <&gcc GCC_QDSS_AT_CLK>;
 		clock-names = "core_clk", "core_a_clk";
 	};
 };
