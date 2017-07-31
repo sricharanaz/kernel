@@ -21,6 +21,7 @@
 		mux_1 {
 			pins = "gpio25";
 			function = "gpio";
+			drive-strength = <8>;
 			bias-pull-up;
 			output-high;
 		};
@@ -28,6 +29,7 @@
 		mux_2 {
 			pins = "gpio26";
 			function = "gpio";
+			drive-strength = <8>;
 			bias-pull-up;
 			output-high;
 		};
@@ -35,6 +37,7 @@
 		mux_3 {
 			pins = "gpio27";
 			function = "gpio";
+			drive-strength = <8>;
 			bias-pull-up;
 			output-high;
 		};
@@ -42,6 +45,7 @@
 		mux_4 {
 			pins = "gpio28";
 			function = "gpio";
+			drive-strength = <8>;
 			bias-pull-up;
 			output-high;
 		};
@@ -49,6 +53,7 @@
 		mux_5 {
 			pins = "gpio29";
 			function = "gpio";
+			drive-strength = <8>;
 			bias-pull-up;
 			output-high;
 		};
@@ -56,6 +61,7 @@
 		mux_6 {
 			pins = "gpio30";
 			function = "gpio";
+			drive-strength = <8>;
 			bias-pull-up;
 			output-high;
 		};
@@ -63,6 +69,7 @@
 		mux_7 {
 			pins = "gpio31";
 			function = "gpio";
+			drive-strength = <8>;
 			bias-pull-up;
 			output-high;
 		};
@@ -70,6 +77,7 @@
 		mux_8 {
 			pins = "gpio32";
 			function = "gpio";
+			drive-strength = <8>;
 			bias-pull-up;
 			output-high;
 		};
@@ -79,48 +87,56 @@
 		mux_1 {
 			pins = "gpio25";
 			function = "audio_txmclk";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 
 		mux_2 {
 			pins = "gpio26";
 			function = "audio_txbclk";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 
 		mux_3 {
 			pins = "gpio27";
 			function = "audio_txfsync";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 
 		mux_4 {
 			pins = "gpio28";
 			function = "audio_txd";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 
 		mux_5 {
 			pins = "gpio29";
 			function = "audio_rxmclk";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 
 		mux_6 {
 			pins = "gpio30";
 			function = "audio_rxbclk";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 
 		mux_7 {
 			pins = "gpio31";
 			function = "audio_rxfsync";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 
 		mux_8 {
 			pins = "gpio32";
 			function = "audio_rxd";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 	};
@@ -129,24 +145,28 @@
 		mux_1 {
 			pins = "gpio33";
 			function = "pcm_drx";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 
 		mux_2 {
 			pins = "gpio34";
 			function = "pcm_dtx";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 
 		mux_3 {
 			pins = "gpio35";
 			function = "pcm_fsync";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 
 		mux_4 {
 			pins = "gpio36";
 			function = "pcm_pclk";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 	};
