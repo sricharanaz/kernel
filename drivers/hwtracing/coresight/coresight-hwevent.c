@@ -220,10 +220,6 @@ static int hwevent_probe(struct platform_device *pdev)
 	if (IS_ERR(drvdata->clk))
 		return PTR_ERR(drvdata->clk);
 
-	ret = clk_set_rate(drvdata->clk, CORESIGHT_CLK_RATE_TRACE);
-	if (ret)
-		return ret;
-
 	drvdata->nr_hclk = of_property_count_strings(pdev->dev.of_node,
 						     "qcom,hwevent-clks");
 	drvdata->nr_hreg = of_property_count_strings(pdev->dev.of_node,
