@@ -17,7 +17,6 @@
 #ifndef _DT_BINDINGS_CLOCK_IPQ_GCC_807x_H
 #define _DT_BINDINGS_CLOCK_IPQ_GCC_807x_H
 
-#define GCC_DUMMY_CLK				0
 #define GPLL0					1
 #define UBI32_PLL				2
 #define GPLL6					3

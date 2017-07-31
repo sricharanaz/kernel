@@ -37,8 +37,6 @@
 #include "clk-regmap-mux.h"
 #include "reset.h"
 
-static struct clk_regmap dummy;
-
 #define F(f, s, h, m, n) { (f), (s), (2 * (h) - 1), (m), (n) }
 
 enum {
@@ -4880,7 +4878,6 @@ static const struct alpha_pll_config nss_crypto_pll_config = {
 };
 
 static struct clk_regmap *gcc_ipq807x_clks[] = {
-	[GCC_DUMMY_CLK] = &dummy,
 	[GPLL0_MAIN] = &gpll0_main.clkr,
 	[GPLL0] = &gpll0.clkr,
 	[UBI32_PLL_MAIN] = &ubi32_pll_main.clkr,
@@ -5256,69 +5253,6 @@ static const struct qcom_reset_map gcc_ipq807x_resets[] = {
 	[GCC_PPE_FULL_RESET] = { 0x68014, 0, 0xf0000},
 };
 
-static int clk_dummy_is_enabled(struct clk_hw *hw)
-{
-	return 1;
-};
-
-static int clk_dummy_enable(struct clk_hw *hw)
-{
-	return 0;
-};
-
-static void clk_dummy_disable(struct clk_hw *hw)
-{
-	return;
-};
-
-static u8 clk_dummy_get_parent(struct clk_hw *hw)
-{
-	return 0;
-};
-
-static int clk_dummy_set_parent(struct clk_hw *hw, u8 index)
-{
-	return 0;
-};
-
-static int clk_dummy_set_rate(struct clk_hw *hw, unsigned long rate,
-			      unsigned long parent_rate)
-{
-	return 0;
-};
-
-static int clk_dummy_determine_rate(struct clk_hw *hw,
-				struct clk_rate_request *req)
-{
-	return 0;
-};
-
-static unsigned long clk_dummy_recalc_rate(struct clk_hw *hw,
-					   unsigned long parent_rate)
-{
-	return parent_rate;
-};
-
-const struct clk_ops clk_dummy_ops = {
-	.is_enabled = clk_dummy_is_enabled,
-	.enable = clk_dummy_enable,
-	.disable = clk_dummy_disable,
-	.get_parent = clk_dummy_get_parent,
-	.set_parent = clk_dummy_set_parent,
-	.set_rate = clk_dummy_set_rate,
-	.recalc_rate = clk_dummy_recalc_rate,
-	.determine_rate = clk_dummy_determine_rate,
-};
-
-static struct clk_regmap dummy = {
-	.hw.init = &(struct clk_init_data){
-		.name = "dummy_clk_src",
-		.parent_names = (const char *[]){ "xo"},
-		.num_parents = 1,
-		.ops = &clk_dummy_ops,
-	},
-};
-
 static const struct of_device_id gcc_ipq807x_match_table[] = {
 	{ .compatible = "qcom,gcc-ipq807x" },
 	{ }
@@ -5369,7 +5303,8 @@ static int gcc_ipq807x_probe(struct platform_device *pdev)
 
 	ret = qcom_cc_really_probe(pdev, &gcc_ipq807x_desc, regmap);
 
-	dev_dbg(&pdev->dev, "Registered dummy clock provider\n");
+	dev_dbg(&pdev->dev, "Registered ipq807x clock provider");
+
 	return ret;
 }
 
