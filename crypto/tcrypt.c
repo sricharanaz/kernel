@@ -993,6 +993,8 @@ static void test_ahash_speed(const char *algo, unsigned int secs,
 			break;
 		}
 
+		test_hash_sg_init(sg);
+
 		pr_info("test%3u "
 			"(%5u byte blocks,%5u bytes per update,%4u updates): ",
 			i, speed[i].blen, speed[i].plen, speed[i].blen / speed[i].plen);
