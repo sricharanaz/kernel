@@ -2717,24 +2717,6 @@ static struct clk_branch gcc_xo_clk = {
 	},
 };
 
-static struct clk_branch gcc_xo_div4_clk = {
-	.halt_reg = 0x30034,
-	.halt_bit = 31,
-	.clkr = {
-		.enable_reg = 0x30034,
-		.enable_mask = BIT(0),
-		.hw.init = &(struct clk_init_data){
-			.name = "gcc_xo_div4_clk",
-			.parent_names = (const char *[]){
-				"gcc_xo_div4_clk_src"
-			},
-			.num_parents = 1,
-			.flags = CLK_SET_RATE_PARENT,
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
 static struct clk_branch gcc_gp1_clk = {
 	.halt_reg = 0x08000,
 	.halt_bit = 31,
@@ -4999,7 +4981,6 @@ static struct clk_regmap *gcc_ipq807x_clks[] = {
 	[GCC_CRYPTO_CLK] = &gcc_crypto_clk.clkr,
 	[GCC_MEM_NOC_NSS_AXI_CLK] = &gcc_mem_noc_nss_axi_clk.clkr,
 	[GCC_XO_CLK] = &gcc_xo_clk.clkr,
-	[GCC_XO_DIV4_CLK] = &gcc_xo_div4_clk.clkr,
 	[GCC_GP1_CLK] = &gcc_gp1_clk.clkr,
 	[GCC_GP2_CLK] = &gcc_gp2_clk.clkr,
 	[GCC_GP3_CLK] = &gcc_gp3_clk.clkr,

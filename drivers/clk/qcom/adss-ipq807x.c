@@ -399,40 +399,6 @@ static struct clk_branch adss_audio_pcm_clk = {
 	},
 };
 
-static struct clk_branch adss_audio_xo_clk = {
-	.halt_reg = 0x00cc,
-	.halt_bit = 31,
-	.clkr = {
-		.enable_reg = 0x00cc,
-		.enable_mask = BIT(0),
-		.hw.init = &(struct clk_init_data){
-			.name = "adss_audio_xo_clk",
-			.parent_names = (const char *[]){
-				"xo"
-			},
-			.num_parents = 1,
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
-static struct clk_branch adss_audio_ahb_clk = {
-	.halt_reg = 0x0100,
-	.halt_bit = 31,
-	.clkr = {
-		.enable_reg = 0x0100,
-		.enable_mask = BIT(0),
-		.hw.init = &(struct clk_init_data){
-			.name = "adss_audio_ahb_clk",
-			.parent_names = (const char *[]){
-				"pcnoc_clk_src"
-			},
-			.num_parents = 1,
-			.ops = &clk_branch2_ops,
-		},
-	},
-};
-
 static struct clk_branch adss_audio_i2s0_clk = {
 	.halt_reg = 0x0104,
 	.halt_bit = 31,
@@ -517,8 +483,6 @@ static struct clk_regmap *adss_ipq807x_clks[] = {
 	[ADSS_AUDIO_PCM_CLK_SRC] = &adss_audio_pcm_clk_src.clkr,
 	[ADSS_AUDIO_PCM_POSTDIV_CLK_SRC] = &adss_audio_pcm_postdiv_clk_src.clkr,
 	[ADSS_AUDIO_PCM_CLK] = &adss_audio_pcm_clk.clkr,
-	[ADSS_AUDIO_XO_CLK] = &adss_audio_xo_clk.clkr,
-	[ADSS_AUDIO_AHB_CLK] = &adss_audio_ahb_clk.clkr,
 	[ADSS_AUDIO_I2S0_CLK] = &adss_audio_i2s0_clk.clkr,
 	[ADSS_AUDIO_I2S3_CLK] = &adss_audio_i2s3_clk.clkr,
 	[ADSS_AUDIO_MBOX0_CLK] = &adss_audio_mbox0_clk.clkr,
