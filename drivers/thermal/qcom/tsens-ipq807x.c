@@ -35,9 +35,10 @@
 						     SHIFT : 3
 						   */
 
-/* Do not use Sensor IDs 1, 2 and 3 */
-#define TSENS_SN_EN_ALL	(BIT(3) | BIT(7) | BIT(8) | BIT(9) | BIT(10) \
-			| BIT(11) | BIT(12) | BIT(13) | BIT(14) | BIT(15))
+/* Do not use Sensor IDs 0, 1, 2 and 3 */
+#define TSENS_SN_EN_ALL	(BIT(7) | BIT(8) | BIT(9) | BIT(10) \
+			| BIT(11) | BIT(12) | BIT(13) | BIT(14) | BIT(15) \
+			| BIT(16) | BIT(17) | BIT(18))
 #define TSENS_SN_CTRL_EN		BIT(0)
 #define TSENS_SN_SW_RST			BIT(1)
 #define TSENS_SN_ADC_CLK_SEL		BIT(2)
