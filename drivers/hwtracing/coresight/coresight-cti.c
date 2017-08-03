@@ -1427,10 +1427,6 @@ static int cti_probe(struct platform_device *pdev)
 	if (IS_ERR(drvdata->clk))
 		return PTR_ERR(drvdata->clk);
 
-	ret = clk_set_rate(drvdata->clk, CORESIGHT_CLK_RATE_TRACE);
-	if (ret)
-		return ret;
-
 	drvdata->gpio_trigin = devm_kzalloc(dev, sizeof(struct cti_pctrl),
 					    GFP_KERNEL);
 	if (!drvdata->gpio_trigin)

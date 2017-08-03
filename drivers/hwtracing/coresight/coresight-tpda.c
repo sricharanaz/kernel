@@ -692,10 +692,6 @@ static int tpda_probe(struct platform_device *pdev)
 	if (IS_ERR(drvdata->clk))
 		return PTR_ERR(drvdata->clk);
 
-	ret = clk_set_rate(drvdata->clk, CORESIGHT_CLK_RATE_TRACE);
-	if (ret)
-		return ret;
-
 	ret = clk_prepare_enable(drvdata->clk);
 	if (ret)
 		return ret;

@@ -804,10 +804,6 @@ static int stm_probe(struct amba_device *adev, const struct amba_id *id)
 
 	spin_lock_init(&drvdata->spinlock);
 
-	ret = clk_set_rate(adev->pclk, CORESIGHT_CLK_RATE_TRACE);
-	if (ret)
-		return ret;
-
 	if (!coresight_authstatus_enabled(drvdata->base))
 		goto err1;
 

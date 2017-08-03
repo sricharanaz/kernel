@@ -17,7 +17,6 @@
 #ifndef _DT_BINDINGS_CLOCK_IPQ_GCC_807x_H
 #define _DT_BINDINGS_CLOCK_IPQ_GCC_807x_H
 
-#define GCC_DUMMY_CLK				0
 #define GPLL0					1
 #define UBI32_PLL				2
 #define GPLL6					3
@@ -252,5 +251,9 @@
 #define GCC_SYS_NOC_USB1_AXI_CLK		232
 #define GCC_SYS_NOC_PCIE0_AXI_CLK		233
 #define GCC_SYS_NOC_PCIE1_AXI_CLK		234
+#define QDSS_TSCTR_CLK_SRC			235
+#define QDSS_AT_CLK_SRC				236
+#define GCC_QDSS_AT_CLK				237
+#define GCC_QDSS_DAP_CLK			238
 
 #endif
