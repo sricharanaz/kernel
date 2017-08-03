@@ -183,11 +183,11 @@ static int ipq40xx_phy_gpio_set(struct platform_device *pdev, int number)
 		goto phy_reset_out;
 	}
 
-	usleep_range(10000, 20000);
+	usleep_range(100000, 110000);
 
 	gpio_set_value(number, 0x01);
 
-	usleep_range(30000, 50000);
+	usleep_range(100000, 110000);
 
 phy_reset_out:
 	gpio_free(number);
