@@ -646,6 +646,17 @@
 					"uniphy2_port6_tx_clk",
 					"nss_port5_rx_clk_src",
 					"nss_port5_tx_clk_src";
+			resets = <&gcc GCC_PPE_FULL_RESET>,
+				 <&gcc GCC_UNIPHY0_SOFT_RESET>,
+				 <&gcc GCC_UNIPHY0_XPCS_RESET>,
+				 <&gcc GCC_UNIPHY1_SOFT_RESET>,
+				 <&gcc GCC_UNIPHY1_XPCS_RESET>,
+				 <&gcc GCC_UNIPHY2_SOFT_RESET>,
+				 <&gcc GCC_UNIPHY2_XPCS_RESET>;
+			reset-names = "ppe_rst", "uniphy0_soft_rst",
+					"uniphy0_xpcs_rst", "uniphy1_soft_rst",
+					"uniphy1_xpcs_rst", "uniphy2_soft_rst",
+					"uniphy2_xpcs_rst";
 		};
 
 		ess-uniphy@7a00000 {
