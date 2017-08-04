@@ -953,7 +953,7 @@
 			clocks = <&gcc GCC_BLSP1_AHB_CLK>,
 				<&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>;
 			clock-names = "iface", "core";
-			clock-frequency  = <100000>;
+			clock-frequency  = <400000>;
 			dmas = <&blsp_dma 15>, <&blsp_dma 14>;
 			dma-names = "rx", "tx";
 		};

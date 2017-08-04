@@ -1139,6 +1139,11 @@ static int qcom_pcie_init_v3(struct qcom_pcie *pcie)
 		BIT(10) | BIT(11), 0);
 	writel(PCIE_CAP_CPL_TIMEOUT_DISABLE, pcie->dbi +
 		PCIE20_DEVICE_CONTROL2_STATUS2);
+	if (pcie->force_gen1) {
+		writel_relaxed((readl_relaxed(
+			pcie->dbi + PCIE20_LNK_CONTROL2_LINK_STATUS2) | 1),
+			pcie->dbi + PCIE20_LNK_CONTROL2_LINK_STATUS2);
+	}
 	writel(LTSSM_EN, pcie->parf + PCIE20_PARF_LTSSM);
 
 	return 0;
