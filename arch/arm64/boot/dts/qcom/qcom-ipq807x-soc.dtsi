@@ -828,6 +828,9 @@
 				qcom,aes128-ctr;
 				qcom,aes192-ctr;
 				qcom,aes256-ctr;
+				qcom,aes128-ecb;
+				qcom,aes192-ecb;
+				qcom,aes256-ecb;
 				qcom,3des-cbc;
 				qcom,sha160-hash;
 				qcom,sha224-hash;
