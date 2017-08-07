@@ -192,6 +192,14 @@
 			bias-disable;
 		};
 	};
+
+	uniphy_pins: uniphy_pinmux {
+		mux {
+			pins = "gpio60";
+			function = "rx2";
+			bias-disable;
+		};
+	};
 };
 
 &soc {
@@ -225,6 +233,8 @@
 	};
 
 	ess-switch@3a000000 {
+		pinctrl-0 = <&uniphy_pins>;
+		pinctrl-names = "default";
 		compatible = "qcom,ess-switch";
 		reg = <0x3a000000 0x1000000>;
 		switch_access_mode = "local bus";
