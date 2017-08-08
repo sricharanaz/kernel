@@ -25,7 +25,11 @@ struct per_part_info {
 	uint32_t primaryboot;
 };
 
+#ifdef CONFIG_ARCH_IPQ807x
+#define NUM_ALT_PARTITION 16
+#else
 #define NUM_ALT_PARTITION 8
+#endif
 
 /* version 2 */
 #define SMEM_DUAL_BOOTINFO_MAGIC_START 0xA3A2A1A0
