@@ -1565,6 +1565,7 @@
 		wifi0: wifi@c0000000 {
 			compatible = "qca,wifi-ipq807x";
 			reg = <0xc000000 0x2000000>;
+			qcom,hw-mode-id = <1>;
 			interrupts = <0 320 1>, /* o_wcss_apps_intr[0] =  */
 				<0 319 1>,
 				<0 318 1>,
