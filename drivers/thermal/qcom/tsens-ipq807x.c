@@ -138,6 +138,10 @@ static void tsens_scheduler_fn(struct work_struct *work)
 
 	/* Iterate through all sensors */
 	for (i = 0; i < tmdev->num_sensors; i++) {
+
+		/* Reset reg_thr for each iteration */
+		reg_thr = 0;
+
 		regmap_read(tmdev->map, tmdev->sensor[i].status, &reg_val);
 
 		/* Check whether the temp is valid */
@@ -158,7 +162,7 @@ static void tsens_scheduler_fn(struct work_struct *work)
 		}
 
 		if (th_upper || th_lower)
-			regmap_write(tmdev->map, reg_addr, reg_val);
+			regmap_write(tmdev->map, reg_addr, reg_thr);
 		/* Notify user space */
 		schedule_work(&tmdev->sensor[i].notify_work);
 	}
