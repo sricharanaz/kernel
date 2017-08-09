@@ -681,6 +681,8 @@
 				   <0 353 4>,
 				   <0 361 4>,
 				   <0 344 4>;
+			resets = <&gcc GCC_EDMA_HW_RESET>;
+			reset-names = "edma_rst";
 		};
 
 		nss-common {
