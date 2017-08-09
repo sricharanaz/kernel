@@ -91,16 +91,19 @@
 		mux_0 {
 			pins = "gpio68";
 			function = "mdc";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 		mux_1 {
 			pins = "gpio69";
 			function = "mdio";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 		mux_2 {
 			pins = "gpio44";
 			function = "gpio";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 
@@ -110,6 +113,7 @@
 		mux {
 			pins = "gpio23", "gpio24";
 			function = "blsp4_uart1";
+			drive-strength = <8>;
 			bias-disable;
 		};
 	};
@@ -118,6 +122,7 @@
 		mux {
 			pins = "gpio42", "gpio43";
 			function = "blsp1_i2c";
+			drive-strength = <8>;
 			bias-disable;
 		};
 	};
@@ -126,6 +131,7 @@
 		mux {
 			pins = "gpio38", "gpio39", "gpio40", "gpio41";
 			function = "blsp0_spi";
+			drive-strength = <8>;
 			bias-disable;
 		};
 	};
@@ -134,52 +140,62 @@
 		data_0 {
 			pins = "gpio15";
 			function = "qpic_pad0";
+			drive-strength = <8>;
 			bias-disable;
 		};
 		data_1 {
 			pins = "gpio12";
 			function = "qpic_pad1";
+			drive-strength = <8>;
 			bias-disable;
 		};
 		data_2 {
 			pins = "gpio13";
 			function = "qpic_pad2";
+			drive-strength = <8>;
 			bias-disable;
 		};
 		data_3 {
 			pins = "gpio14";
 			function = "qpic_pad3";
+			drive-strength = <8>;
 			bias-disable;
 		};
 		data_4 {
 			pins = "gpio5";
 			function = "qpic_pad4";
+			drive-strength = <8>;
 			bias-disable;
 		};
 		data_5 {
 			pins = "gpio6";
 			function = "qpic_pad5";
+			drive-strength = <8>;
 			bias-disable;
 		};
 		data_6 {
 			pins = "gpio7";
 			function = "qpic_pad6";
+			drive-strength = <8>;
 			bias-disable;
 		};
 		data_7 {
 			pins = "gpio8";
 			function = "qpic_pad7";
+			drive-strength = <8>;
 			bias-disable;
 		};
 		data_8 {
 			pins = "gpio16";
 			function = "qpic_pad8";
+			drive-strength = <8>;
 			bias-disable;
 		};
 		qpic_pad {
 			pins = "gpio0", "gpio1", "gpio2", "gpio3", "gpio4",
 			       "gpio9", "gpio10", "gpio11", "gpio17";
 			function = "qpic_pad";
+			drive-strength = <8>;
 			bias-disable;
 		};
 	};
@@ -188,6 +204,7 @@
 		mux {
 			pins = "gpio63";
 			function = "sd_card";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 	};
@@ -196,6 +213,7 @@
 		mux {
 			pins = "gpio46", "gpio47", "gpio48", "gpio49";
 			function = "blsp2_uart";
+			drive-strength = <8>;
 			bias-disable;
 		};
 	};
@@ -204,16 +222,19 @@
 		led_clk {
 			pins = "gpio18";
 			function = "led0";
+			drive-strength = <8>;
 			bias-pull-down;
 		};
 		led_data {
 			pins = "gpio19";
 			function = "led1";
+			drive-strength = <8>;
 			bias-pull-down;
 		};
 		led_clr {
 			pins = "gpio20";
 			function = "led2";
+			drive-strength = <8>;
 			bias-pull-up;
 		};
 	};
