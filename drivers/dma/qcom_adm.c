@@ -108,6 +108,7 @@
 #define ADM_MAX_ROWS		(SZ_64K-1)
 #define ADM_MAX_CHANNELS	16
 
+#define ADM_CRCI_BLK_SIZE	0x7
 /*
  * DMA POOL SIZE for small size DMA desc which requires
  * maximum one box and one single desc.
@@ -116,6 +117,13 @@
 				 sizeof(struct adm_desc_hw_box) + \
 				 sizeof(u32 *) + \
 				 2 * ADM_DESC_ALIGN)
+
+#define MAX_CPLE_CNT 64
+
+/* command list entry must be 8 byte aligned */
+#define ADM_GET_CPLE(async_desc) PTR_ALIGN((async_desc)->cpl, (ADM_DESC_ALIGN))
+
+#define ADM_DMA_CPL_LEN	(sizeof(u32 *) * MAX_CPLE_CNT + 2 * ADM_DESC_ALIGN)
 
 struct adm_desc_hw_box {
 	u32 cmd;
@@ -137,6 +145,9 @@ struct adm_async_desc {
 	struct virt_dma_desc vd;
 	struct adm_device *adev;
 
+	/* list node for the desc in the adm_chan list of descriptors */
+	struct list_head desc_node;
+
 	size_t length;
 	enum dma_transfer_direction dir;
 	dma_addr_t dma_addr;
@@ -156,12 +167,17 @@ struct adm_chan {
 	/* parsed from DT */
 	u32 id;			/* channel id */
 
-	struct adm_async_desc *curr_txd;
 	struct dma_slave_config slave;
+
+	/* list of descriptors currently processed */
+	struct list_head desc_list;
 	struct list_head node;
 
 	int error;
 	int initialized;
+
+	u32 *cp_list;
+	dma_addr_t dma_addr_cp_list;
 };
 
 static inline struct adm_chan *to_adm_chan(struct dma_chan *common)
@@ -187,6 +203,9 @@ struct adm_device {
 	struct reset_control *c2_reset;
 	struct dma_pool *dma_pool;
 	int irq;
+
+	void *cpl;
+	dma_addr_t dma_addr_cp_list;
 };
 
 /**
@@ -450,12 +469,11 @@ static struct dma_async_tx_descriptor *adm_prep_slave_sg(struct dma_chan *chan,
 	async_desc->adev = adev;
 
 	/* both command list entry and descriptors must be 8 byte aligned */
-	cple = PTR_ALIGN(async_desc->cpl, ADM_DESC_ALIGN);
+	cple = ADM_GET_CPLE(async_desc);
 	desc = PTR_ALIGN(cple + 1, ADM_DESC_ALIGN);
 
 	/* init cmd list */
-	*cple = ADM_CPLE_LP;
-	*cple |= (desc - async_desc->cpl + async_desc->dma_addr) >> 3;
+	*cple = (desc - async_desc->cpl + async_desc->dma_addr) >> 3;
 
 	for_each_sg(sgl, sg, sg_len, i) {
 		async_desc->length += sg_dma_len(sg);
@@ -556,17 +574,13 @@ static void adm_start_dma(struct adm_chan *achan)
 	struct virt_dma_desc *vd = vchan_next_desc(&achan->vc);
 	struct adm_device *adev = achan->adev;
 	struct adm_async_desc *async_desc;
+	u32 *cple;
+	u32 cple_cnt = 0;
 
 	lockdep_assert_held(&achan->vc.lock);
 
 	if (!vd)
 		return;
-
-	list_del(&vd->node);
-
-	/* write next command list out to the CMD FIFO */
-	async_desc = container_of(vd, struct adm_async_desc, vd);
-	achan->curr_txd = async_desc;
 
 	/* reset channel error */
 	achan->error = 0;
@@ -585,17 +599,43 @@ static void adm_start_dma(struct adm_chan *achan)
 		achan->initialized = 1;
 	}
 
-	/* set the crci block size if this transaction requires CRCI */
-	if (async_desc->crci) {
-		writel(async_desc->mux | async_desc->blk_size,
-			adev->regs + ADM_CRCI_CTL(async_desc->crci, adev->ee));
+	while (vd && cple_cnt < MAX_CPLE_CNT) {
+		/* write next command list out to the CMD FIFO */
+		async_desc = container_of(vd, struct adm_async_desc, vd);
+
+		/* set the crci block size if this transaction requires CRCI */
+		if (async_desc->crci) {
+			u32 cur_reg_val = readl(adev->regs +
+				ADM_CRCI_CTL(async_desc->crci, adev->ee));
+			cur_reg_val &= (ADM_CRCI_CTL_MUX_SEL | ADM_CRCI_CTL_RST
+					| ADM_CRCI_BLK_SIZE);
+
+			if (cur_reg_val != (async_desc->mux |
+						async_desc->blk_size)) {
+				if (!list_empty(&achan->desc_list))
+					break;
+
+				writel(async_desc->mux | async_desc->blk_size,
+					adev->regs +
+					ADM_CRCI_CTL(async_desc->crci,
+					adev->ee));
+			}
+		}
+
+		list_del(&vd->node);
+		cple = ADM_GET_CPLE(async_desc);
+
+		achan->cp_list[cple_cnt++] = *cple;
+		list_add_tail(&async_desc->desc_node, &achan->desc_list);
+		vd = vchan_next_desc(&achan->vc);
 	}
 
+	achan->cp_list[cple_cnt-1] |= ADM_CPLE_LP;
 	/* make sure IRQ enable doesn't get reordered */
 	wmb();
 
 	/* write next command list out to the CMD FIFO */
-	writel(ALIGN(async_desc->dma_addr, ADM_DESC_ALIGN) >> 3,
+	writel(ALIGN(achan->dma_addr_cp_list, ADM_DESC_ALIGN) >> 3,
 		adev->regs + ADM_CH_CMD_PTR(achan->id, adev->ee));
 }
 
@@ -610,7 +650,7 @@ static irqreturn_t adm_dma_irq(int irq, void *data)
 {
 	struct adm_device *adev = data;
 	u32 srcs, i;
-	struct adm_async_desc *async_desc;
+	struct adm_async_desc *async_desc, *tmp;
 	unsigned long flags;
 
 	srcs = readl_relaxed(adev->regs +
@@ -640,16 +680,15 @@ static irqreturn_t adm_dma_irq(int irq, void *data)
 				achan->error = 1;
 
 			spin_lock_irqsave(&achan->vc.lock, flags);
-			async_desc = achan->curr_txd;
 
-			achan->curr_txd = NULL;
-
-			if (async_desc) {
+			list_for_each_entry_safe(async_desc, tmp,
+					 &achan->desc_list, desc_node) {
 				vchan_cookie_complete(&async_desc->vd);
-
-				/* kick off next DMA */
-				adm_start_dma(achan);
+				list_del(&async_desc->desc_node);
 			}
+
+			/* kick off next DMA */
+			adm_start_dma(achan);
 
 			spin_unlock_irqrestore(&achan->vc.lock, flags);
 		}
@@ -713,7 +752,7 @@ static void adm_issue_pending(struct dma_chan *chan)
 
 	spin_lock_irqsave(&achan->vc.lock, flags);
 
-	if (vchan_issue_pending(&achan->vc) && !achan->curr_txd)
+	if (vchan_issue_pending(&achan->vc) && list_empty(&achan->desc_list))
 		adm_start_dma(achan);
 	spin_unlock_irqrestore(&achan->vc.lock, flags);
 }
@@ -742,11 +781,18 @@ static void adm_dma_free_desc(struct virt_dma_desc *vd)
 static void adm_channel_init(struct adm_device *adev, struct adm_chan *achan,
 	u32 index)
 {
+	achan->cp_list = PTR_ALIGN(adev->cpl + index * ADM_DMA_CPL_LEN,
+				   ADM_DESC_ALIGN);
+	achan->dma_addr_cp_list = adev->dma_addr_cp_list +
+				  index * ADM_DMA_CPL_LEN;
+
 	achan->id = index;
 	achan->adev = adev;
 
 	vchan_init(&achan->vc, &adev->common);
 	achan->vc.desc_free = adm_dma_free_desc;
+
+	INIT_LIST_HEAD(&achan->desc_list);
 }
 
 static int adm_dma_probe(struct platform_device *pdev)
@@ -850,6 +896,12 @@ static int adm_dma_probe(struct platform_device *pdev)
 
 	/* allocate and initialize channels */
 	INIT_LIST_HEAD(&adev->common.channels);
+	adev->cpl = dma_alloc_writecombine(adev->dev,
+				ADM_DMA_CPL_LEN * ADM_MAX_CHANNELS,
+				&adev->dma_addr_cp_list, GFP_KERNEL);
+
+	if (!adev->cpl)
+		goto err_destroy_pool;
 
 	for (i = 0; i < ADM_MAX_CHANNELS; i++)
 		adm_channel_init(adev, &adev->channels[i], i);
@@ -872,7 +924,7 @@ static int adm_dma_probe(struct platform_device *pdev)
 	ret = devm_request_irq(adev->dev, adev->irq, adm_dma_irq,
 			0, "adm_dma", adev);
 	if (ret)
-		goto err_destroy_pool;
+		goto err_free_cpl;
 
 	platform_set_drvdata(pdev, adev);
 
@@ -900,7 +952,7 @@ static int adm_dma_probe(struct platform_device *pdev)
 	ret = dma_async_device_register(&adev->common);
 	if (ret) {
 		dev_err(adev->dev, "failed to register dma async device\n");
-		goto err_destroy_pool;
+		goto err_free_cpl;
 	}
 
 	ret = of_dma_controller_register(pdev->dev.of_node,
@@ -913,6 +965,10 @@ static int adm_dma_probe(struct platform_device *pdev)
 
 err_unregister_dma:
 	dma_async_device_unregister(&adev->common);
+err_free_cpl:
+	dma_free_writecombine(adev->dev,
+			ADM_DMA_CPL_LEN * ADM_MAX_CHANNELS,
+			adev->cpl, adev->dma_addr_cp_list);
 err_destroy_pool:
 	dma_pool_destroy(adev->dma_pool);
 err_disable_clks:
@@ -942,6 +998,10 @@ static int adm_dma_remove(struct platform_device *pdev)
 	}
 
 	devm_free_irq(adev->dev, adev->irq, adev);
+	dma_free_writecombine(adev->dev,
+			ADM_DMA_CPL_LEN * ADM_MAX_CHANNELS,
+			adev->cpl, adev->dma_addr_cp_list);
+
 	dma_pool_destroy(adev->dma_pool);
 
 	clk_disable_unprepare(adev->core_clk);
