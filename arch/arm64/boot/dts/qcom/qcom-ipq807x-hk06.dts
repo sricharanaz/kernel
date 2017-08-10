@@ -596,3 +596,6 @@
 	status = "ok";
 };
 
+&wifi0 {
+	qcom,hw-mode-id = <5>;
+};
