@@ -24,3 +24,8 @@ wil6210-y += p2p.o
 CFLAGS_trace.o := -I$(src)
 
 subdir-ccflags-y += -D__CHECK_ENDIAN__
+
+# NSS Support
+ifeq (y, $(CONFIG_WIL6210_NSS_SUPPORT))
+subdir-ccflags-y += -DCONFIG_WIL6210_NSS_SUPPORT
+endif

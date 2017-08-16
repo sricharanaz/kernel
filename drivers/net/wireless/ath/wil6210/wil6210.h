@@ -708,6 +708,10 @@ struct wil6210_priv {
 	struct notifier_block pm_notify;
 #endif /* CONFIG_PM_SLEEP */
 #endif /* CONFIG_PM */
+
+#if defined(CONFIG_WIL6210_NSS_SUPPORT)
+	struct nss_virt_if_handle *nss_handle;
+#endif
 };
 
 #define wil_to_wiphy(i) (i->wdev->wiphy)
