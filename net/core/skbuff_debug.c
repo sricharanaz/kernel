@@ -51,7 +51,7 @@ struct skbuff_debugobj_walking {
 static int skbuff_debugobj_walkstack(struct stackframe *frame, void *p)
 {
 	struct skbuff_debugobj_walking *w = (struct skbuff_debugobj_walking *)p;
-	u32 pc = frame->pc;
+	unsigned long pc = frame->pc;
 
 	if (w->pos < DEBUG_OBJECTS_SKBUFF_STACKSIZE - 1) {
 		w->d[w->pos++] = (void *)pc;
@@ -61,7 +61,7 @@ static int skbuff_debugobj_walkstack(struct stackframe *frame, void *p)
 	return -ENOENT;
 }
 
-#ifdef CONFIG_ARM
+#if defined(CONFIG_ARM) || defined(CONFIG_ARM64)
 static void skbuff_debugobj_get_stack(void **ret)
 {
 	struct stackframe frame;
@@ -72,7 +72,11 @@ static void skbuff_debugobj_get_stack(void **ret)
 
 	frame.fp = (unsigned long)__builtin_frame_address(0);
 	frame.sp = current_sp;
+
+#ifdef CONFIG_ARM
 	frame.lr = (unsigned long)__builtin_return_address(0);
+#endif
+
 	frame.pc = (unsigned long)skbuff_debugobj_get_stack;
 
 	walk_stackframe(&frame, skbuff_debugobj_walkstack, p);
