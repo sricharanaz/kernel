@@ -25,8 +25,6 @@ struct per_part_info {
 	uint32_t primaryboot;
 };
 
-#define NUM_ALT_PARTITION 8
-
 /* version 2 */
 #define SMEM_DUAL_BOOTINFO_MAGIC_START 0xA3A2A1A0
 #define SMEM_DUAL_BOOTINFO_MAGIC_END 0xB3B2B1B0
@@ -35,7 +33,7 @@ struct sbl_if_dualboot_info_type_v2 {
 	uint32_t magic_start;
 	uint32_t age;
 	uint32_t numaltpart;
-	struct per_part_info per_part_entry[NUM_ALT_PARTITION];
+	struct per_part_info per_part_entry[CONFIG_NUM_ALT_PARTITION];
 	uint32_t magic_end;
 } __packed;
 
