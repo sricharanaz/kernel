@@ -648,6 +648,7 @@ void wil_priv_deinit(struct wil6210_priv *wil)
 	cancel_work_sync(&wil->probe_client_worker);
 	destroy_workqueue(wil->wq_service);
 	destroy_workqueue(wil->wmi_wq);
+	kfree(wil->board_file);
 }
 
 static inline void wil_halt_cpu(struct wil6210_priv *wil)
@@ -1019,7 +1020,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	wil_set_oob_mode(wil, oob_mode);
 	if (load_fw) {
 		wil_info(wil, "Use firmware <%s> + board <%s>\n",
-			 wil->wil_fw_name, WIL_BOARD_FILE_NAME);
+			 wil->wil_fw_name, wil_get_board_file(wil));
 
 		wil_halt_cpu(wil);
 		memset(wil->fw_version, 0, sizeof(wil->fw_version));
@@ -1027,7 +1028,7 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		rc = wil_request_firmware(wil, wil->wil_fw_name, true);
 		if (rc)
 			return rc;
-		rc = wil_request_firmware(wil, WIL_BOARD_FILE_NAME, true);
+		rc = wil_request_firmware(wil, wil_get_board_file(wil), true);
 		if (rc)
 			return rc;
 
