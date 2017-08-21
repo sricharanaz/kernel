@@ -27,13 +27,20 @@
 #include "wmi.h"
 #include "txrx.h"
 #include "trace.h"
+#if defined(CONFIG_WIL6210_NSS_SUPPORT)
+#include <nss_api_if.h>
+#endif
 
 static bool rtap_include_phy_info;
 module_param(rtap_include_phy_info, bool, 0444);
 MODULE_PARM_DESC(rtap_include_phy_info,
 		 " Include PHY info in the radiotap header, default - no");
 
+#if defined(CONFIG_WIL6210_NSS_SUPPORT)
+bool rx_align_2 = true;
+#else
 bool rx_align_2;
+#endif
 module_param(rx_align_2, bool, 0444);
 MODULE_PARM_DESC(rx_align_2, " align Rx buffers on 4*n+2, default - no");
 
@@ -729,9 +736,24 @@ void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 	}
 
 	if (skb) { /* deliver to local stack */
+		bool deliver_skb = true;
+#if defined(CONFIG_WIL6210_NSS_SUPPORT)
+		if (rx_align_2) {
+			int rc1 = nss_virt_if_tx_buf(wil->nss_handle, skb);
 
-		skb->protocol = eth_type_trans(skb, ndev);
-		rc = napi_gro_receive(&wil->napi_rx, skb);
+			if (rc1) {
+				wil_err_ratelimited(wil, "NSS Rx error: %d\n",
+						    rc1);
+			} else {
+				rc = GRO_NORMAL;
+				deliver_skb = false;
+			}
+		}
+#endif /* #if defined(CONFIG_WIL6210_NSS_SUPPORT) */
+		if (deliver_skb) {
+			skb->protocol = eth_type_trans(skb, ndev);
+			rc = napi_gro_receive(&wil->napi_rx, skb);
+		}
 		wil_dbg_txrx(wil, "Rx complete %d bytes => %s\n",
 			     len, gro_res_str[rc]);
 	}

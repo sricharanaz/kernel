@@ -1610,6 +1610,65 @@ static const struct file_operations fops_fw_version = {
 	.llseek		= seq_lseek,
 };
 
+/*---------Survey results------------*/
+static int wil_survey_debugfs_show(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+	int i, n_ch;
+	u16 filled;
+
+	if (!wil->survey_ready) {
+		seq_puts(s, "Survey not ready\n");
+		return 0;
+	}
+	seq_printf(s, "dwell_time : %d\n",
+		   le32_to_cpu(wil->survey_reply.evt.dwell_time));
+	filled = le16_to_cpu(wil->survey_reply.evt.filled);
+	n_ch = min_t(int, wil->survey_reply.evt.num_scanned_channels,
+		     ARRAY_SIZE(wil->survey_reply.ch_info));
+
+#define ACS_FILLED(x) (filled & WMI_ACS_INFO_BITMASK_ ## x) ? \
+	" " __stringify(x) : ""
+	seq_printf(s, "Filled : 0x%04x%s%s%s%s%s\n", filled,
+		   ACS_FILLED(BEACON_FOUND),
+		   ACS_FILLED(BUSY_TIME),
+		   ACS_FILLED(TX_TIME),
+		   ACS_FILLED(RX_TIME),
+		   ACS_FILLED(NOISE)
+		  );
+#undef ACS_FILLED
+	seq_printf(s, "Channels [%d] {\n", n_ch);
+	for (i = 0; i < n_ch; i++) {
+		struct scan_acs_info *ch = &wil->survey_reply.ch_info[i];
+
+		seq_printf(s, "  [%d]", ch->channel);
+#define ACS_PRINT(x, str, field) do { if (filled & WMI_ACS_INFO_BITMASK_ ## x) \
+		seq_printf(s, " %s : %d", str, field); \
+	} while (0)
+		ACS_PRINT(BEACON_FOUND, "bcon", ch->beacon_found);
+		ACS_PRINT(BUSY_TIME, "busy", le16_to_cpu(ch->busy_time));
+		ACS_PRINT(TX_TIME, "tx", le16_to_cpu(ch->tx_time));
+		ACS_PRINT(RX_TIME, "rx", le16_to_cpu(ch->rx_time));
+		ACS_PRINT(NOISE, "noise", ch->noise);
+#undef ACS_PRINT
+		seq_puts(s, "\n");
+	}
+	seq_puts(s, "}\n");
+	return 0;
+}
+
+static int wil_survey_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, wil_survey_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations fops_survey = {
+	.open		= wil_survey_seq_open,
+	.release	= single_release,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+};
+
 /*----------------*/
 static void wil6210_debugfs_init_blobs(struct wil6210_priv *wil,
 				       struct dentry *dbg)
@@ -1662,6 +1721,7 @@ static const struct {
 	{"led_blink_time",	0644,	&fops_led_blink_time},
 	{"fw_capabilities",	0444,	&fops_fw_capabilities},
 	{"fw_version",	0444,		&fops_fw_version},
+	{"survey",	0444,		&fops_survey},
 };
 
 static void wil6210_debugfs_init_files(struct wil6210_priv *wil,

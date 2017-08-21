@@ -26,6 +26,22 @@ bool disable_ap_sme;
 module_param(disable_ap_sme, bool, 0444);
 MODULE_PARM_DESC(disable_ap_sme, " let user space handle AP mode SME");
 
+static unsigned short scan_dwell_time  = WMI_SCAN_DWELL_TIME_MS;
+module_param(scan_dwell_time, ushort, 0644);
+MODULE_PARM_DESC(scan_dwell_time, " Scan dwell time");
+
+static unsigned short acs_ch_weight[4] = {120, 100, 100, 100};
+module_param_array(acs_ch_weight, ushort, NULL, 0);
+MODULE_PARM_DESC(acs_ch_weight, " Channel weight in %. This is channel priority for ACS");
+
+/* in case of channels' noise values all zero, applying weights will not work.
+ * to avoid such a case, we will add some small positive value to
+ * all channels' noise calculation
+ */
+#define ACS_CH_NOISE_INIT_VAL (100)
+
+#define ACS_DEFAULT_BEST_CHANNEL 2
+
 #define CHAN60G(_channel, _flags) {				\
 	.band			= IEEE80211_BAND_60GHZ,		\
 	.center_freq		= 56160 + (2160 * (_channel)),	\
@@ -51,6 +67,31 @@ static struct ieee80211_channel wil_60ghz_channels[] = {
  */
 
 #define QCA_NL80211_VENDOR_ID	0x001374
+
+enum qca_wlan_vendor_attr_acs_offload {
+	QCA_WLAN_VENDOR_ATTR_ACS_CHANNEL_INVALID = 0,
+	QCA_WLAN_VENDOR_ATTR_ACS_PRIMARY_CHANNEL,
+	QCA_WLAN_VENDOR_ATTR_ACS_SECONDARY_CHANNEL,
+	QCA_WLAN_VENDOR_ATTR_ACS_HW_MODE,
+	QCA_WLAN_VENDOR_ATTR_ACS_HT_ENABLED,
+	QCA_WLAN_VENDOR_ATTR_ACS_HT40_ENABLED,
+	/* keep last */
+	QCA_WLAN_VENDOR_ATTR_ACS_AFTER_LAST,
+	QCA_WLAN_VENDOR_ATTR_ACS_MAX =
+	QCA_WLAN_VENDOR_ATTR_ACS_AFTER_LAST - 1
+};
+
+enum qca_wlan_vendor_acs_hw_mode {
+	QCA_ACS_MODE_IEEE80211B,
+	QCA_ACS_MODE_IEEE80211G,
+	QCA_ACS_MODE_IEEE80211A,
+	QCA_ACS_MODE_IEEE80211AD,
+};
+
+static const struct
+nla_policy qca_wlan_acs_vendor_attr[QCA_WLAN_VENDOR_ATTR_ACS_MAX + 1] = {
+	[QCA_WLAN_VENDOR_ATTR_ACS_HW_MODE] = { .type = NLA_U8 },
+};
 
 #define WIL_MAX_RF_SECTORS (128)
 #define WIL_CID_ALL (0xff)
@@ -109,12 +150,19 @@ nla_policy wil_rf_sector_cfg_policy[QCA_ATTR_DMG_RF_SECTOR_CFG_MAX + 1] = {
 };
 
 enum qca_nl80211_vendor_subcmds {
+	QCA_NL80211_VENDOR_SUBCMD_DO_ACS = 54,
 	QCA_NL80211_VENDOR_SUBCMD_DMG_RF_GET_SECTOR_CFG = 139,
 	QCA_NL80211_VENDOR_SUBCMD_DMG_RF_SET_SECTOR_CFG = 140,
 	QCA_NL80211_VENDOR_SUBCMD_DMG_RF_GET_SELECTED_SECTOR = 141,
 	QCA_NL80211_VENDOR_SUBCMD_DMG_RF_SET_SELECTED_SECTOR = 142,
 };
 
+enum qca_nl80211_vendor_subcmds_index {
+	QCA_NL80211_VENDOR_SUBCMD_DO_ACS_INDEX,
+};
+
+static int wil_do_acs(struct wiphy *wiphy, struct wireless_dev *wdev,
+		      const void *data, int data_len);
 static int wil_rf_sector_get_cfg(struct wiphy *wiphy,
 				 struct wireless_dev *wdev,
 				 const void *data, int data_len);
@@ -130,6 +178,14 @@ static int wil_rf_sector_set_selected(struct wiphy *wiphy,
 
 /* vendor specific commands */
 static const struct wiphy_vendor_command wil_nl80211_vendor_commands[] = {
+	[QCA_NL80211_VENDOR_SUBCMD_DO_ACS_INDEX] = {
+		.info.vendor_id = QCA_NL80211_VENDOR_ID,
+		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_DO_ACS,
+		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
+			 WIPHY_VENDOR_CMD_NEED_NETDEV |
+			 WIPHY_VENDOR_CMD_NEED_RUNNING,
+		.doit = wil_do_acs
+	},
 	{
 		.info.vendor_id = QCA_NL80211_VENDOR_ID,
 		.info.subcmd = QCA_NL80211_VENDOR_SUBCMD_DMG_RF_GET_SECTOR_CFG,
@@ -159,6 +215,14 @@ static const struct wiphy_vendor_command wil_nl80211_vendor_commands[] = {
 		.flags = WIPHY_VENDOR_CMD_NEED_WDEV |
 			 WIPHY_VENDOR_CMD_NEED_RUNNING,
 		.doit = wil_rf_sector_set_selected
+	},
+};
+
+/* vendor specific events */
+static const struct nl80211_vendor_cmd_info wil_nl80211_vendor_events[] = {
+	[QCA_NL80211_VENDOR_SUBCMD_DO_ACS_INDEX] = {
+			.vendor_id = QCA_NL80211_VENDOR_ID,
+			.subcmd = QCA_NL80211_VENDOR_SUBCMD_DO_ACS
 	},
 };
 
@@ -1767,6 +1831,8 @@ static void wil_wiphy_init(struct wiphy *wiphy)
 
 	wiphy->n_vendor_commands = ARRAY_SIZE(wil_nl80211_vendor_commands);
 	wiphy->vendor_commands = wil_nl80211_vendor_commands;
+	wiphy->vendor_events = wil_nl80211_vendor_events;
+	wiphy->n_vendor_events = ARRAY_SIZE(wil_nl80211_vendor_events);
 }
 
 struct wireless_dev *wil_cfg80211_init(struct device *dev)
@@ -1824,6 +1890,310 @@ void wil_p2p_wdev_free(struct wil6210_priv *wil)
 		cfg80211_unregister_wdev(p2p_wdev);
 		kfree(p2p_wdev);
 	}
+}
+
+static int wil_start_acs_survey(struct wil6210_priv *wil, uint dwell_time,
+				struct ieee80211_channel *channels,
+				u8 num_channels)
+{
+	int rc, i;
+	struct {
+		struct wmi_start_scan_cmd cmd;
+		struct {
+			u8 channel;
+			u8 reserved;
+		} channel_list[4];
+	} __packed scan_cmd = {
+		.cmd = {
+			.scan_type = WMI_PASSIVE_SCAN,
+			.dwell_time = cpu_to_le32(dwell_time),
+			.num_channels = min_t(u8, num_channels,
+					      ARRAY_SIZE(wil_60ghz_channels)),
+		},
+	};
+
+	wil->survey_ready = false;
+	memset(&wil->survey_reply, 0, sizeof(wil->survey_reply));
+
+	for (i = 0; i < scan_cmd.cmd.num_channels; i++) {
+		u8 ch = channels[i].hw_value;
+
+		if (ch == 0) {
+			wil_err(wil, "ACS requested for wrong channel\n");
+			return -EINVAL;
+		}
+		wil_dbg_misc(wil, "ACS channel %d : %d MHz\n",
+			     ch, channels[i].center_freq);
+		scan_cmd.channel_list[i].channel = ch - 1;
+	}
+
+	/* send scan command with the requested channel and wait
+	 * for results
+	 */
+	rc = wmi_send(wil, WMI_START_SCAN_CMDID, &scan_cmd, sizeof(scan_cmd));
+	if (rc) {
+		wil_err(wil, "ACS passive Scan failed (0x%08x)\n", rc);
+		return rc;
+	}
+
+	if (wait_event_interruptible_timeout(
+		wil->wq, wil->survey_ready,
+		msecs_to_jiffies(WMI_SURVEY_TIMEOUT_MS)) < 0) {
+		wil_err(wil, "ACS survey interrupted\n");
+		return -ERESTARTSYS;
+	}
+
+	if (!wil->survey_ready) {
+		wil_err(wil, "ACS survey time out\n");
+		return -ETIME;
+	}
+
+	if (wil->survey_reply.evt.status != WMI_SCAN_SUCCESS) {
+		wil_err(wil, "ACS survey failed, status (%d)\n",
+			wil->survey_reply.evt.status);
+		return -EINVAL;
+	}
+
+	/* The results in survey_reply */
+	wil_dbg_misc(wil, "ACS scan success, filled mask: 0x%08X\n",
+		     le16_to_cpu(wil->survey_reply.evt.filled));
+
+	return 0;
+}
+
+static u8 wil_acs_calc_channel(struct wil6210_priv *wil)
+{
+	int i, best_channel = ACS_DEFAULT_BEST_CHANNEL - 1;
+	struct scan_acs_info *ch;
+	u64 dwell_time = le32_to_cpu(wil->survey_reply.evt.dwell_time);
+	u16 filled = le16_to_cpu(wil->survey_reply.evt.filled);
+	u8 num_channels = wil->survey_reply.evt.num_scanned_channels;
+	u64 busy_time, tx_time;
+	u64 min_i_ch = (u64)-1, cur_i_ch;
+	u8 p_min = 0, ch_noise;
+
+	wil_dbg_misc(wil,
+		     "acs_calc_channel: filled info: 0x%04X, for %u channels\n",
+		     filled, num_channels);
+
+	if (!num_channels) {
+		wil_err(wil, "received results with no channel info\n");
+		return 0;
+	}
+
+	/* find P_min */
+	if (filled & WMI_ACS_INFO_BITMASK_NOISE) {
+		p_min = wil->survey_reply.ch_info[0].noise;
+
+		for (i = 1; i < num_channels; i++)
+			p_min = min(p_min, wil->survey_reply.ch_info[i].noise);
+	}
+
+	wil_dbg_misc(wil, "acs_calc_channel: p_min is %u\n", p_min);
+
+	/* Choosing channel according to the following formula:
+	 * 16 bit fixed point math
+	 * I_ch = { [ (T_busy - T_tx) << 16 ] /
+	 *        (T_dwell - T_tx) } * 2^(P_rx - P_min)
+	 */
+	for (i = 0; i < num_channels; i++) {
+		ch = &wil->survey_reply.ch_info[i];
+
+		if (ch->channel > 3) {
+			wil_err(wil,
+				"invalid channel number %d\n", ch->channel + 1);
+			continue;
+		}
+
+		busy_time = filled & WMI_ACS_INFO_BITMASK_BUSY_TIME ?
+				le16_to_cpu(ch->busy_time) : 0;
+
+		tx_time = filled & WMI_ACS_INFO_BITMASK_TX_TIME ?
+				le16_to_cpu(ch->tx_time) : 0;
+
+		ch_noise = filled & WMI_ACS_INFO_BITMASK_NOISE ? ch->noise : 0;
+
+		wil_dbg_misc(wil,
+			     "acs_calc_channel: Ch[%d]: busy %llu, tx %llu, noise %u, dwell %llu\n",
+			     ch->channel + 1, busy_time, tx_time, ch_noise,
+			     dwell_time);
+
+		if (dwell_time == tx_time) {
+			wil_err(wil,
+				"Ch[%d] dwell_time == tx_time: %llu\n",
+				ch->channel + 1, dwell_time);
+			continue;
+		}
+
+		cur_i_ch = (busy_time - tx_time) << 16;
+		do_div(cur_i_ch,
+		       ((dwell_time - tx_time) << (ch_noise - p_min)));
+
+		/* Apply channel priority */
+		cur_i_ch = (cur_i_ch + ACS_CH_NOISE_INIT_VAL) *
+			   acs_ch_weight[ch->channel];
+		do_div(cur_i_ch, 100);
+
+		wil_dbg_misc(wil, "acs_calc_channel: Ch[%d] w %u, I_ch %llu\n",
+			     ch->channel + 1, acs_ch_weight[ch->channel],
+			     cur_i_ch);
+
+		if (i == 0 || cur_i_ch < min_i_ch) {
+			min_i_ch = cur_i_ch;
+			best_channel = ch->channel;
+		}
+	}
+
+	wil_dbg_misc(wil,
+		     "acs_calc_channel: best channel %d with I_ch of %llu\n",
+		     best_channel + 1, min_i_ch);
+
+	return best_channel;
+}
+
+static void wil_acs_report_channel(struct wil6210_priv *wil)
+{
+	struct sk_buff *vendor_event;
+	int ret_val;
+	struct nlattr *nla;
+	u8 channel = wil_acs_calc_channel(wil);
+
+	vendor_event = cfg80211_vendor_event_alloc(
+		wil_to_wiphy(wil), NULL, 2 * sizeof(u8) + 4 + NLMSG_HDRLEN,
+		QCA_NL80211_VENDOR_SUBCMD_DO_ACS_INDEX, GFP_KERNEL);
+	if (!vendor_event) {
+		wil_err(wil, "cfg80211_vendor_event_alloc failed\n");
+		return;
+	}
+
+	/* Send the IF INDEX to differentiate the ACS event for each interface
+	 * TODO: To be update once cfg80211 APIs are updated to accept if_index
+	 */
+	nla_nest_cancel(vendor_event, ((void **)vendor_event->cb)[2]);
+
+	ret_val = nla_put_u32(vendor_event, NL80211_ATTR_IFINDEX,
+			      wil_to_ndev(wil)->ifindex);
+	if (ret_val) {
+		wil_err(wil, "NL80211_ATTR_IFINDEX put fail\n");
+		kfree_skb(vendor_event);
+		return;
+	}
+
+	nla = nla_nest_start(vendor_event, NL80211_ATTR_VENDOR_DATA);
+	((void **)vendor_event->cb)[2] = nla;
+
+	/* channel indices used by fw are zero based and those used upper
+	 * layers are 1 based: must add 1
+	 */
+	ret_val = nla_put_u8(vendor_event,
+			     QCA_WLAN_VENDOR_ATTR_ACS_PRIMARY_CHANNEL,
+			     channel + 1);
+	if (ret_val) {
+		wil_err(wil,
+			"QCA_WLAN_VENDOR_ATTR_ACS_PRIMARY_CHANNEL put fail\n");
+		kfree_skb(vendor_event);
+		return;
+	}
+
+	/* must report secondary channel always, 0 is harmless*/
+	ret_val = nla_put_u8(vendor_event,
+			     QCA_WLAN_VENDOR_ATTR_ACS_SECONDARY_CHANNEL, 0);
+	if (ret_val) {
+		wil_err(wil,
+			"QCA_WLAN_VENDOR_ATTR_ACS_SECONDARY_CHANNEL put fail\n");
+		kfree_skb(vendor_event);
+		return;
+	}
+
+	cfg80211_vendor_event(vendor_event, GFP_KERNEL);
+}
+
+static int wil_do_acs(struct wiphy *wiphy, struct wireless_dev *wdev,
+		      const void *data, int data_len)
+{
+	struct wil6210_priv *wil = wdev_to_wil(wdev);
+	struct sk_buff *temp_skbuff;
+	int rc;
+	struct nlattr *tb[QCA_WLAN_VENDOR_ATTR_ACS_MAX + 1];
+	u8 hw_mode;
+	struct ieee80211_channel reg_channels[ARRAY_SIZE(wil_60ghz_channels)];
+	int num_channels;
+	const struct ieee80211_reg_rule *reg_rule;
+	int i;
+
+	rc = nla_parse(tb, QCA_WLAN_VENDOR_ATTR_ACS_MAX, data, data_len,
+		       qca_wlan_acs_vendor_attr);
+	if (rc) {
+		wil_err(wil, "Invalid ATTR\n");
+		goto out;
+	}
+
+	if (!tb[QCA_WLAN_VENDOR_ATTR_ACS_HW_MODE]) {
+		wil_err(wil, "Attr hw_mode failed\n");
+		goto out;
+	}
+
+	hw_mode = nla_get_u8(tb[QCA_WLAN_VENDOR_ATTR_ACS_HW_MODE]);
+
+	if (hw_mode != QCA_ACS_MODE_IEEE80211AD) {
+		wil_err(wil, "Illegal HW mode (%d), must be %d (11AD)\n",
+			hw_mode, QCA_ACS_MODE_IEEE80211AD);
+		goto out;
+	}
+
+	/* get list of channels allowed by regulatory */
+	num_channels = 0;
+	for (i = 0; i < ARRAY_SIZE(wil_60ghz_channels); i++) {
+		u32 ch_center_freq =
+				MHZ_TO_KHZ(wil_60ghz_channels[i].center_freq);
+		reg_rule = freq_reg_info(wiphy, ch_center_freq);
+		if (IS_ERR(reg_rule)) {
+			wil_dbg_misc(wil,
+				     "do_acs: channel %d (%d) reg db err %ld\n",
+				     wil_60ghz_channels[i].hw_value,
+				     wil_60ghz_channels[i].center_freq,
+				     PTR_ERR(reg_rule));
+			continue;
+		}
+
+		/* we assume if active scan allowed, we can use the
+		 * channel to start AP on it
+		 */
+		if (!(reg_rule->flags & NL80211_RRF_PASSIVE_SCAN)) {
+			reg_channels[num_channels] = wil_60ghz_channels[i];
+			num_channels++;
+			wil_dbg_misc(wil, "do_acs: Adding ch %d to ACS scan\n",
+				     wil_60ghz_channels[i].hw_value);
+		} else {
+			wil_dbg_misc(wil,
+				     "do_acs: channel %d (%d) can't be used: 0x%08X\n",
+				     wil_60ghz_channels[i].hw_value,
+				     wil_60ghz_channels[i].center_freq,
+				     reg_rule->flags);
+		}
+	}
+
+	if (!num_channels) {
+		wil_err(wil,
+			"ACS aborted. Couldn't find channels allowed by regulatory\n");
+		rc = -EPERM;
+		goto out;
+	}
+
+	/* start acs survey*/
+	rc = wil_start_acs_survey(wil, scan_dwell_time, reg_channels,
+				  num_channels);
+
+	if (!rc)
+		wil_acs_report_channel(wil);
+out:
+	if (!rc) {
+		temp_skbuff = cfg80211_vendor_cmd_alloc_reply_skb(wiphy,
+								  NLMSG_HDRLEN);
+		if (temp_skbuff)
+			return cfg80211_vendor_cmd_reply(temp_skbuff);
+	}
+	return rc;
 }
 
 static int wil_rf_sector_status_to_rc(u8 status)

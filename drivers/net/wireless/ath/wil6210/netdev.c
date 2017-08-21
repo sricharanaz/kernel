@@ -17,12 +17,26 @@
 #include <linux/etherdevice.h>
 #include "wil6210.h"
 #include "txrx.h"
+#if defined(CONFIG_WIL6210_NSS_SUPPORT)
+#include <nss_api_if.h>
+#endif
 
 static int wil_open(struct net_device *ndev)
 {
 	struct wil6210_priv *wil = ndev_to_wil(ndev);
 
 	wil_dbg_misc(wil, "open\n");
+
+#if defined(CONFIG_WIL6210_NSS_SUPPORT)
+	if (!wil->nss_handle) {
+		wil->nss_handle = nss_virt_if_create_sync(ndev);
+		if (!wil->nss_handle) {
+			wil_err(wil, "Failed to register with NSS\n");
+			return -EINVAL;
+		}
+		wil_info(wil, "Registered with NSS\n");
+	}
+#endif
 
 	if (debug_fw ||
 	    test_bit(WMI_FW_CAPABILITY_WMI_ONLY, wil->fw_capabilities)) {
@@ -251,6 +265,11 @@ void wil_if_remove(struct wil6210_priv *wil)
 	struct wireless_dev *wdev = wil_to_wdev(wil);
 
 	wil_dbg_misc(wil, "if_remove\n");
+
+#if defined(CONFIG_WIL6210_NSS_SUPPORT)
+	if (wil->nss_handle)
+		nss_virt_if_destroy_sync(wil->nss_handle);
+#endif
 
 	unregister_netdev(ndev);
 	wiphy_unregister(wdev->wiphy);
