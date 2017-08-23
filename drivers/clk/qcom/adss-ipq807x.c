@@ -412,6 +412,7 @@ static struct clk_branch adss_audio_i2s0_clk = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
+			.flags = CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -429,6 +430,7 @@ static struct clk_branch adss_audio_i2s3_clk = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
+			.flags = CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -446,6 +448,7 @@ static struct clk_branch adss_audio_mbox0_clk = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
+			.flags = CLK_IGNORE_UNUSED,
 		},
 	},
 };
@@ -463,6 +466,7 @@ static struct clk_branch adss_audio_mbox3_clk = {
 			},
 			.num_parents = 1,
 			.ops = &clk_branch2_ops,
+			.flags = CLK_IGNORE_UNUSED,
 		},
 	},
 };
