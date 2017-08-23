@@ -35,7 +35,7 @@
 #include "bootconfig.h"
 
 static struct proc_dir_entry *boot_info_dir;
-static struct proc_dir_entry *partname_dir[NUM_ALT_PARTITION];
+static struct proc_dir_entry *partname_dir[CONFIG_NUM_ALT_PARTITION];
 
 static unsigned int num_parts;
 static unsigned int flash_type_emmc;
