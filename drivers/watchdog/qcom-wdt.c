@@ -25,6 +25,7 @@
 #include <linux/qcom_scm.h>
 #include <linux/smp.h>
 #include <linux/utsname.h>
+#include <linux/sizes.h>
 
 static int in_panic;
 
@@ -49,6 +50,12 @@ static const u32 reg_offset_data_kpss[] = {
 	[WDT_BITE_TIME] = 0x14,
 };
 
+struct qcom_wdt_props {
+	const u32 *layout;
+	unsigned int tlv_msg_offset;
+	unsigned int crashdump_page_size;
+};
+
 struct qcom_wdt {
 	struct watchdog_device	wdd;
 	struct clk		*clk;
@@ -56,7 +63,8 @@ struct qcom_wdt {
 	unsigned int		bite;
 	struct notifier_block	restart_nb;
 	void __iomem		*base;
-	const u32		*layout;
+	const struct qcom_wdt_props *dev_props;
+	struct resource *tlv_res;
 };
 
 struct qcom_wdt_scm_tlv_msg {
@@ -65,7 +73,6 @@ struct qcom_wdt_scm_tlv_msg {
 	unsigned int len;
 };
 
-#define CFG_TLV_MSG_OFFSET	2048
 #define QCOM_WDT_SCM_TLV_TYPE_SIZE	1
 #define QCOM_WDT_SCM_TLV_LEN_SIZE	2
 #define QCOM_WDT_SCM_TLV_TYPE_LEN_SIZE	(QCOM_WDT_SCM_TLV_TYPE_SIZE +\
@@ -77,7 +84,7 @@ enum {
 
 static void __iomem *wdt_addr(struct qcom_wdt *wdt, enum wdt_reg reg)
 {
-	return wdt->base + wdt->layout[reg];
+	return wdt->base + wdt->dev_props->layout[reg];
 };
 
 static int qcom_wdt_scm_add_tlv(struct qcom_wdt_scm_tlv_msg *scm_tlv_msg,
@@ -150,11 +157,13 @@ static long qcom_wdt_configure_bark_dump(void *arg)
 	void *tlv_ptr;
 	resource_size_t tlv_base;
 	resource_size_t tlv_size;
-
-	struct resource *res = (struct resource *)arg;
+	struct qcom_wdt *wdt = (struct qcom_wdt *) arg;
+	const struct qcom_wdt_props *device_props = wdt->dev_props;
 	long ret = -ENOMEM;
+	struct resource *res = wdt->tlv_res;
 
-	scm_regsave = (void *)__get_free_page(GFP_KERNEL);
+	scm_regsave = (void *) __get_free_pages(GFP_KERNEL,
+				get_order(device_props->crashdump_page_size));
 	if (!scm_regsave)
 		return -ENOMEM;
 
@@ -167,9 +176,10 @@ static long qcom_wdt_configure_bark_dump(void *arg)
 	}
 
 	/* Initialize the tlv and fill all the details */
-	tlv_msg.msg_buffer = scm_regsave + CFG_TLV_MSG_OFFSET;
+	tlv_msg.msg_buffer = scm_regsave + device_props->tlv_msg_offset;
 	tlv_msg.cur_msg_buffer_pos = tlv_msg.msg_buffer;
-	tlv_msg.len = PAGE_SIZE - CFG_TLV_MSG_OFFSET;
+	tlv_msg.len = device_props->crashdump_page_size -
+				 device_props->tlv_msg_offset;
 
 	ret = qcom_wdt_scm_fill_log_dump_tlv(&tlv_msg);
 
@@ -286,12 +296,35 @@ static const struct watchdog_info qcom_wdt_info = {
 	.identity	= KBUILD_MODNAME,
 };
 
+const struct qcom_wdt_props qcom_wdt_props_ipq8064 = {
+	.layout = reg_offset_data_apcs_tmr,
+	.tlv_msg_offset = SZ_2K,
+	.crashdump_page_size = SZ_4K,
+};
+
+const struct qcom_wdt_props qcom_wdt_props_ipq807x = {
+	.layout = reg_offset_data_kpss,
+	.tlv_msg_offset = SZ_4K,
+	.crashdump_page_size = SZ_8K,
+};
+
+const struct qcom_wdt_props qcom_wdt_props_ipq40xx = {
+	.layout = reg_offset_data_kpss,
+	.tlv_msg_offset = SZ_2K,
+	.crashdump_page_size = SZ_4K,
+};
+
 static const struct of_device_id qcom_wdt_of_table[] = {
-	{ .compatible = "qcom,kpss-wdt-ipq8064",
-				.data = &reg_offset_data_apcs_tmr},
-	{ .compatible = "qcom,kpss-wdt-ipq807x", .data = &reg_offset_data_kpss},
-	{ .compatible = "qcom,kpss-wdt-ipq40xx", .data = &reg_offset_data_kpss},
-	{ },
+	{	.compatible = "qcom,kpss-wdt-ipq8064",
+		.data = (void *) &qcom_wdt_props_ipq8064,
+	},
+	{	.compatible = "qcom,kpss-wdt-ipq807x",
+		.data = (void *) &qcom_wdt_props_ipq807x,
+	},
+	{	.compatible = "qcom,kpss-wdt-ipq40xx",
+		.data = (void *) &qcom_wdt_props_ipq40xx,
+	},
+	{}
 };
 MODULE_DEVICE_TABLE(of, qcom_wdt_of_table);
 static int qcom_wdt_restart(struct notifier_block *nb, unsigned long action,
@@ -394,13 +427,16 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "tlv");
+	wdt->tlv_res = platform_get_resource_byname
+			(pdev, IORESOURCE_MEM, "tlv");
 
 	id = of_match_device(qcom_wdt_of_table, &pdev->dev);
 	if (!id)
 		return -ENODEV;
 
-	if (id->data)
+	wdt->dev_props = (struct qcom_wdt_props *)id->data;
+
+	if (wdt->dev_props->layout)
 		wdt->bite = 1;
 
 	if (irq > 0)
@@ -434,7 +470,7 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 		goto err_clk_unprepare;
 	}
 
-	ret = work_on_cpu(0, qcom_wdt_configure_bark_dump, res);
+	ret = work_on_cpu(0, qcom_wdt_configure_bark_dump, wdt);
 	if (ret)
 		wdt->wdd.ops = &qcom_wdt_ops_nonsecure;
 	else
@@ -448,7 +484,6 @@ static int qcom_wdt_probe(struct platform_device *pdev)
 	else
 		wdt->wdd.max_timeout = 0x10000000U / wdt->rate;
 	wdt->wdd.parent = &pdev->dev;
-	wdt->layout = id->data;
 
 	/*
 	 * If 'timeout-sec' unspecified in devicetree, assume a 30 second
