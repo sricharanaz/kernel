@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -215,10 +215,8 @@ int init_mhi_dev_mem(struct mhi_device_ctxt *mhi_dev_ctxt)
 		ring_addr = dma_alloc_coherent(
 				&mhi_dev_ctxt->plat_dev->dev,
 				ring_len, &ring_dma_addr, GFP_KERNEL);
-		if (!ring_addr) {
-			r = -ENOMEM;
+		if (!ring_addr)
 			goto err_ev_alloc;
-		}
 		init_dev_ev_ctxt(&mhi_dev_ctxt->dev_space.ring_ctxt.ec_list[i],
 				ring_dma_addr, ring_len);
 		init_local_ev_ctxt(&mhi_dev_ctxt->mhi_local_event_ctxt[i],
@@ -252,19 +250,6 @@ err_ev_alloc:
 static int mhi_init_events(struct mhi_device_ctxt *mhi_dev_ctxt)
 {
 
-	mhi_dev_ctxt->mhi_ev_wq.mhi_event_wq = kmalloc(
-						sizeof(wait_queue_head_t),
-						GFP_KERNEL);
-	if (NULL == mhi_dev_ctxt->mhi_ev_wq.mhi_event_wq) {
-		mhi_log(mhi_dev_ctxt, MHI_MSG_ERROR, "Failed to init event");
-		return -ENOMEM;
-	}
-	mhi_dev_ctxt->mhi_ev_wq.state_change_event =
-				kmalloc(sizeof(wait_queue_head_t), GFP_KERNEL);
-	if (NULL == mhi_dev_ctxt->mhi_ev_wq.state_change_event) {
-		mhi_log(mhi_dev_ctxt, MHI_MSG_ERROR, "Failed to init event");
-		goto error_event_handle_alloc;
-	}
 	/* Initialize the event which signals M0 */
 	mhi_dev_ctxt->mhi_ev_wq.m0_event = kmalloc(sizeof(wait_queue_head_t),
 								GFP_KERNEL);
@@ -286,10 +271,7 @@ static int mhi_init_events(struct mhi_device_ctxt *mhi_dev_ctxt)
 		mhi_log(mhi_dev_ctxt, MHI_MSG_ERROR, "Failed to init event");
 		goto error_bhi_event;
 	}
-	/* Initialize the event which starts the event parsing thread */
-	init_waitqueue_head(mhi_dev_ctxt->mhi_ev_wq.mhi_event_wq);
-	/* Initialize the event which starts the state change thread */
-	init_waitqueue_head(mhi_dev_ctxt->mhi_ev_wq.state_change_event);
+
 	/* Initialize the event which triggers clients waiting to send */
 	init_waitqueue_head(mhi_dev_ctxt->mhi_ev_wq.m0_event);
 	/* Initialize the event which triggers D3hot */
@@ -302,9 +284,6 @@ error_bhi_event:
 error_m0_event:
 	kfree(mhi_dev_ctxt->mhi_ev_wq.m0_event);
 error_state_change_event_handle:
-	kfree(mhi_dev_ctxt->mhi_ev_wq.state_change_event);
-error_event_handle_alloc:
-	kfree(mhi_dev_ctxt->mhi_ev_wq.mhi_event_wq);
 	return -ENOMEM;
 }
 
@@ -339,21 +318,6 @@ static int mhi_init_state_change_thread_work_queue(
 static void mhi_init_wakelock(struct mhi_device_ctxt *mhi_dev_ctxt)
 {
 	wakeup_source_init(&mhi_dev_ctxt->w_lock, "mhi_wakeup_source");
-}
-
-static int mhi_spawn_threads(struct mhi_device_ctxt *mhi_dev_ctxt)
-{
-	mhi_dev_ctxt->event_thread_handle = kthread_run(parse_event_thread,
-							mhi_dev_ctxt,
-							"mhi_ev_thrd");
-	if (IS_ERR(mhi_dev_ctxt->event_thread_handle))
-		return PTR_ERR(mhi_dev_ctxt->event_thread_handle);
-	mhi_dev_ctxt->st_thread_handle = kthread_run(mhi_state_change_thread,
-							mhi_dev_ctxt,
-							"mhi_st_thrd");
-	if (IS_ERR(mhi_dev_ctxt->event_thread_handle))
-		return PTR_ERR(mhi_dev_ctxt->event_thread_handle);
-	return 0;
 }
 
 /**
@@ -410,21 +374,11 @@ int mhi_init_device_ctxt(struct mhi_device_ctxt *mhi_dev_ctxt)
 	init_event_ctxt_array(mhi_dev_ctxt);
 	mhi_dev_ctxt->mhi_state = MHI_STATE_RESET;
 
-	r = mhi_spawn_threads(mhi_dev_ctxt);
-	if (r) {
-		mhi_log(mhi_dev_ctxt, MHI_MSG_ERROR,
-			"Failed to spawn threads ret %d\n", r);
-		goto error_during_thread_spawn;
-	}
 	mhi_init_wakelock(mhi_dev_ctxt);
 
 	return r;
 
-error_during_thread_spawn:
-	kfree(mhi_dev_ctxt->state_change_work_item_list.q_lock);
 error_during_thread_init:
-	kfree(mhi_dev_ctxt->mhi_ev_wq.mhi_event_wq);
-	kfree(mhi_dev_ctxt->mhi_ev_wq.state_change_event);
 	kfree(mhi_dev_ctxt->mhi_ev_wq.m0_event);
 	kfree(mhi_dev_ctxt->mhi_ev_wq.m3_event);
 	kfree(mhi_dev_ctxt->mhi_ev_wq.bhi_event);
@@ -482,7 +436,7 @@ int mhi_init_chan_ctxt(struct mhi_chan_ctxt *cc_list,
 	ring->dir = chan_type;
 	ring->ch_state = MHI_CHAN_STATE_DISABLED;
 	ring->db_mode.db_mode = 1;
-	ring->db_mode.preserve_db_state = (preserve_db_state) ? 1:0;
+	ring->db_mode.preserve_db_state = (preserve_db_state) ? 1 : 0;
 	ring->db_mode.brstmode = brstmode;
 
 	switch (ring->db_mode.brstmode) {

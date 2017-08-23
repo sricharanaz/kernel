@@ -32,8 +32,6 @@
 #include "mhi_hwio.h"
 #include "mhi_bhi.h"
 
-#define MSM_MHI_PM	0
-
 struct mhi_device_driver *mhi_device_drv;
 
 static int mhi_pci_probe(struct pci_dev *pcie_device,
@@ -112,8 +110,6 @@ int mhi_ctxt_init(struct mhi_device_ctxt *mhi_dev_ctxt)
 
 irq_error:
 	kfree(mhi_dev_ctxt->state_change_work_item_list.q_lock);
-	kfree(mhi_dev_ctxt->mhi_ev_wq.mhi_event_wq);
-	kfree(mhi_dev_ctxt->mhi_ev_wq.state_change_event);
 	kfree(mhi_dev_ctxt->mhi_ev_wq.m0_event);
 	kfree(mhi_dev_ctxt->mhi_ev_wq.m3_event);
 	kfree(mhi_dev_ctxt->mhi_ev_wq.bhi_event);
@@ -129,23 +125,19 @@ irq_error:
 	return -EINVAL;
 }
 
-#if MSM_MHI_PM
 static const struct dev_pm_ops pm_ops = {
 	SET_RUNTIME_PM_OPS(mhi_runtime_suspend,
 			   mhi_runtime_resume,
 			   mhi_runtime_idle)
 	SET_SYSTEM_SLEEP_PM_OPS(mhi_pci_suspend, mhi_pci_resume)
 };
-#endif /* MSM_MHI_PM */
 
 static struct pci_driver mhi_pcie_driver = {
 	.name = "mhi_pcie_drv",
 	.id_table = mhi_pcie_device_id,
 	.probe = mhi_pci_probe,
 	.driver = {
-#if MSM_MHI_PM
 		.pm = &pm_ops
-#endif /* MSM_MHI_PM */
 	}
 };
 
@@ -160,19 +152,20 @@ static int mhi_pci_probe(struct pci_dev *pcie_device,
 	u32 dev_id = pcie_device->device;
 	u32 slot = PCI_SLOT(pcie_device->devfn);
 	unsigned long msi_requested, msi_required;
-#ifdef CONFIG_PCI_MSM
 	struct msm_pcie_register_event *mhi_pci_link_event;
-#endif /* CONFIG_PCI_MSM */
+	struct pcie_core_info *core;
+	int i;
+	char node[32];
 
 	/* Find correct device context based on bdf & dev_id */
 	mutex_lock(&mhi_device_drv->lock);
 	list_for_each_entry(itr, &mhi_device_drv->head, node) {
-		struct pcie_core_info *core = &itr->core;
-
-		if (core->domain == domain &&
-		    core->bus == bus &&
-		    core->dev_id == dev_id &&
+		core = &itr->core;
+		if (core->domain == domain && core->bus == bus &&
+		    (core->dev_id == PCI_ANY_ID || (core->dev_id == dev_id)) &&
 		    core->slot == slot) {
+			/* change default dev_id to actual dev_id */
+			core->dev_id = dev_id;
 			mhi_dev_ctxt = itr;
 			break;
 		}
@@ -180,6 +173,11 @@ static int mhi_pci_probe(struct pci_dev *pcie_device,
 	mutex_unlock(&mhi_device_drv->lock);
 	if (!mhi_dev_ctxt)
 		return -EPROBE_DEFER;
+
+	snprintf(node, sizeof(node), "mhi_%04x_%02u.%02u.%02u",
+		 core->dev_id, core->domain, core->bus, core->slot);
+	mhi_dev_ctxt->mhi_ipc_log =
+		ipc_log_context_create(MHI_IPC_LOG_PAGES, node, 0);
 
 	mhi_log(mhi_dev_ctxt, MHI_MSG_INFO,
 		"Processing Domain:%02u Bus:%04u dev:0x%04x slot:%04u\n",
@@ -198,16 +196,14 @@ static int mhi_pci_probe(struct pci_dev *pcie_device,
 	pcie_device->dev.of_node = plat_dev->dev.of_node;
 	mhi_dev_ctxt->mhi_pm_state = MHI_PM_DISABLE;
 	INIT_WORK(&mhi_dev_ctxt->process_m1_worker, process_m1_transition);
+	INIT_WORK(&mhi_dev_ctxt->st_thread_worker, mhi_state_change_worker);
+	INIT_WORK(&mhi_dev_ctxt->process_sys_err_worker, mhi_sys_err_worker);
 	mutex_init(&mhi_dev_ctxt->pm_lock);
 	rwlock_init(&mhi_dev_ctxt->pm_xfer_lock);
 	spin_lock_init(&mhi_dev_ctxt->dev_wake_lock);
-	tasklet_init(&mhi_dev_ctxt->ev_task,
-		     mhi_ctrl_ev_task,
-		     (unsigned long)mhi_dev_ctxt);
 	init_completion(&mhi_dev_ctxt->cmd_complete);
 	mhi_dev_ctxt->flags.link_up = 1;
 
-#ifdef CONFIG_MSM_BUS_SCALING
 	/* Setup bus scale */
 	mhi_dev_ctxt->bus_scale_table = msm_bus_cl_get_pdata(plat_dev);
 	if (!mhi_dev_ctxt->bus_scale_table)
@@ -217,25 +213,21 @@ static int mhi_pci_probe(struct pci_dev *pcie_device,
 	if (!mhi_dev_ctxt->bus_client)
 		return -EINVAL;
 	mhi_set_bus_request(mhi_dev_ctxt, 1);
-#endif /* CONFIG_MSM_BUS_SCALING */
 
 	mhi_dev_ctxt->pcie_device = pcie_device;
 
-#ifdef CONFIG_PCI_MSM
 	mhi_pci_link_event = &mhi_dev_ctxt->mhi_pci_link_event;
 	mhi_pci_link_event->events =
 		(MSM_PCIE_EVENT_LINKDOWN | MSM_PCIE_EVENT_WAKEUP);
 	mhi_pci_link_event->user = pcie_device;
 	mhi_pci_link_event->callback = mhi_link_state_cb;
 	mhi_pci_link_event->notify.data = mhi_dev_ctxt;
-
 	ret_val = msm_pcie_register_event(mhi_pci_link_event);
 	if (ret_val) {
 		mhi_log(mhi_dev_ctxt, MHI_MSG_ERROR,
 			"Failed to reg for link notifications %d\n", ret_val);
 		return ret_val;
 	}
-#endif /* CONFIG_PCI_MSM */
 
 	dev_set_drvdata(&pcie_device->dev, mhi_dev_ctxt);
 
@@ -283,9 +275,7 @@ static int mhi_pci_probe(struct pci_dev *pcie_device,
 		goto deregister_pcie;
 	}
 
-#if MSM_MHI_PM
 	mhi_init_pm_sysfs(&pcie_device->dev);
-#endif /* MSM_MHI_PM */
 	mhi_init_debugfs(mhi_dev_ctxt);
 	mhi_reg_notifiers(mhi_dev_ctxt);
 
@@ -298,9 +288,22 @@ static int mhi_pci_probe(struct pci_dev *pcie_device,
 	mutex_lock(&mhi_dev_ctxt->pm_lock);
 	write_lock_irq(&mhi_dev_ctxt->pm_xfer_lock);
 	mhi_dev_ctxt->mhi_pm_state = MHI_PM_POR;
-	ret_val = set_mhi_base_state(mhi_dev_ctxt);
-
 	write_unlock_irq(&mhi_dev_ctxt->pm_xfer_lock);
+
+	/* notify all registered clients we probed */
+	for (i = 0; i < MHI_MAX_CHANNELS; i++) {
+		struct mhi_client_handle *client_handle =
+			mhi_dev_ctxt->client_handle_list[i];
+
+		if (!client_handle)
+			continue;
+		client_handle->dev_id = core->dev_id;
+		mhi_notify_client(client_handle, MHI_CB_MHI_PROBED);
+	}
+	write_lock_irq(&mhi_dev_ctxt->pm_xfer_lock);
+	ret_val = set_mhi_base_state(mhi_dev_ctxt);
+	write_unlock_irq(&mhi_dev_ctxt->pm_xfer_lock);
+
 	if (ret_val) {
 		mhi_log(mhi_dev_ctxt,
 			MHI_MSG_ERROR,
@@ -353,9 +356,7 @@ static int mhi_pci_probe(struct pci_dev *pcie_device,
 unlock_pm_lock:
 	mutex_unlock(&mhi_dev_ctxt->pm_lock);
 deregister_pcie:
-#ifdef CONFIG_PCI_MSM
 	msm_pcie_deregister_event(&mhi_dev_ctxt->mhi_pci_link_event);
-#endif /* CONFIG_PCI_MSM */
 	return ret_val;
 }
 
@@ -364,7 +365,6 @@ static int mhi_plat_probe(struct platform_device *pdev)
 	int r = 0, len;
 	struct mhi_device_ctxt *mhi_dev_ctxt;
 	struct pcie_core_info *core;
-	char node[32];
 	struct device_node *of_node = pdev->dev.of_node;
 	u64 address_window[2];
 
@@ -397,7 +397,7 @@ static int mhi_plat_probe(struct platform_device *pdev)
 	core = &mhi_dev_ctxt->core;
 	r = of_property_read_u32(of_node, "qcom,pci-dev_id", &core->dev_id);
 	if (r)
-		return r;
+		core->dev_id = PCI_ANY_ID;
 
 	r = of_property_read_u32(of_node, "qcom,pci-slot", &core->slot);
 	if (r)
@@ -411,14 +411,6 @@ static int mhi_plat_probe(struct platform_device *pdev)
 	if (r)
 		return r;
 
-	snprintf(node, sizeof(node),
-		 "mhi_%04x_%02u.%02u.%02u",
-		 core->dev_id, core->domain, core->bus, core->slot);
-	mhi_dev_ctxt->mhi_ipc_log =
-		ipc_log_context_create(MHI_IPC_LOG_PAGES, node, 0);
-	if (!mhi_dev_ctxt->mhi_ipc_log)
-		pr_err("%s: Error creating ipc_log buffer\n", __func__);
-
 	r = of_property_read_u32(of_node, "qcom,mhi-ready-timeout",
 				 &mhi_dev_ctxt->poll_reset_timeout_ms);
 	if (r)
@@ -427,10 +419,6 @@ static int mhi_plat_probe(struct platform_device *pdev)
 
 	mhi_dev_ctxt->dev_space.start_win_addr = address_window[0];
 	mhi_dev_ctxt->dev_space.end_win_addr = address_window[1];
-	mhi_log(mhi_dev_ctxt, MHI_MSG_INFO,
-		"Start Addr:0x%llx End_Addr:0x%llx\n",
-		mhi_dev_ctxt->dev_space.start_win_addr,
-		mhi_dev_ctxt->dev_space.end_win_addr);
 
 	r = of_property_read_u32(of_node, "qcom,bhi-alignment",
 				 &mhi_dev_ctxt->bhi_ctxt.alignment);
@@ -473,6 +461,10 @@ static int mhi_plat_probe(struct platform_device *pdev)
 		INIT_WORK(&bhi_ctxt->fw_load_work, bhi_firmware_download);
 	}
 
+	mhi_dev_ctxt->flags.bb_required =
+		of_property_read_bool(pdev->dev.of_node,
+				      "qcom,mhi-bb-required");
+
 	mhi_dev_ctxt->plat_dev = pdev;
 	platform_set_drvdata(pdev, mhi_dev_ctxt);
 
@@ -487,7 +479,6 @@ static int mhi_plat_probe(struct platform_device *pdev)
 	mutex_lock(&mhi_device_drv->lock);
 	list_add_tail(&mhi_dev_ctxt->node, &mhi_device_drv->head);
 	mutex_unlock(&mhi_device_drv->lock);
-	mhi_log(mhi_dev_ctxt, MHI_MSG_INFO, "Exited\n");
 
 	return 0;
 }
@@ -518,7 +509,7 @@ static int __exit mhi_plat_remove(struct platform_device *pdev)
 
 static int __init mhi_init(void)
 {
-	int r = -EINVAL;
+	int r;
 	struct mhi_device_driver *mhi_dev_drv;
 
 	mhi_dev_drv = kmalloc(sizeof(*mhi_dev_drv), GFP_KERNEL);
@@ -574,7 +565,7 @@ DECLARE_PCI_FIXUP_HEADER(MHI_PCIE_VENDOR_ID,
 
 
 module_exit(mhi_exit);
-module_init(mhi_init);
+subsys_initcall(mhi_init);
 
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("MHI_CORE");
