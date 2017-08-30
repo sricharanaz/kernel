@@ -101,6 +101,7 @@ int chk_apps_only(void)
 {
 	if (driver->use_device_tree)
 		return 1;
+	return 0;
 }
 
 /*
@@ -674,7 +675,7 @@ int diag_cmd_get_mobile_id(unsigned char *src_buf, int src_len,
 {
 	int write_len = 0;
 	struct diag_pkt_header_t *header = NULL;
-	struct diag_cmd_ext_mobile_rsp_t rsp;
+	struct diag_cmd_ext_mobile_rsp_t rsp = {0};
 
 	if (!src_buf || src_len != sizeof(*header) || !dest_buf ||
 	    dest_len < sizeof(rsp))
