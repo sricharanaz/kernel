@@ -116,16 +116,6 @@ struct qcom_mss_reg_res {
 	int uA;
 };
 
-struct rproc_hexagon_res {
-	const char *hexagon_mba_image;
-	struct qcom_mss_reg_res *proxy_supply;
-	struct qcom_mss_reg_res *active_supply;
-	char **proxy_clk_names;
-	char **active_clk_names;
-	int version;
-	bool need_mem_protection;
-};
-
 struct q6v5 {
 	struct device *dev;
 	struct rproc *rproc;
@@ -172,6 +162,19 @@ struct q6v5 {
 	int mpss_perm;
 	int mba_perm;
 	int version;
+};
+
+struct rproc_hexagon_res {
+	const char *hexagon_mba_image;
+	struct qcom_mss_reg_res *proxy_supply;
+	struct qcom_mss_reg_res *active_supply;
+	char **proxy_clk_names;
+	char **active_clk_names;
+	int version;
+	bool need_mem_protection;
+	int (*init_reset)(struct q6v5 *qproc);
+	const struct rproc_fw_ops *fw_ops;
+	const struct rproc_ops *ops;
 };
 
 enum {
@@ -1128,14 +1131,14 @@ static int q6v5_probe(struct platform_device *pdev)
 	if (!desc)
 		return -EINVAL;
 
-	rproc = rproc_alloc(&pdev->dev, pdev->name, &q6v5_ops,
+	rproc = rproc_alloc(&pdev->dev, pdev->name, desc->ops,
 			    desc->hexagon_mba_image, sizeof(*qproc));
 	if (!rproc) {
 		dev_err(&pdev->dev, "failed to allocate rproc\n");
 		return -ENOMEM;
 	}
 
-	rproc->fw_ops = &q6v5_fw_ops;
+	rproc->fw_ops = desc->fw_ops;
 
 	qproc = (struct q6v5 *)rproc->priv;
 	qproc->dev = &pdev->dev;
@@ -1185,7 +1188,7 @@ static int q6v5_probe(struct platform_device *pdev)
 	}
 	qproc->active_reg_count = ret;
 
-	ret = q6v5_init_reset(qproc);
+	ret = desc->init_reset(qproc);
 	if (ret)
 		goto free_rproc;
 
@@ -1258,6 +1261,9 @@ static const struct rproc_hexagon_res msm8996_mss = {
 	},
 	.need_mem_protection = true,
 	.version = MSS_MSM8996,
+	.init_reset = q6v5_init_reset,
+	.fw_ops = &q6v5_fw_ops,
+	.ops = &q6v5_ops,
 };
 
 static const struct rproc_hexagon_res msm8916_mss = {
@@ -1289,6 +1295,9 @@ static const struct rproc_hexagon_res msm8916_mss = {
 	},
 	.need_mem_protection = false,
 	.version = MSS_MSM8916,
+	.init_reset = q6v5_init_reset,
+	.fw_ops = &q6v5_fw_ops,
+	.ops = &q6v5_ops,
 };
 
 static const struct rproc_hexagon_res msm8974_mss = {
@@ -1328,6 +1337,9 @@ static const struct rproc_hexagon_res msm8974_mss = {
 	},
 	.need_mem_protection = false,
 	.version = MSS_MSM8974,
+	.init_reset = q6v5_init_reset,
+	.fw_ops = &q6v5_fw_ops,
+	.ops = &q6v5_ops,
 };
 
 static const struct of_device_id q6v5_of_match[] = {
