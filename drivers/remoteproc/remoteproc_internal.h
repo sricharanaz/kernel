@@ -124,4 +124,7 @@ struct resource_table *rproc_find_loaded_rsc_table(struct rproc *rproc,
 
 extern const struct rproc_fw_ops rproc_elf_fw_ops;
 
+/* from remoteproc_elf_loader.c */
+u32 rproc_elf_get_boot_addr(struct rproc *rproc, const struct firmware *fw);
+
 #endif /* REMOTEPROC_INTERNAL_H */
