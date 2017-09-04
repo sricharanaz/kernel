@@ -81,6 +81,7 @@
 enum {
 	MSM8996_ID,
 	MSM8953_ID,
+	IPQ807x_ID,
 };
 
 struct msm_apm_ctrl_dev {
@@ -612,6 +613,7 @@ static int msm_apm_switch_to_mx(struct msm_apm_ctrl_dev *ctrl_dev)
 		ret = msm8996_apm_switch_to_mx(ctrl_dev);
 		break;
 	case MSM8953_ID:
+	case IPQ807x_ID:
 		ret = msm8953_apm_switch_to_mx(ctrl_dev);
 		break;
 	}
@@ -628,6 +630,7 @@ static int msm_apm_switch_to_apcc(struct msm_apm_ctrl_dev *ctrl_dev)
 		ret = msm8996_apm_switch_to_apcc(ctrl_dev);
 		break;
 	case MSM8953_ID:
+	case IPQ807x_ID:
 		ret = msm8953_apm_switch_to_apcc(ctrl_dev);
 		break;
 	}
@@ -827,6 +830,10 @@ static struct of_device_id msm_apm_match_table[] = {
 		.compatible = "qcom,msm8953-apm",
 		.data = (void *)(uintptr_t)MSM8953_ID,
 	},
+	{
+		.compatible = "qcom,ipq807x-apm",
+		.data = (void *)(uintptr_t)IPQ807x_ID,
+	},
 	{}
 };
 
@@ -869,6 +876,7 @@ static int msm_apm_probe(struct platform_device *pdev)
 		}
 		break;
 	case MSM8953_ID:
+	case IPQ807x_ID:
 		ret = msm8953_apm_ctrl_init(pdev, ctrl);
 		if (ret) {
 			dev_err(dev, "Failed to initialize APM controller device: ret=%d\n",
