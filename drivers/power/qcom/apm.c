@@ -83,8 +83,6 @@ enum {
 	MSM8953_ID,
 };
 
-static int msm_id[] = {MSM8996_ID, MSM8953_ID};
-
 struct msm_apm_ctrl_dev {
 	struct list_head	list;
 	struct device		*dev;
@@ -822,12 +820,12 @@ static void apm_debugfs_base_remove(void)
 
 static struct of_device_id msm_apm_match_table[] = {
 	{
-	  .compatible = "qcom,msm-apm",
-	  .data = &msm_id[MSM8996_ID]
+		.compatible = "qcom,msm-apm",
+		.data = (void *)(uintptr_t)MSM8996_ID,
 	},
 	{
-	  .compatible = "qcom,msm8953-apm",
-	  .data = &msm_id[MSM8953_ID]
+		.compatible = "qcom,msm8953-apm",
+		.data = (void *)(uintptr_t)MSM8953_ID,
 	},
 	{}
 };
@@ -859,7 +857,7 @@ static int msm_apm_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&ctrl->list);
 	spin_lock_init(&ctrl->lock);
 	ctrl->dev = dev;
-	ctrl->msm_id = *(int *)match->data;
+	ctrl->msm_id = (uintptr_t)match->data;
 	platform_set_drvdata(pdev, ctrl);
 
 	switch (ctrl->msm_id) {
