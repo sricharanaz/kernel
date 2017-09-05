@@ -37,8 +37,6 @@
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/msm-ldo-regulator.h>
 
-#include <soc/qcom/spm.h>
-
 #include "cpr3-regulator.h"
 
 #define CPR3_REGULATOR_CORNER_INVALID	(-1)
@@ -1524,16 +1522,6 @@ static int cpr3_regulator_init_ctrl(struct cpr3_controller *ctrl)
 				cpr3_err(ctrl, "CPR limit regulator enable failed, rc=%d\n",
 					rc);
 				return rc;
-			}
-
-			if (ctrl->ctrl_type == CPR_CTRL_TYPE_CPR3) {
-				rc = msm_spm_avs_enable_irq(0,
-							   MSM_SPM_AVS_IRQ_MAX);
-				if (rc) {
-					cpr3_err(ctrl, "could not enable max IRQ, rc=%d\n",
-						rc);
-					return rc;
-				}
 			}
 		}
 	}
@@ -4827,7 +4815,7 @@ done:
 static irqreturn_t cpr3_ceiling_irq_handler(int irq, void *data)
 {
 	struct cpr3_controller *ctrl = data;
-	int rc, volt;
+	int volt;
 
 	mutex_lock(&ctrl->lock);
 
@@ -4861,10 +4849,6 @@ static irqreturn_t cpr3_ceiling_irq_handler(int irq, void *data)
 	}
 
 done:
-	rc = msm_spm_avs_clear_irq(0, MSM_SPM_AVS_IRQ_MAX);
-	if (rc)
-		cpr3_err(ctrl, "could not clear max IRQ, rc=%d\n", rc);
-
 	mutex_unlock(&ctrl->lock);
 	return IRQ_HANDLED;
 }
@@ -5704,24 +5688,11 @@ static int cpr3_debug_hw_closed_loop_enable_set(void *data, u64 val)
 				rc);
 			goto done;
 		}
-
-		rc = msm_spm_avs_enable_irq(0, MSM_SPM_AVS_IRQ_MAX);
-		if (rc) {
-			cpr3_err(ctrl, "could not enable max IRQ, rc=%d\n", rc);
-			goto done;
-		}
 	} else if (!ctrl->use_hw_closed_loop
 			&& ctrl->ctrl_type == CPR_CTRL_TYPE_CPR3) {
 		rc = regulator_disable(ctrl->vdd_limit_regulator);
 		if (rc) {
 			cpr3_err(ctrl, "CPR limit regulator disable failed, rc=%d\n",
-				rc);
-			goto done;
-		}
-
-		rc = msm_spm_avs_disable_irq(0, MSM_SPM_AVS_IRQ_MAX);
-		if (rc) {
-			cpr3_err(ctrl, "could not disable max IRQ, rc=%d\n",
 				rc);
 			goto done;
 		}
@@ -6326,13 +6297,6 @@ int cpr3_regulator_register(struct platform_device *pdev,
 	}
 
 	if (ctrl->supports_hw_closed_loop) {
-		rc = msm_spm_probe_done();
-		if (rc) {
-			if (rc != -EPROBE_DEFER)
-				cpr3_err(ctrl, "spm unavailable, rc=%d\n", rc);
-			return rc;
-		}
-
 		if (ctrl->ctrl_type == CPR_CTRL_TYPE_CPR3) {
 			ctrl->ceiling_irq = platform_get_irq_byname(pdev,
 						"ceiling");
@@ -6477,9 +6441,6 @@ int cpr3_regulator_unregister(struct cpr3_controller *ctrl)
 
 	if (ctrl->vdd_limit_regulator) {
 		regulator_disable(ctrl->vdd_limit_regulator);
-
-		if (ctrl->ctrl_type == CPR_CTRL_TYPE_CPR3)
-			msm_spm_avs_disable_irq(0, MSM_SPM_AVS_IRQ_MAX);
 	}
 
 	for (i = 0; i < ctrl->thread_count; i++)
