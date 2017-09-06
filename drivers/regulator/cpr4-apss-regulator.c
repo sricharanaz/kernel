@@ -1263,13 +1263,16 @@ static int cpr4_apss_init_controller(struct cpr3_controller *ctrl)
 			"qcom,cpr-voltage-settling-time",
 			&ctrl->voltage_settling_time);
 
-	ctrl->vdd_limit_regulator = devm_regulator_get(ctrl->dev, "vdd-limit");
-	if (IS_ERR(ctrl->vdd_limit_regulator)) {
-		rc = PTR_ERR(ctrl->vdd_limit_regulator);
-		if (rc != -EPROBE_DEFER)
-			cpr3_err(ctrl, "unable to request vdd-limit regulator, rc=%d\n",
-				rc);
-		return rc;
+	if (of_find_property(ctrl->dev->of_node, "vdd-limit-supply", NULL)) {
+		ctrl->vdd_limit_regulator =
+			devm_regulator_get(ctrl->dev, "vdd-limit");
+		if (IS_ERR(ctrl->vdd_limit_regulator)) {
+			rc = PTR_ERR(ctrl->vdd_limit_regulator);
+			if (rc != -EPROBE_DEFER)
+				cpr3_err(ctrl, "unable to request vdd-limit regulator, rc=%d\n",
+					 rc);
+			return rc;
+		}
 	}
 
 	rc = cpr3_apm_init(ctrl);

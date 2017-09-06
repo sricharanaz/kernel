@@ -1096,8 +1096,9 @@ static int cpr3_regulator_init_ctrl(struct cpr3_controller *ctrl)
 				ctrl->proc_clock_throttle);
 		}
 
-		if (ctrl->use_hw_closed_loop ||
-		    ctrl->ctrl_type == CPR_CTRL_TYPE_CPR4) {
+		if ((ctrl->use_hw_closed_loop ||
+		     ctrl->ctrl_type == CPR_CTRL_TYPE_CPR4) &&
+		    ctrl->vdd_limit_regulator) {
 			rc = regulator_enable(ctrl->vdd_limit_regulator);
 			if (rc) {
 				cpr3_err(ctrl, "CPR limit regulator enable failed, rc=%d\n",
