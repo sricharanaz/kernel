@@ -679,15 +679,7 @@ int cpr3_parse_common_corner_data(struct cpr3_regulator *vreg)
 		kfree(speed_bin_corners);
 	}
 
-	/*
-	 * For CPRh compliant controllers two additional corners are
-	 * allocated to correspond to the APM crossover voltage and the MEM ACC
-	 * crossover voltage.
-	 */
-	vreg->corner = devm_kcalloc(ctrl->dev, ctrl->ctrl_type ==
-				    CPR_CTRL_TYPE_CPRH ?
-				    vreg->corner_count + 2 :
-				    vreg->corner_count,
+	vreg->corner = devm_kcalloc(ctrl->dev, vreg->corner_count,
 				    sizeof(*vreg->corner), GFP_KERNEL);
 	temp = kcalloc(vreg->corner_count, sizeof(*temp), GFP_KERNEL);
 	if (!vreg->corner || !temp)
@@ -1212,21 +1204,10 @@ int cpr3_parse_common_ctrl_data(struct cpr3_controller *ctrl)
 					 rc);
 			return rc;
 		}
-	} else if (ctrl->ctrl_type == CPR_CTRL_TYPE_CPRH) {
-		/* vdd-supply is optional for CPRh controllers. */
-		ctrl->vdd_regulator = NULL;
 	} else {
 		cpr3_err(ctrl, "vdd supply is not defined\n");
 		return -ENODEV;
 	}
-
-	/*
-	 * Regulator device handles are not necessary for CPRh controllers
-	 * since communication with the regulators is completely managed
-	 * in hardware.
-	 */
-	if (ctrl->ctrl_type == CPR_CTRL_TYPE_CPRH)
-		return rc;
 
 	ctrl->system_regulator = devm_regulator_get_optional(ctrl->dev,
 								"system");

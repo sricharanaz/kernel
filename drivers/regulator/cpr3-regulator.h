@@ -433,12 +433,10 @@ enum cpr3_count_mode {
  * enum cpr_controller_type - supported CPR controller hardware types
  * %CPR_CTRL_TYPE_CPR3:	HW has CPR3 controller
  * %CPR_CTRL_TYPE_CPR4:	HW has CPR4 controller
- * %CPR_CTRL_TYPE_CPRH:	HW has CPRh controller
  */
 enum cpr_controller_type {
 	CPR_CTRL_TYPE_CPR3,
 	CPR_CTRL_TYPE_CPR4,
-	CPR_CTRL_TYPE_CPRH,
 };
 
 /**
