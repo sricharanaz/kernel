@@ -289,12 +289,32 @@ static struct miscdevice ath79_wdt_miscdev = {
 	.fops = &ath79_wdt_fops,
 };
 
+static int ath79_wdt_debugfs_read(void *data, u64 *val)
+{
+	*val = ath79_wdt_rr(WDOG_REG_CTRL);
+	return 0;
+}
+
+static int ath79_wdt_debugfs_write(void *data, u64 val)
+{
+	if (val < WDOG_CTRL_ACTION_NONE || val > WDOG_CTRL_ACTION_FCR)
+		return -EINVAL;
+
+	ath79_wdt_wr(WDOG_REG_CTRL, val);
+	/* flush write */
+	ath79_wdt_rr(WDOG_REG_CTRL);
+	return 0;
+}
+DEFINE_SIMPLE_ATTRIBUTE(ath79_wdt_dbg_fops, ath79_wdt_debugfs_read,
+			ath79_wdt_debugfs_write, "%llu\n");
+
 static int ath79_wdt_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	u32 ctrl;
 	int err;
 	u8 wdtboot;
+	struct dentry *dbg_file_action;
 
 	if (wdt_base)
 		return -EBUSY;
@@ -340,8 +360,33 @@ static int ath79_wdt_probe(struct platform_device *pdev)
 		goto err_clk_disable;
 	}
 
+	ath79_wdt_dbg_dir = debugfs_create_dir("ath79_wdt", NULL);
+	if (IS_ERR_OR_NULL(ath79_wdt_dbg_dir)) {
+		err = PTR_ERR_OR_ZERO(ath79_wdt_dbg_dir);
+		if (err == 0)
+			err = -EINVAL;
+
+		pr_err("%s: ath79_wdt debugfs dir creation failed err=%d\n",
+			__func__, err);
+		goto err_clk_disable;
+	}
+
+	dbg_file_action = debugfs_create_file("action", S_IRUGO | S_IWUSR,
+				ath79_wdt_dbg_dir, NULL, &ath79_wdt_dbg_fops);
+	if (IS_ERR_OR_NULL(dbg_file_action)) {
+		err = PTR_ERR_OR_ZERO(ath79_wdt_dbg_dir);
+		if (err == 0)
+			err = -EINVAL;
+
+		pr_err("%s: file creation in ath79_wdt dir failed err=%d\n",
+			__func__, err);
+		goto err_dir_remove;
+	}
+
 	return 0;
 
+err_dir_remove:
+	debugfs_remove(ath79_wdt_dbg_dir);
 err_clk_disable:
 	clk_disable_unprepare(wdt_clk);
 	return err;
@@ -349,6 +394,7 @@ err_clk_disable:
 
 static int ath79_wdt_remove(struct platform_device *pdev)
 {
+	debugfs_remove_recursive(ath79_wdt_dbg_dir);
 	misc_deregister(&ath79_wdt_miscdev);
 	clk_disable_unprepare(wdt_clk);
 	return 0;
@@ -377,49 +423,6 @@ static struct platform_driver ath79_wdt_driver = {
 	},
 };
 
-static int ath79_wdt_debugfs_read(void *data, u64 *val)
-{
-	pr_info(" ath79_wdt ::Action = %d \n",
-		ath79_wdt_rr(WDOG_REG_CTRL));
-	return 0;
-}
-
-static int ath79_wdt_debugfs_write(void *data, u64 val)
-{
-	/* check for validity of the option for action.
-	 * valid range is 0 till 3
-	 */
-	if (val < WDOG_CTRL_ACTION_NONE || val > WDOG_CTRL_ACTION_FCR)
-		return -EINVAL;
-
-	ath79_wdt_wr(WDOG_REG_CTRL, val);
-	/* flush write */
-	ath79_wdt_rr(WDOG_REG_CTRL);
-	return 0;
-}
-DEFINE_SIMPLE_ATTRIBUTE(ath79_wdt_dbg_fops, ath79_wdt_debugfs_read,
-			ath79_wdt_debugfs_write, "%llu\n");
-
-static int __init ath79_wdt_init(void)
-{
-	ath79_wdt_dbg_dir = debugfs_create_dir("ath79_wdt", NULL);
-	if (IS_ERR_OR_NULL(ath79_wdt_dbg_dir)) {
-		pr_err("%s: ath79_wdt_dbg_dir  debugfs dir creation failed\n", __func__);
-		return -EINVAL;
-	}
-
-	(void) debugfs_create_file("action", S_IRUGO | S_IWUSR,
-		ath79_wdt_dbg_dir, NULL, &ath79_wdt_dbg_fops);
-
-	return platform_driver_probe(&ath79_wdt_driver, ath79_wdt_probe);
-}
-module_init(ath79_wdt_init);
-
-static void __exit ath79_wdt_exit(void)
-{
-	platform_driver_unregister(&ath79_wdt_driver);
-}
-module_exit(ath79_wdt_exit);
 module_platform_driver(ath79_wdt_driver);
 
 MODULE_DESCRIPTION("Atheros AR71XX/AR724X/AR913X hardware watchdog driver");
