@@ -5285,6 +5285,10 @@ static int gcc_ipq807x_probe(struct platform_device *pdev)
 	regmap_update_bits(regmap, 0x3f078, BIT(0), 0x0);
 
 	clk_alpha_pll_configure(&audio_pll_main, regmap, &audio_pll_config);
+
+	/* SW Workaround for UBI Huayra PLL */
+	regmap_update_bits(regmap, 0x2501c, BIT(26), BIT(26));
+
 	clk_alpha_pll_configure(&ubi32_pll_main, regmap, &ubi32_pll_config);
 	clk_alpha_pll_configure(&nss_crypto_pll_main, regmap,
 				&nss_crypto_pll_config);
