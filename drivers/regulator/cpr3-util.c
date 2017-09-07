@@ -1237,6 +1237,74 @@ int cpr3_parse_common_ctrl_data(struct cpr3_controller *ctrl)
 }
 
 /**
+ * cpr3_parse_open_loop_common_ctrl_data() - parse common open loop CPR3
+ *			controller properties from device tree
+ * @ctrl:		Pointer to the CPR3 controller
+ *
+ * Return: 0 on success, errno on failure
+ */
+int cpr3_parse_open_loop_common_ctrl_data(struct cpr3_controller *ctrl)
+{
+	int rc;
+
+	rc = of_property_read_u32(ctrl->dev->of_node, "qcom,voltage-step",
+				  &ctrl->step_volt);
+	if (rc) {
+		cpr3_err(ctrl, "error reading property qcom,voltage-step, rc=%d\n",
+			 rc);
+		return rc;
+	}
+
+	if (ctrl->step_volt <= 0) {
+		cpr3_err(ctrl, "qcom,voltage-step=%d is invalid\n",
+			 ctrl->step_volt);
+		return -EINVAL;
+	}
+
+	if (of_find_property(ctrl->dev->of_node, "vdd-supply", NULL)) {
+		ctrl->vdd_regulator = devm_regulator_get(ctrl->dev, "vdd");
+		if (IS_ERR(ctrl->vdd_regulator)) {
+			rc = PTR_ERR(ctrl->vdd_regulator);
+			if (rc != -EPROBE_DEFER)
+				cpr3_err(ctrl, "unable to request vdd regulator, rc=%d\n",
+					 rc);
+			return rc;
+		}
+	} else {
+		cpr3_err(ctrl, "vdd supply is not defined\n");
+		return -ENODEV;
+	}
+
+	ctrl->system_regulator = devm_regulator_get_optional(ctrl->dev,
+								"system");
+	if (IS_ERR(ctrl->system_regulator)) {
+		rc = PTR_ERR(ctrl->system_regulator);
+		if (rc != -EPROBE_DEFER) {
+			rc = 0;
+			ctrl->system_regulator = NULL;
+		} else {
+			return rc;
+		}
+	} else {
+		rc = regulator_enable(ctrl->system_regulator);
+	}
+
+	ctrl->mem_acc_regulator = devm_regulator_get_optional(ctrl->dev,
+							      "mem-acc");
+	if (IS_ERR(ctrl->mem_acc_regulator)) {
+		rc = PTR_ERR(ctrl->mem_acc_regulator);
+		if (rc != -EPROBE_DEFER) {
+			rc = 0;
+			ctrl->mem_acc_regulator = NULL;
+		} else {
+			return rc;
+		}
+	}
+
+	return rc;
+}
+
+/**
  * cpr3_limit_open_loop_voltages() - modify the open-loop voltage of each corner
  *				so that it fits within the floor to ceiling
  *				voltage range of the corner

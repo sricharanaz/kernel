@@ -4951,6 +4951,82 @@ free_regulators:
 }
 
 /**
+ * cpr3_open_loop_regulator_register() - register the regulators for a CPR3
+ *			controller which will always work in Open loop and
+ *			won't support close loop.
+ * @pdev:		Platform device pointer for the CPR3 controller
+ * @ctrl:		Pointer to the CPR3 controller
+ *
+ * Return: 0 on success, errno on failure
+ */
+int cpr3_open_loop_regulator_register(struct platform_device *pdev,
+				      struct cpr3_controller *ctrl)
+{
+	struct device *dev = &pdev->dev;
+	struct cpr3_regulator *vreg;
+	int i, j, rc;
+
+	if (!dev->of_node) {
+		dev_err(dev, "%s: Device tree node is missing\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!ctrl || !ctrl->name) {
+		dev_err(dev, "%s: CPR controller data is missing\n", __func__);
+		return -EINVAL;
+	}
+
+	if (!ctrl->vdd_regulator) {
+		cpr3_err(ctrl, "vdd regulator missing\n");
+		return -EINVAL;
+	}
+
+	mutex_init(&ctrl->lock);
+
+	rc = cpr3_regulator_init_ctrl_data(ctrl);
+	if (rc) {
+		cpr3_err(ctrl, "CPR controller data initialization failed, rc=%d\n",
+			 rc);
+		return rc;
+	}
+
+	for (i = 0; i < ctrl->thread_count; i++) {
+		for (j = 0; j < ctrl->thread[i].vreg_count; j++) {
+			vreg = &ctrl->thread[i].vreg[j];
+			vreg->corner[i].last_volt =
+				vreg->corner[i].open_loop_volt;
+		}
+	}
+
+	/* Register regulator devices for all threads. */
+	for (i = 0; i < ctrl->thread_count; i++) {
+		for (j = 0; j < ctrl->thread[i].vreg_count; j++) {
+			rc = cpr3_regulator_vreg_register(
+					&ctrl->thread[i].vreg[j]);
+			if (rc) {
+				cpr3_err(&ctrl->thread[i].vreg[j], "failed to register regulator, rc=%d\n",
+					 rc);
+				goto free_regulators;
+			}
+		}
+	}
+
+	mutex_lock(&cpr3_controller_list_mutex);
+	list_add(&ctrl->list, &cpr3_controller_list);
+	mutex_unlock(&cpr3_controller_list_mutex);
+
+	return 0;
+
+free_regulators:
+	for (i = 0; i < ctrl->thread_count; i++)
+		for (j = 0; j < ctrl->thread[i].vreg_count; j++)
+			if (!IS_ERR_OR_NULL(ctrl->thread[i].vreg[j].rdev))
+				regulator_unregister(
+					ctrl->thread[i].vreg[j].rdev);
+	return rc;
+}
+
+/**
  * cpr3_regulator_unregister() - unregister the regulators for a CPR3 controller
  *		and perform CPR hardware shutdown
  * @ctrl:		Pointer to the CPR3 controller
@@ -4978,6 +5054,36 @@ int cpr3_regulator_unregister(struct cpr3_controller *ctrl)
 	cpr3_ctrl_loop_disable(ctrl);
 
 	cpr3_closed_loop_disable(ctrl);
+
+	if (ctrl->vdd_limit_regulator) {
+		regulator_disable(ctrl->vdd_limit_regulator);
+	}
+
+	for (i = 0; i < ctrl->thread_count; i++)
+		for (j = 0; j < ctrl->thread[i].vreg_count; j++)
+			regulator_unregister(ctrl->thread[i].vreg[j].rdev);
+
+	if (ctrl->panic_notifier.notifier_call)
+		atomic_notifier_chain_unregister(&panic_notifier_list,
+			&ctrl->panic_notifier);
+
+	return 0;
+}
+
+/**
+ * cpr3_open_loop_regulator_unregister() - unregister the regulators for a CPR3
+ *			open loop controller and perform CPR hardware shutdown
+ * @ctrl:		Pointer to the CPR3 controller
+ *
+ * Return: 0 on success, errno on failure
+ */
+int cpr3_open_loop_regulator_unregister(struct cpr3_controller *ctrl)
+{
+	int i, j;
+
+	mutex_lock(&cpr3_controller_list_mutex);
+	list_del(&ctrl->list);
+	mutex_unlock(&cpr3_controller_list_mutex);
 
 	if (ctrl->vdd_limit_regulator) {
 		regulator_disable(ctrl->vdd_limit_regulator);

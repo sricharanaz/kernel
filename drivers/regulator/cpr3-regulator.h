@@ -808,7 +808,10 @@ struct cpr3_controller {
 
 int cpr3_regulator_register(struct platform_device *pdev,
 			struct cpr3_controller *ctrl);
+int cpr3_open_loop_regulator_register(struct platform_device *pdev,
+				      struct cpr3_controller *ctrl);
 int cpr3_regulator_unregister(struct cpr3_controller *ctrl);
+int cpr3_open_loop_regulator_unregister(struct cpr3_controller *ctrl);
 int cpr3_regulator_suspend(struct cpr3_controller *ctrl);
 int cpr3_regulator_resume(struct cpr3_controller *ctrl);
 
@@ -834,6 +837,7 @@ int cpr3_parse_ctrl_u32(struct cpr3_controller *ctrl, const char *propname,
 			u32 *out_value, u32 value_min, u32 value_max);
 int cpr3_parse_common_thread_data(struct cpr3_thread *thread);
 int cpr3_parse_common_ctrl_data(struct cpr3_controller *ctrl);
+int cpr3_parse_open_loop_common_ctrl_data(struct cpr3_controller *ctrl);
 int cpr3_limit_open_loop_voltages(struct cpr3_regulator *vreg);
 void cpr3_open_loop_voltage_as_ceiling(struct cpr3_regulator *vreg);
 int cpr3_limit_floor_voltages(struct cpr3_regulator *vreg);
@@ -863,7 +867,20 @@ static inline int cpr3_regulator_register(struct platform_device *pdev,
 	return -ENXIO;
 }
 
+static inline int
+cpr3_open_loop_regulator_register(struct platform_device *pdev,
+				  struct cpr3_controller *ctrl);
+{
+	return -ENXIO;
+}
+
 static inline int cpr3_regulator_unregister(struct cpr3_controller *ctrl)
+{
+	return -ENXIO;
+}
+
+static inline int
+cpr3_open_loop_regulator_unregister(struct cpr3_controller *ctrl)
 {
 	return -ENXIO;
 }
@@ -957,6 +974,12 @@ static inline int cpr3_parse_common_thread_data(struct cpr3_thread *thread)
 }
 
 static inline int cpr3_parse_common_ctrl_data(struct cpr3_controller *ctrl)
+{
+	return -EPERM;
+}
+
+static inline int
+cpr3_parse_open_loop_common_ctrl_data(struct cpr3_controller *ctrl)
 {
 	return -EPERM;
 }
