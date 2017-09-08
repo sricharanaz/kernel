@@ -1758,4 +1758,4 @@
 #include "qcom-ipq807x-coresight.dtsi"
 #include "qcom-ipq807x-spmi-regulator.dtsi"
 #include "qcom-ipq807x-thermal.dtsi"
-
+#include "qcom-ipq807x-cpu.dtsi"

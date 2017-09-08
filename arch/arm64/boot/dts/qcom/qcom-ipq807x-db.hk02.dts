@@ -44,43 +44,6 @@
 	};
 };
 
-&CPU0 {
-	operating-points-v2 = <&cpu0_opp_table>;
-	voltage-tolerance = <1>;
-	cpu0-supply = <&s3>;
-};
-
-&CPU1 {
-	operating-points-v2 = <&cpu0_opp_table>;
-	voltage-tolerance = <1>;
-	cpu-supply = <&s3>;
-};
-
-&CPU2 {
-	operating-points-v2 = <&cpu0_opp_table>;
-	voltage-tolerance = <1>;
-	cpu-supply = <&s3>;
-};
-
-&CPU3 {
-	operating-points-v2 = <&cpu0_opp_table>;
-	voltage-tolerance = <1>;
-	cpu-supply = <&s3>;
-};
-
-&cpus {
-	cpu0_opp_table: opp_table0 {
-		compatible = "operating-points-v2";
-		opp-shared;
-
-		opp00 {
-			opp-hz = /bits/ 64 <1689600000>;
-			opp-microvolt = <864000>;
-			clock-latency-ns = <200000>;
-		};
-	};
-};
-
 &tlmm {
 	mdio_pins: mdio_pinmux {
 		mux_0 {
