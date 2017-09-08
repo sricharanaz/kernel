@@ -1664,6 +1664,7 @@ static const struct spmi_regulator_data pm8916_regulators[] = {
 
 static const struct spmi_regulator_data pmd9655_regulators[] = {
 	{ "s3", 0x1a00, "vdd_s3",},
+	{ "s4", 0x1d00, "vdd_s4",},
 	{ "ldo11", 0x4a00, "vdd_ldo11",},
 	{ }
 };
