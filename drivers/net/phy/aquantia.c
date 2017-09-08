@@ -462,6 +462,10 @@ aquantia_phy_probe(struct phy_device *phydev)
 
 	/* Initialize the debug-fs entries */
 	priv = vzalloc(sizeof(*priv));
+
+	if (!priv)
+		return -1;
+
 	priv->phydev = phydev;
 	ret = aquantia_phy_init_debugfs_entries(priv);
 
