@@ -743,6 +743,7 @@
 			qcom,shaping-enabled;
 			qcom,wlan-dataplane-offload-enabled;
 			qcom,vlan-enabled;
+			npu-supply = <&npu_vreg>;
 		};
 
 		nss1: nss@40800000 {
