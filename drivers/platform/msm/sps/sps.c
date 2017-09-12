@@ -3015,23 +3015,43 @@ static int __init sps_init(void)
 	sps->ipc_log0 = ipc_log_context_create(SPS_IPC_LOGPAGES,
 							"sps_ipc_log0", 0);
 	if (!sps->ipc_log0)
+#ifdef CONFIG_IPC_LOGGING
 		pr_err("Failed to create IPC log0\n");
+#else
+		pr_err("IPC logging disabled\n");
+#endif
 	sps->ipc_log1 = ipc_log_context_create(SPS_IPC_LOGPAGES,
 							"sps_ipc_log1", 0);
 	if (!sps->ipc_log1)
+#ifdef CONFIG_IPC_LOGGING
 		pr_err("Failed to create IPC log1\n");
+#else
+		pr_err("IPC logging disabled\n");
+#endif
 	sps->ipc_log2 = ipc_log_context_create(SPS_IPC_LOGPAGES,
 							"sps_ipc_log2", 0);
 	if (!sps->ipc_log2)
+#ifdef CONFIG_IPC_LOGGING
 		pr_err("Failed to create IPC log2\n");
+#else
+		pr_err("IPC logging disabled\n");
+#endif
 	sps->ipc_log3 = ipc_log_context_create(SPS_IPC_LOGPAGES,
 							"sps_ipc_log3", 0);
 	if (!sps->ipc_log3)
+#ifdef CONFIG_IPC_LOGGING
 		pr_err("Failed to create IPC log3\n");
+#else
+		pr_err("IPC logging disabled\n");
+#endif
 	sps->ipc_log4 = ipc_log_context_create(SPS_IPC_LOGPAGES *
 				SPS_IPC_REG_DUMP_FACTOR, "sps_ipc_log4", 0);
 	if (!sps->ipc_log4)
+#ifdef CONFIG_IPC_LOGGING
 		pr_err("Failed to create IPC log4\n");
+#else
+		pr_err("IPC logging disabled\n");
+#endif
 
 	ret = platform_driver_register(&msm_sps_driver);
 
