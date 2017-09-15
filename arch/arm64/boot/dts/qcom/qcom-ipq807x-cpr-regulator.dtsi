@@ -70,19 +70,19 @@
 				qcom,allow-quotient-interpolation;
 				qcom,cpr-voltage-ceiling =
 					<720000 792000 864000
-					 920000 992000 1072000>;
+					 920000 992000 1064000>;
 				qcom,cpr-voltage-floor =
 					<592000 648000 712000
 					 744000 784000 848000>;
 				qcom,corner-frequencies =
-					<1036800000 1382400000 1689600000
-					 1843200000 1958400000 2208000000>;
+					<1017600000 1382400000 1651200000
+					1843200000 1920000000 2208000000>;
 			};
 		};
 	};
 
 	npu_cpr: npu-cpr {
-		compatible = "qcom,cpr4-ipq807x-npu-regulator";
+		compatible = "qcom,cpr3-ipq807x-npu-regulator";
 		reg = <0xa4000 0x1000>;
 		reg-names = "fuse_base";
 		qcom,cpr-ctrl-name = "npu";
