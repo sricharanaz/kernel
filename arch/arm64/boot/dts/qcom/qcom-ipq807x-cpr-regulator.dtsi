@@ -25,7 +25,6 @@
 		qcom,apm-halt-clk-delay = <0x11>;
 		qcom,apm-resume-clk-delay = <0x10>;
 		qcom,apm-sel-switch-delay = <0x01>;
-		status = "disabled";
 	};
 
 	apc_cpr: cpr4-ctrl@b018000 {
@@ -88,7 +87,6 @@
 		qcom,cpr-ctrl-name = "npu";
 		vdd-supply = <&s4>;
 		qcom,voltage-step = <8000>;
-		status = "disabled";
 		thread@0 {
 			qcom,cpr-thread-id = <0>;
 			qcom,cpr-consecutive-up = <0>;
