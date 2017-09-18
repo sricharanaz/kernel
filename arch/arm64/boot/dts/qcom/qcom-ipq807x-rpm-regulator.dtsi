@@ -61,8 +61,8 @@
 		ipq807x_s3_corner: regulator-s3 {
 			compatible = "qcom,rpm-glink-regulator";
 			regulator-name = "ipq807x_s3";
-			regulator-min-microvolt = <660000>;
-			regulator-max-microvolt = <1104000>;
+			regulator-min-microvolt = <592000>;
+			regulator-max-microvolt = <1064000>;
 			qcom,set = <3>;
 			status = "disabled";
 		};
