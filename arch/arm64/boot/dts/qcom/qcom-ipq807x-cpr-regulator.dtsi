@@ -108,7 +108,7 @@
 				qcom,cpr-voltage-ceiling =
 					<912000 992000>;
 				qcom,cpr-voltage-floor =
-					<792000 752000>;
+					<752000 792000>;
 				qcom,corner-frequencies =
 					<1497600000 1689600000>;
 			};
