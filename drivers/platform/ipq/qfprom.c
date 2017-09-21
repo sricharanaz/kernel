@@ -25,15 +25,11 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/device.h>
-#include <soc/qcom/scm.h>
-#include <asm/mach-types.h>
+#include <linux/qcom_scm.h>
 #include <asm/cacheflush.h>
 #include <linux/dma-mapping.h>
 
 #define QFPROM_MAX_VERSION_EXCEEDED             0x10
-#define QFPROM_ROW_READ_CMD			0x8
-#define QFPROM_ROW_WRITE_CMD			0x9
-#define QFPROM_IS_AUTHENTICATE_CMD		0x7
 #define QFPROM_IS_AUTHENTICATE_CMD_RSP_SIZE	0x2
 
 #define SW_TYPE_DEFAULT				0xFF
@@ -51,9 +47,9 @@ qfprom_show_authenticate(struct device *dev,
 			char *buf)
 {
 	int ret;
-	ret = scm_call(SCM_SVC_FUSE, QFPROM_IS_AUTHENTICATE_CMD,
-			NULL, 0, buf, sizeof(char));
+	char lbuf;
 
+	ret = qcom_qfprom_show_authenticate(&lbuf);
 	if (ret) {
 		pr_err("%s: Error in QFPROM read : %d\n",
 						__func__, ret);
@@ -61,7 +57,7 @@ qfprom_show_authenticate(struct device *dev,
 	}
 
 	/* show needs a string response */
-	if (buf[0] == 1)
+	if (lbuf == 1)
 		buf[0] = '1';
 	else
 		buf[0] = '0';
@@ -96,8 +92,7 @@ int write_version(uint32_t type, uint32_t version)
 		goto err_write;
 	}
 
-	ret = scm_call(SCM_SVC_FUSE, QFPROM_ROW_WRITE_CMD,
-				&wrip, sizeof(wrip), NULL, 0);
+	ret = qcom_qfprom_read_version(&wrip, sizeof(wrip));
 
 	dma_unmap_single(NULL, wrip.qfprom_ret_ptr,
 			sizeof(*qfprom_api_status), DMA_FROM_DEVICE);
@@ -139,8 +134,7 @@ int read_version(int type, uint32_t **version_ptr)
 	ret2 = dma_mapping_error(NULL, rdip.qfprom_ret_ptr);
 
 	if (ret1 == 0 && ret2 == 0) {
-		ret = scm_call(SCM_SVC_FUSE, QFPROM_ROW_READ_CMD,
-			&rdip, sizeof(rdip), NULL, 0);
+		ret = qcom_qfprom_read_version(&rdip, sizeof(rdip));
 	}
 	if (ret1 == 0) {
 		dma_unmap_single(NULL, rdip.value,

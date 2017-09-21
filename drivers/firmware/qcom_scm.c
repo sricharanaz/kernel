@@ -81,6 +81,38 @@ static void qcom_scm_clk_disable(void)
 }
 
 /**
+ * qcom_qfprom_show_authenticate() - Authenticate the signed image
+ */
+int qcom_qfprom_show_authenticate(char *buf)
+{
+	dma_addr_t auth_phys;
+	void *auth_buf;
+	int ret = 0;
+
+	*buf = 'j';
+
+	auth_buf = dma_alloc_coherent(__scm->dev, sizeof(*buf), &auth_phys,
+				       GFP_KERNEL);
+	ret = __qcom_qfprom_show_authenticate(__scm->dev, auth_phys);
+
+	memcpy(buf, auth_buf, sizeof(*buf));
+	dma_free_coherent(__scm->dev, sizeof(*buf), auth_buf, auth_phys);
+
+	return ret;
+}
+EXPORT_SYMBOL(qcom_qfprom_show_authenticate);
+
+int qcom_qfprom_write_version(void *wrip, int size)
+{
+	return 0;
+}
+
+int qcom_qfprom_read_version(void *rdip, int size)
+{
+	return 0;
+}
+
+/**
  * qcom_scm_set_cold_boot_addr() - Set the cold boot address for cpus
  * @entry: Entry point function for the cpus
  * @cpus: The cpumask of cpus that will use the entry point
