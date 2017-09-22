@@ -90,8 +90,64 @@
 #define TSENS_TM_SN_LAST_TEMP_MASK		0xfff
 
 #define MAX_SENSOR				16
+#define VALID_SENSOR_START_IDX			4
 #define MAX_TEMP				204 /* Celcius */
 #define MIN_TEMP				0   /* Celcius */
+
+/*
+ * The SHIFT field should always be set to 0x3 (corresponding to N = 10)
+ * to ensure calculation error of +/- 1 deci °C (this is the best case).
+*/
+#define	TSENS_CAL_SHIFT				3
+#define TSENS_CAL_SHIFT_SHIFT			23
+#define TSENS_ONE_POINT_SLOPE			0xCD0
+#define TSENS_ONE_PT_CZERO_CONST		94
+#define TSENS_TWO_POINT_SLOPE			921600
+#define TSENS_SLOPE_SHIFT			10
+
+#define TSENS_CAL_BASE_ADDR			0xA4000
+#define TSENS_CAL_SEL				0x250
+#define TSENS_CAL_SEL_MASK			0x700
+#define TSENS_CAL_SEL_SHIFT			0x8
+#define TSENS_CAL_BASE0_MASK			0X1FF800
+#define TSENS_CAL_BASE0_SHIFT			11
+#define TSENS_CAL_BASE1_MASK			0X7FE00000
+#define TSENS_CAL_BASE1_SHIFT			21
+
+/*
+ * TSENS0_OFFSET is not required as the sensor is unused.
+ * TSENS1_OFFSET corresponds to the sensor ID 4 and
+ * TSENS2_OFFSET corresponds to sensor ID 5 and so on.
+*/
+#define TSENS_CAL_OFFSET_ADDR_0			0x254
+#define TSENS1_OFFSET_MASK			0xF0
+#define TSENS1_OFFSET_SHIFT			4
+#define TSENS2_OFFSET_MASK			0xF00
+#define TSENS2_OFFSET_SHIFT			8
+#define TSENS3_OFFSET_MASK			0xF000
+#define TSENS3_OFFSET_SHIFT			12
+#define TSENS4_OFFSET_MASK			0xF0000
+#define TSENS4_OFFSET_SHIFT			16
+#define TSENS5_OFFSET_MASK			0xF00000
+#define TSENS5_OFFSET_SHIFT			20
+
+#define TSENS_CAL_OFFSET_ADDR_1			0x258
+#define TSENS6_OFFSET_MASK			0xF
+#define TSENS6_OFFSET_SHIFT			0
+#define TSENS7_OFFSET_MASK			0xF0
+#define TSENS7_OFFSET_SHIFT			4
+
+#define TSENS_CAL_OFFSET_ADDR_2			0x214
+#define TSENS8_OFFSET_MASK			0xF
+#define TSENS8_OFFSET_SHIFT			0
+#define TSENS9_OFFSET_MASK			0xF0
+#define TSENS9_OFFSET_SHIFT			4
+#define TSENS10_OFFSET_MASK			0xF00
+#define TSENS10_OFFSET_SHIFT			8
+#define TSENS11_OFFSET_MASK			0xF000
+#define TSENS11_OFFSET_SHIFT			12
+#define TSENS12_OFFSET_MASK			0xF0000
+#define TSENS12_OFFSET_SHIFT			16
 
 /* Trips: from very hot to very cold */
 enum tsens_trip_type {
@@ -222,6 +278,189 @@ static void disable_ipq807x(struct tsens_device *tmdev)
 	mb();
 }
 
+static void default_calibration(struct tsens_device *tmdev)
+{
+	int i;
+	/* Update conversion registers with default values */
+	for (i = VALID_SENSOR_START_IDX; i < tmdev->num_sensors; i++)
+		regmap_write(tmdev->map, TSENS_CONVERSION(i),
+						TSENS_CONVERSION_DEFAULT);
+}
+
+static void get_tsens_offsets(void __iomem *fuse_base, u32 *offsets)
+{
+	u32 val, offset;
+	int i = VALID_SENSOR_START_IDX;
+
+	/* Offsets for 1 to 5 */
+	val = readl_relaxed(fuse_base + TSENS_CAL_OFFSET_ADDR_0);
+
+	offset = val & TSENS1_OFFSET_MASK;
+	offset = (offset >> TSENS1_OFFSET_SHIFT);
+	offsets[i++] = offset;
+
+	offset = val & TSENS2_OFFSET_MASK;
+	offset = (offset >> TSENS2_OFFSET_SHIFT);
+	offsets[i++] = offset;
+
+	offset = val & TSENS3_OFFSET_MASK;
+	offset = (offset >> TSENS3_OFFSET_SHIFT);
+	offsets[i++] = offset;
+
+	offset = val & TSENS4_OFFSET_MASK;
+	offset = (offset >> TSENS4_OFFSET_SHIFT);
+	offsets[i++] = offset;
+
+	offset = val & TSENS5_OFFSET_MASK;
+	offset = (offset >> TSENS5_OFFSET_SHIFT);
+	offsets[i++] = offset;
+
+	/* Offsets for 6 and 7 */
+	val = readl_relaxed(fuse_base + TSENS_CAL_OFFSET_ADDR_1);
+
+	offset = val & TSENS6_OFFSET_MASK;
+	offset = (offset >> TSENS6_OFFSET_SHIFT);
+	offsets[i++] = offset;
+
+	offset = val & TSENS7_OFFSET_MASK;
+	offset = (offset >> TSENS7_OFFSET_SHIFT);
+	offsets[i++] = offset;
+
+	/* Offsets for 8 and 12 */
+	val = readl_relaxed(fuse_base + TSENS_CAL_OFFSET_ADDR_2);
+
+	offset = val & TSENS8_OFFSET_MASK;
+	offset = (offset >> TSENS8_OFFSET_SHIFT);
+	offsets[i++] = offset;
+
+	offset = val & TSENS9_OFFSET_MASK;
+	offset = (offset >> TSENS9_OFFSET_SHIFT);
+	offsets[i++] = offset;
+
+	offset = val & TSENS10_OFFSET_MASK;
+	offset = (offset >> TSENS10_OFFSET_SHIFT);
+	offsets[i++] = offset;
+
+	offset = val & TSENS11_OFFSET_MASK;
+	offset = (offset >> TSENS11_OFFSET_SHIFT);
+	offsets[i++] = offset;
+
+	offset = val & TSENS12_OFFSET_MASK;
+	offset = (offset >> TSENS12_OFFSET_SHIFT);
+	offsets[i++] = offset;
+
+}
+
+/*
+ * When only one-point calibration is available,
+ * the following values should be used:
+ *     SLOPE = 3280 = 0xCD0
+ *     CZERO = TSENSm_BASE0 + TSENSn_OFFSET – 94
+*/
+static void one_point_calibration(struct tsens_device *tmdev,
+						void __iomem *fuse_base)
+{
+	u32 val, base, czero;
+	u32 offsets[MAX_SENSOR];
+	int i = 0;
+
+	/* Get TSENS BASE0 Calibraion */
+	val = readl_relaxed(fuse_base + TSENS_CAL_SEL);
+	val &= TSENS_CAL_BASE0_MASK;
+	base = (val >> TSENS_CAL_BASE0_SHIFT);
+
+	/* Populate TSENS OFFSETS */
+	get_tsens_offsets(fuse_base, offsets);
+
+	/* Update conversion registers */
+	for (i = VALID_SENSOR_START_IDX; i < tmdev->num_sensors; i++) {
+		/* calculating czero as per spec */
+		czero = base + offsets[i] - TSENS_ONE_PT_CZERO_CONST;
+		val = (TSENS_CAL_SHIFT << TSENS_CAL_SHIFT_SHIFT)
+			| (TSENS_ONE_POINT_SLOPE << TSENS_SLOPE_SHIFT)
+			| czero;
+
+		regmap_write(tmdev->map, TSENS_CONVERSION(i), val);
+	}
+}
+
+/*
+ * When two-point calibration is available,
+ * the SLOPE field is the sensor gain left shifted by the shift amount, N=10.
+ * It is calculated as follows:
+ *     SLOPE =(900 << N)/(∆TSENSm_BASE)  =921600/(∆TSENSm_BASE)
+ * The CZERO field is the ADC code at 0 deci °C.
+ * It is calculated by linear interpolation:
+ *     CZERO = TSENSm_BASE0 +TSENSn_OFFSET –  (∆TSENSm_BASE)/3
+ *
+ * Where:
+ *     ΔTSENSm_BASE = per controller TSENSm_BASE1 – TSENSm_BASE0
+*/
+static void two_point_calibration(struct tsens_device *tmdev,
+						void __iomem *fuse_base)
+{
+	u32 val, base0, base1, czero, slope;
+	u32 offsets[MAX_SENSOR];
+	int i = 0;
+
+	/* Get TSENS BASE0 and BASE1 calibraion */
+	val = readl_relaxed(fuse_base + TSENS_CAL_SEL);
+	base0 = val & TSENS_CAL_BASE0_MASK;
+	base0 = (base0 >> TSENS_CAL_BASE0_SHIFT);
+	base1 = val & TSENS_CAL_BASE1_MASK;
+	base1 = (base1 >> TSENS_CAL_BASE1_SHIFT);
+
+	slope = (TSENS_TWO_POINT_SLOPE/(base1 - base0));
+
+	/* Populate TSENS OFFSETS */
+	get_tsens_offsets(fuse_base, offsets);
+
+	/* Update conversion registers */
+	for (i = VALID_SENSOR_START_IDX; i < tmdev->num_sensors; i++) {
+		/* calculating czero as per spec */
+		czero = base0 + offsets[i] - ((base1 - base0)/3);
+		val = (TSENS_CAL_SHIFT << TSENS_CAL_SHIFT_SHIFT)
+			| (slope << TSENS_SLOPE_SHIFT)
+			| czero;
+
+		regmap_write(tmdev->map, TSENS_CONVERSION(i), val);
+	}
+}
+
+static int calibrate_ipq807x(struct tsens_device *tmdev)
+{
+	int i;
+	u32 val;
+	void __iomem *fuse_addr;
+
+	fuse_addr = ioremap(TSENS_CAL_BASE_ADDR, 1000);
+	if (!fuse_addr)
+		return -1;
+
+	/* Identify calibration mode */
+	val = readl_relaxed(fuse_addr + TSENS_CAL_SEL);
+	val &= TSENS_CAL_SEL_MASK;
+	val = (val >> TSENS_CAL_SEL_SHIFT);
+
+	if (val == 0x2) {
+		/* One point calibration */
+		pr_info("TSENS 1-point calibration...\n");
+		one_point_calibration(tmdev, fuse_addr);
+	} else if (val == 0x3) {
+		/* Two point calibration */
+		pr_info("TSENS 2-point calibration...\n");
+		two_point_calibration(tmdev, fuse_addr);
+	} else {
+		/* Not calibrated (use default values from PTE) */
+		pr_info("TSENS not calibrated use defaults...\n");
+		default_calibration(tmdev);
+	}
+
+	iounmap(fuse_addr);
+
+	return 0;
+}
+
 static int init_ipq807x(struct tsens_device *tmdev)
 {
 	int ret, i;
@@ -295,6 +534,12 @@ static int get_temp_ipq807x(struct tsens_device *tmdev, int id, int *temp)
 	u32 code, trdy;
 	const struct tsens_sensor *s = &tmdev->sensor[id];
 	unsigned long timeout;
+
+	if (!s)
+		return -EINVAL;
+
+	if ((s->id < 0) || (s->id > (MAX_SENSOR - 1)))
+		return -EINVAL;
 
 	timeout = jiffies + usecs_to_jiffies(TSENS_TRDY_TIMEOUT_US);
 	do {
@@ -401,9 +646,16 @@ static int set_trip_activate_ipq807x(void *data, int trip,
 					enum thermal_trip_activation_mode mode)
 {
 	const struct tsens_sensor *s = data;
-	struct tsens_device *tmdev = s->tmdev;
+	struct tsens_device *tmdev;
 	unsigned int reg_val, reg_offset, mask;
 
+	if (!s)
+		return -EINVAL;
+
+	if ((s->id < 0) || (s->id > (MAX_SENSOR - 1)))
+		return -EINVAL;
+
+	tmdev = s->tmdev;
 	if (!tmdev)
 		return -EINVAL;
 
@@ -448,6 +700,7 @@ static int set_trip_activate_ipq807x(void *data, int trip,
 const struct tsens_ops ops_ipq807x = {
 	.init		= init_ipq807x,
 	.get_temp	= get_temp_ipq807x,
+	.calibrate	= calibrate_ipq807x,
 	.enable		= enable_ipq807x,
 	.disable	= disable_ipq807x,
 	.suspend	= suspend_ipq807x,
