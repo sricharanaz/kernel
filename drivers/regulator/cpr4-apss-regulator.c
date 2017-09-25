@@ -178,7 +178,7 @@ static const int ipq807x_apss_fuse_ref_volt
 	1064000,
 };
 
-#define IPQ807x_APSS_FUSE_STEP_VOLT		10000
+#define IPQ807x_APSS_FUSE_STEP_VOLT		8000
 #define IPQ807x_APSS_VOLTAGE_FUSE_SIZE	6
 #define IPQ807x_APSS_QUOT_OFFSET_SCALE	5
 
