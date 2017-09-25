@@ -45,7 +45,6 @@ module_param(disable_restart_work, uint, S_IRUGO | S_IWUSR);
 static int enable_debug;
 module_param(enable_debug, int, S_IRUGO | S_IWUSR);
 
-struct completion dump_complete;
 /* The maximum shutdown timeout is the product of MAX_LOOPS and DELAY_MS. */
 #define SHUTDOWN_ACK_MAX_LOOPS	100
 #define SHUTDOWN_ACK_DELAY_MS	100
@@ -554,13 +553,10 @@ static void subsystem_shutdown(struct subsys_device *dev, void *data)
 static void subsystem_ramdump(struct subsys_device *dev, void *data)
 {
 	const char *name = dev->desc->name;
-	init_completion(&dump_complete);
 	if (dev->desc->ramdump)
 		if (dev->desc->ramdump(is_ramdump_enabled(dev), dev->desc) < 0)
 			pr_warn("%s[%s:%d]: Ramdump failed.\n",
 				name, current->comm, current->pid);
-
-	wait_for_completion(&dump_complete);
 
 	dev->do_ramdump_on_put = false;
 }

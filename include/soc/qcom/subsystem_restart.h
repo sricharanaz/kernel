@@ -131,24 +131,6 @@ void notify_proxy_vote(struct device *device);
 void notify_proxy_unvote(struct device *device);
 void complete_err_ready(struct subsys_device *subsys);
 extern int wait_for_shutdown_ack(struct subsys_desc *desc);
-static const struct file_operations q6_dump_ops;
-
-enum dump_devices {
-	q6_mem0 = 1,
-	q6_mem1,
-};
-
-struct dumpdev {
-	const char *name;
-	const struct file_operations *fops;
-	fmode_t fmode;
-	umode_t mode;
-	char ss_name[8];
-	phys_addr_t dump_phy_addr;
-	size_t dump_size;
-};
-
-extern struct completion dump_complete;
 #else
 static inline int subsys_get_restart_level(struct subsys_device *dev)
 {
