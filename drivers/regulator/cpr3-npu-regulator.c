@@ -65,8 +65,8 @@ static const char * const cpr3_ipq807x_npu_fuse_corner_name[] = {
  */
 static const struct cpr3_fuse_param
 ipq807x_npu_init_voltage_param[IPQ807x_NPU_FUSE_CORNERS][2] = {
-	{{73, 21, 25}, {} },
-	{{73, 16, 20}, {} },
+	{{73, 22, 27}, {} },
+	{{73, 16, 21}, {} },
 };
 
 /*
