@@ -24,7 +24,7 @@
 #include "cpr3-regulator.h"
 
 #define IPQ807x_NPU_FUSE_CORNERS		2
-#define IPQ807x_NPU_FUSE_STEP_VOLT		10000
+#define IPQ807x_NPU_FUSE_STEP_VOLT		8000
 #define IPQ807x_NPU_VOLTAGE_FUSE_SIZE		5
 #define IPQ807x_NPU_CPR_CLOCK_RATE		19200000
 
@@ -65,8 +65,8 @@ static const char * const cpr3_ipq807x_npu_fuse_corner_name[] = {
  */
 static const struct cpr3_fuse_param
 ipq807x_npu_init_voltage_param[IPQ807x_NPU_FUSE_CORNERS][2] = {
-	{{73, 21, 25}, {} },
-	{{73, 16, 20}, {} },
+	{{73, 22, 27}, {} },
+	{{73, 16, 21}, {} },
 };
 
 /*
