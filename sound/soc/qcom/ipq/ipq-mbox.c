@@ -613,7 +613,8 @@ int ipq_mbox_form_ring(int channel_id, dma_addr_t baseaddr, u8 *area,
 							((i + 1) % ndescs));
 		desc->size = period_bytes;
 		desc->length = desc->size;
-		baseaddr += ALIGN(period_bytes, L1_CACHE_BYTES);
+		baseaddr += period_bytes;
+
 		if (baseaddr >= (baseaddr_const + bufsize)) {
 			if (bufsize % period_bytes)
 				desc->size = bufsize % period_bytes;
