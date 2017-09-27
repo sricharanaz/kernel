@@ -359,6 +359,20 @@ int __qcom_scm_pas_mss_reset(struct device *dev, bool reset)
 	return ret ? : res.a1;
 }
 
+int __qcom_qfprom_show_authenticate(struct device *dev, dma_addr_t buf)
+{
+	int ret;
+	struct arm_smccc_res res;
+	struct scm_desc desc = {0};
+
+	desc.args[0] = (u64)buf;
+	desc.args[1] = sizeof(char);
+	desc.arginfo = SCM_ARGS(2, SCM_RO);
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_FUSE,
+				QCOM_QFPROM_IS_AUTHENTICATE_CMD, &desc, &res);
+	return ret ? : res.a1;
+}
+
 int __qcom_scm_regsave(struct device *dev, u32 svc_id, u32 cmd_id,
 			void *scm_regsave, unsigned int buf_size)
 {
