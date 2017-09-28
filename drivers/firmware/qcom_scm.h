@@ -28,7 +28,9 @@
 #define QCOM_SCM_FLAG_WARMBOOT_MC	0x04
 extern int __qcom_scm_set_warm_boot_addr(struct device *dev, void *entry,
 		const cpumask_t *cpus);
-extern int __qcom_qfprom_show_authenticate(struct device *dev, dma_addr_t buf);
+extern int __qcom_qfprom_read_version(struct device *dev, uint32_t sw_type,
+			uint32_t value, uint32_t qfprom_ret_ptr);
+extern int __qcom_qfprom_show_authenticate(struct device *dev, char *buf);
 extern int __qcom_scm_set_cold_boot_addr(void *entry, const cpumask_t *cpus);
 
 #define QCOM_SCM_CMD_TERMINATE_PC	0x2

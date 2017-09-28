@@ -28,6 +28,7 @@
 #include <linux/qcom_scm.h>
 #include <asm/cacheflush.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_device.h>
 
 #define QFPROM_MAX_VERSION_EXCEEDED             0x10
 #define QFPROM_IS_AUTHENTICATE_CMD_RSP_SIZE	0x2
@@ -38,6 +39,8 @@
 #define SW_TYPE_APPSBL				0x9
 #define SW_TYPE_HLOS				0x17
 #define SW_TYPE_RPM				0xA
+#define SW_TYPE_DEVCFG				0x5
+#define SW_TYPE_APDP				0x200
 
 static int gl_version_enable;
 
@@ -67,7 +70,7 @@ qfprom_show_authenticate(struct device *dev,
 	return QFPROM_IS_AUTHENTICATE_CMD_RSP_SIZE;
 }
 
-int write_version(uint32_t type, uint32_t version)
+int write_version(struct device *dev, uint32_t type, uint32_t version)
 {
 	int ret;
 	struct qfprom_write {
@@ -83,18 +86,18 @@ int write_version(uint32_t type, uint32_t version)
 
 	wrip.value = version;
 	wrip.sw_type = type;
-	wrip.qfprom_ret_ptr = dma_map_single(NULL, qfprom_api_status,
+	wrip.qfprom_ret_ptr = dma_map_single(dev, qfprom_api_status,
 			sizeof(*qfprom_api_status), DMA_FROM_DEVICE);
 
-	ret = dma_mapping_error(NULL, wrip.qfprom_ret_ptr);
+	ret = dma_mapping_error(dev, wrip.qfprom_ret_ptr);
 	if (ret) {
 		pr_err("DMA Mapping Error(api_status)\n");
 		goto err_write;
 	}
 
-	ret = qcom_qfprom_read_version(&wrip, sizeof(wrip));
+	ret = qcom_qfprom_write_version(&wrip, sizeof(wrip));
 
-	dma_unmap_single(NULL, wrip.qfprom_ret_ptr,
+	dma_unmap_single(dev, wrip.qfprom_ret_ptr,
 			sizeof(*qfprom_api_status), DMA_FROM_DEVICE);
 
 	if(ret)
@@ -109,7 +112,7 @@ err_write:
 	return ret;
 }
 
-int read_version(int type, uint32_t **version_ptr)
+int read_version(struct device *dev, int type, uint32_t **version_ptr)
 {
 	int ret, ret1, ret2;
 	struct qfprom_read {
@@ -124,24 +127,25 @@ int read_version(int type, uint32_t **version_ptr)
 		return -ENOMEM;
 
 	rdip.sw_type = type;
-	rdip.value = dma_map_single(NULL, *version_ptr,
+	rdip.value = dma_map_single(dev, *version_ptr,
 		sizeof(uint32_t), DMA_FROM_DEVICE);
 
-	rdip.qfprom_ret_ptr = dma_map_single(NULL, qfprom_api_status,
+	rdip.qfprom_ret_ptr = dma_map_single(dev, qfprom_api_status,
 		sizeof(*qfprom_api_status), DMA_FROM_DEVICE);
 
-	ret1 = dma_mapping_error(NULL, rdip.value);
-	ret2 = dma_mapping_error(NULL, rdip.qfprom_ret_ptr);
+	ret1 = dma_mapping_error(dev, rdip.value);
+	ret2 = dma_mapping_error(dev, rdip.qfprom_ret_ptr);
 
 	if (ret1 == 0 && ret2 == 0) {
-		ret = qcom_qfprom_read_version(&rdip, sizeof(rdip));
+		ret = qcom_qfprom_read_version(type, rdip.value,
+			rdip.qfprom_ret_ptr);
 	}
 	if (ret1 == 0) {
-		dma_unmap_single(NULL, rdip.value,
+		dma_unmap_single(dev, rdip.value,
 			sizeof(uint32_t), DMA_FROM_DEVICE);
 	}
 	if (ret2 == 0) {
-		dma_unmap_single(NULL, rdip.qfprom_ret_ptr,
+		dma_unmap_single(dev, rdip.qfprom_ret_ptr,
 			sizeof(*qfprom_api_status), DMA_FROM_DEVICE);
 	}
 	if (ret1 || ret2) {
@@ -160,7 +164,7 @@ err_read:
 	return ret;
 }
 
-static ssize_t generic_version(const char *buf,
+static ssize_t generic_version(struct device *dev, const char *buf,
 		uint32_t sw_type, int op, size_t count)
 {
 	int ret = 0;
@@ -174,7 +178,7 @@ static ssize_t generic_version(const char *buf,
 	 */
 	switch (op) {
 	case 1:
-		ret = read_version(sw_type, &version);
+		ret = read_version(dev, sw_type, &version);
 		if (ret) {
 			pr_err("Error in reading version: %d\n", ret);
 			goto err_generic;
@@ -187,7 +191,7 @@ static ssize_t generic_version(const char *buf,
 		if (ret)
 			goto err_generic;
 
-		ret = write_version(sw_type, *version);
+		ret = write_version(dev, sw_type, *version);
 		if (ret) {
 			pr_err("Error in writing version: %d\n", ret);
 			goto err_generic;
@@ -207,7 +211,7 @@ show_sbl_version(struct device *dev,
 			struct device_attribute *attr,
 			char *buf)
 {
-	return generic_version(buf, SW_TYPE_SBL, 1, 0);
+	return generic_version(dev, buf, SW_TYPE_SBL, 1, 0);
 }
 
 static ssize_t
@@ -215,7 +219,7 @@ store_sbl_version(struct device *dev,
 			struct device_attribute *attr,
 			const char *buf, size_t count)
 {
-	return generic_version(buf, SW_TYPE_SBL, 2, count);
+	return generic_version(dev, buf, SW_TYPE_SBL, 2, count);
 }
 
 static ssize_t
@@ -223,7 +227,7 @@ show_tz_version(struct device *dev,
 			struct device_attribute *attr,
 			char *buf)
 {
-	return generic_version(buf, SW_TYPE_TZ, 1, 0);
+	return generic_version(dev, buf, SW_TYPE_TZ, 1, 0);
 }
 
 static ssize_t
@@ -231,7 +235,7 @@ store_tz_version(struct device *dev,
 			struct device_attribute *attr,
 			const char *buf, size_t count)
 {
-	return generic_version(buf, SW_TYPE_TZ, 2, count);
+	return generic_version(dev, buf, SW_TYPE_TZ, 2, count);
 }
 
 static ssize_t
@@ -239,7 +243,7 @@ show_appsbl_version(struct device *dev,
 			struct device_attribute *attr,
 			char *buf)
 {
-	return generic_version(buf, SW_TYPE_APPSBL, 1, 0);
+	return generic_version(dev, buf, SW_TYPE_APPSBL, 1, 0);
 }
 
 static ssize_t
@@ -247,7 +251,7 @@ store_appsbl_version(struct device *dev,
 			struct device_attribute *attr,
 			const char *buf, size_t count)
 {
-	return generic_version(buf, SW_TYPE_APPSBL, 2, count);
+	return generic_version(dev, buf, SW_TYPE_APPSBL, 2, count);
 }
 
 static ssize_t
@@ -255,7 +259,7 @@ show_hlos_version(struct device *dev,
 			struct device_attribute *attr,
 			char *buf)
 {
-	return generic_version(buf, SW_TYPE_HLOS, 1, 0);
+	return generic_version(dev, buf, SW_TYPE_HLOS, 1, 0);
 }
 
 static ssize_t
@@ -263,7 +267,7 @@ store_hlos_version(struct device *dev,
 			struct device_attribute *attr,
 			const char *buf, size_t count)
 {
-	return generic_version(buf, SW_TYPE_HLOS, 2, count);
+	return generic_version(dev, buf, SW_TYPE_HLOS, 2, count);
 }
 
 static ssize_t
@@ -271,7 +275,7 @@ show_rpm_version(struct device *dev,
 			struct device_attribute *attr,
 			char *buf)
 {
-	return generic_version(buf, SW_TYPE_RPM, 1, 0);
+	return generic_version(dev, buf, SW_TYPE_RPM, 1, 0);
 }
 
 static ssize_t
@@ -279,7 +283,39 @@ store_rpm_version(struct device *dev,
 			struct device_attribute *attr,
 			const char *buf, size_t count)
 {
-	return generic_version(buf, SW_TYPE_RPM, 2, count);
+	return generic_version(dev, buf, SW_TYPE_RPM, 2, count);
+}
+
+static ssize_t
+show_devcfg_version(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	return generic_version(dev, buf, SW_TYPE_DEVCFG, 1, 0);
+}
+
+static ssize_t
+store_devcfg_version(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	return generic_version(dev, buf, SW_TYPE_DEVCFG, 2, count);
+}
+
+static ssize_t
+show_apdp_version(struct device *dev,
+			struct device_attribute *attr,
+			char *buf)
+{
+	return generic_version(dev, buf, SW_TYPE_APDP, 1, 0);
+}
+
+static ssize_t
+store_apdp_version(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
+{
+	return generic_version(dev, buf, SW_TYPE_APDP, 2, count);
 }
 
 /*
@@ -299,6 +335,11 @@ static struct device_attribute qfprom_attrs[] = {
 					store_hlos_version),
 	__ATTR(rpm_version, 0644, show_rpm_version,
 					store_rpm_version),
+	__ATTR(devcfg_version, 0644, show_devcfg_version,
+					store_devcfg_version),
+	__ATTR(apdp_version, 0644, show_apdp_version,
+					store_apdp_version),
+
 };
 
 static struct bus_type qfprom_subsys = {
@@ -346,14 +387,14 @@ static int __init qfprom_create_files(int size, int16_t sw_bitmap)
 	return 0;
 }
 
-int is_version_rlbk_enabled(int16_t *sw_bitmap)
+int is_version_rlbk_enabled(struct device *dev, int16_t *sw_bitmap)
 {
 	int ret;
 	uint32_t *version_enable = kzalloc(sizeof(uint32_t), GFP_KERNEL);
 	if (!version_enable)
 		return -ENOMEM;
 
-	ret = read_version(SW_TYPE_DEFAULT, &version_enable);
+	ret = read_version(dev, SW_TYPE_DEFAULT, &version_enable);
 	if (ret) {
 		pr_err("\n Version Read Failed with error %d", ret);
 		goto err_ver;
@@ -368,12 +409,17 @@ err_ver:
 	return ret;
 }
 
-static int __init qfprom_init(void)
+static int qfprom_probe(struct platform_device *pdev)
 {
 	int err;
 	int16_t sw_bitmap = 0;
 
-	gl_version_enable = is_version_rlbk_enabled(&sw_bitmap);
+	if (!qcom_scm_is_available()) {
+		pr_info("SCM call is not initialized, defering probe\n");
+		return -EPROBE_DEFER;
+	}
+
+	gl_version_enable = is_version_rlbk_enabled(&pdev->dev, &sw_bitmap);
 	if (gl_version_enable == 0)
 		pr_info("\nVersion Rollback Feature Disabled\n");
 	/*
@@ -385,8 +431,23 @@ static int __init qfprom_init(void)
 			__func__, err);
 		return err;
 	}
-	err = device_register(&device_qfprom);
+
+	device_register(&device_qfprom);
 
 	return qfprom_create_files(ARRAY_SIZE(qfprom_attrs), sw_bitmap);
 }
-arch_initcall(qfprom_init);
+
+static const struct of_device_id qcom_qfprom_dt_match[] = {
+	{ .compatible = "qcom,qfprom-sec",},
+	{}
+};
+
+static struct platform_driver qcom_qfprom_driver = {
+	.driver = {
+		.name	= "qcom_qfprom",
+		.of_match_table = qcom_qfprom_dt_match,
+	},
+	.probe = qfprom_probe,
+};
+
+module_platform_driver(qcom_qfprom_driver);

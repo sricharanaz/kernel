@@ -85,18 +85,9 @@ static void qcom_scm_clk_disable(void)
  */
 int qcom_qfprom_show_authenticate(char *buf)
 {
-	dma_addr_t auth_phys;
-	void *auth_buf;
 	int ret = 0;
 
-	*buf = 'j';
-
-	auth_buf = dma_alloc_coherent(__scm->dev, sizeof(*buf), &auth_phys,
-				       GFP_KERNEL);
-	ret = __qcom_qfprom_show_authenticate(__scm->dev, auth_phys);
-
-	memcpy(buf, auth_buf, sizeof(*buf));
-	dma_free_coherent(__scm->dev, sizeof(*buf), auth_buf, auth_phys);
+	ret = __qcom_qfprom_show_authenticate(__scm->dev, buf);
 
 	return ret;
 }
@@ -104,12 +95,14 @@ EXPORT_SYMBOL(qcom_qfprom_show_authenticate);
 
 int qcom_qfprom_write_version(void *wrip, int size)
 {
-	return 0;
+	return -ENOTSUPP;
 }
 
-int qcom_qfprom_read_version(void *rdip, int size)
+int qcom_qfprom_read_version(uint32_t sw_type,
+			uint32_t value, uint32_t qfprom_ret_ptr)
 {
-	return 0;
+	return __qcom_qfprom_read_version(__scm->dev, sw_type, value,
+						qfprom_ret_ptr);
 }
 
 /**
@@ -445,10 +438,10 @@ static int qcom_scm_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	__scm = scm;
-	__scm->dev = &pdev->dev;
-
 	__qcom_scm_init();
+
+	scm->dev = &pdev->dev;
+	__scm = scm;
 
 	return 0;
 }
