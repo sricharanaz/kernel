@@ -303,11 +303,11 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 			    unsigned int tcount, u8 authsize,
 			    unsigned int aad_size, u8 *keysize)
 {
-	unsigned int i, j;
 	struct crypto_aead *tfm;
+	struct aead_request *req;
+	unsigned int i, j;
 	int ret = -ENOMEM;
 	const char *key;
-	struct aead_request *req;
 	struct scatterlist *sg;
 	struct scatterlist *sgout;
 	const char *e;
@@ -346,32 +346,32 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 		goto out_nosg;
 	sgout = &sg[9];
 
-	tfm = crypto_alloc_aead(algo, 0, 0);
-
-	if (IS_ERR(tfm)) {
-		pr_err("alg: aead: Failed to load transform for %s: %ld\n", algo,
-		       PTR_ERR(tfm));
-		goto out_notfm;
-	}
-
-	init_completion(&result.completion);
-	printk(KERN_INFO "\ntesting speed of %s (%s) %s\n", algo,
-			get_driver_name(crypto_aead, tfm), e);
-
-	req = aead_request_alloc(tfm, GFP_KERNEL);
-	if (!req) {
-		pr_err("alg: aead: Failed to allocate request for %s\n",
-		       algo);
-		goto out_noreq;
-	}
-
-	aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				  tcrypt_complete, &result);
+	pr_info("testing speed of %s %s\n", algo, e);
 
 	i = 0;
 	do {
 		b_size = aead_sizes;
 		do {
+			tfm = crypto_alloc_aead(algo, 0, 0);
+			if (IS_ERR(tfm)) {
+				pr_err("alg: aead: Failed to load transform for %s: %ld\n", algo,
+					   PTR_ERR(tfm));
+				goto out_notfm;
+			}
+
+			init_completion(&result.completion);
+
+			req = aead_request_alloc(tfm, GFP_KERNEL);
+			if (!req) {
+				pr_err("alg: aead: Failed to allocate request for %s\n",
+					   algo);
+				crypto_free_aead(tfm);
+				goto out_notfm;
+			}
+
+			aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+						  tcrypt_complete, &result);
+
 			assoc = axbuf[0];
 			memset(assoc, 0xff, aad_size);
 
@@ -379,7 +379,9 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 				pr_err("template (%u) too big for tvmem (%lu)\n",
 				       *keysize + *b_size,
 					TVMEMSIZE * PAGE_SIZE);
-				goto out;
+				aead_request_free(req);
+				crypto_free_aead(tfm);
+				goto out_notfm;
 			}
 
 			key = tvmem[0];
@@ -406,7 +408,9 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 			if (ret) {
 				pr_err("setkey() failed flags=%x\n",
 						crypto_aead_get_flags(tfm));
-				goto out;
+				aead_request_free(req);
+				crypto_free_aead(tfm);
+				goto out_notfm;
 			}
 
 			sg_init_aead(sg, xbuf,
@@ -433,14 +437,13 @@ static void test_aead_speed(const char *algo, int enc, unsigned int secs,
 			}
 			b_size++;
 			i++;
+			aead_request_free(req);
+			crypto_free_aead(tfm);
 		} while (*b_size);
 		keysize++;
 	} while (*keysize);
+	pr_info("speed test completed for %s algorithm\n", algo);
 
-out:
-	aead_request_free(req);
-out_noreq:
-	crypto_free_aead(tfm);
 out_notfm:
 	kfree(sg);
 out_nosg:
@@ -1331,8 +1334,8 @@ static int do_test(const char *alg, u32 type, u32 mask, int m)
 
 	case 10:
 		ret += tcrypt_test("cbc(aes)");
-#ifdef CONFIG_CRYPTO_ALL_CASES
 		ret += tcrypt_test("ecb(aes)");
+#ifdef CONFIG_CRYPTO_ALL_CASES
 		ret += tcrypt_test("lrw(aes)");
 		ret += tcrypt_test("xts(aes)");
 		ret += tcrypt_test("ctr(aes)");
@@ -1573,6 +1576,9 @@ static int do_test(const char *alg, u32 type, u32 mask, int m)
 
 	case 157:
 		ret += tcrypt_test("authenc(hmac(sha1),ecb(cipher_null))");
+		break;
+	case 180:
+		ret += tcrypt_test("authenc(hmac(sha256),cbc(aes))");
 		break;
 	case 181:
 		ret += tcrypt_test("authenc(hmac(sha1),cbc(des))");
