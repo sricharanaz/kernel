@@ -115,3 +115,21 @@ void pmdp_splitting_flush(struct vm_area_struct *vma, unsigned long address,
 }
 #endif /* CONFIG_HAVE_RCU_TABLE_FREE */
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
+void dmac_flush_range(const void *start, const void *end)
+{
+	__dma_flush_range(start, end);
+}
+EXPORT_SYMBOL(dmac_flush_range);
+
+void dmac_inv_range(const void *start, const void *end)
+{
+	__dma_inv_range(start, end);
+}
+EXPORT_SYMBOL(dmac_inv_range);
+
+void dmac_clean_range(const void *start, const void *end)
+{
+	__dma_clean_range(start, end);
+}
+EXPORT_SYMBOL(dmac_clean_range);
