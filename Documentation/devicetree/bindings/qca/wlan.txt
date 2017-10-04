@@ -5,7 +5,7 @@ This driver adds support for the WLAN subsystem for supporting
 integrated WLAN module
 
 Required properties:
-  - compatible = "qca,wifi-ipq40xx";
+  - compatible = "qcom,cnss-qca8074";
   - reg = <baseaddr length>
   - interrupts = <list of msi and legacy interrupts>
   - interrupt-names = <list of interrupt's string name defined in the interrupts field. Please
@@ -19,7 +19,7 @@ Optional properties:
 Example:
 
 		wifi0: wifi@c0000000 {
-			compatible = "qca,wifi-ipq807x";
+			compatible = "qcom,cnss-qca8074";
 			eg = <0xc000000 0x2000000>;
 			interrupts = <0 320 1>, /* o_wcss_apps_intr[0] =  */
 				<0 319 1>,
