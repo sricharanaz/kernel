@@ -1200,9 +1200,10 @@ int cnss_pci_probe(struct pci_dev *pci_dev,
 {
 	int ret = 0;
 	struct cnss_pci_data *pci_priv;
-	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(NULL);
+	struct cnss_plat_data *plat_priv;
 	struct resource *res;
 
+	plat_priv = cnss_bus_dev_to_plat_priv(&pci_dev->dev);
 	cnss_pr_dbg("PCI is probing, vendor ID: 0x%x, device ID: 0x%x\n",
 		    id->vendor, pci_dev->device);
 #ifdef CONFIG_MSM_MHI

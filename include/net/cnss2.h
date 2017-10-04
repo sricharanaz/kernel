@@ -149,7 +149,6 @@ extern int cnss_get_fw_files_for_target(struct cnss_fw_files *pfw_files,
 extern int cnss_get_platform_cap(struct cnss_platform_cap *cap);
 extern int cnss_get_soc_info(struct device *dev, struct cnss_soc_info *info);
 extern void cnss_set_driver_status(enum cnss_driver_status driver_status);
-extern int cnss_request_bus_bandwidth(int bandwidth);
 extern int cnss_set_wlan_unsafe_channel(u16 *unsafe_ch_list, u16 ch_count);
 extern int cnss_get_wlan_unsafe_channel(u16 *unsafe_ch_list, u16 *ch_count,
 					u16 buf_len);

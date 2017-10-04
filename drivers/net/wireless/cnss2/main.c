@@ -32,8 +32,10 @@
 #define FILE_SYSTEM_READY		1
 #define FW_READY_TIMEOUT		5000
 #define CNSS_EVENT_PENDING		2989
+#define MAX_NUMBER_OF_SOCS 4
 
-static struct cnss_plat_data *plat_env;
+static struct cnss_plat_data *plat_env[MAX_NUMBER_OF_SOCS];
+static int plat_env_index;
 
 static DECLARE_RWSEM(cnss_pm_sem);
 
@@ -95,13 +97,37 @@ static enum cnss_dev_bus_type cnss_get_dev_bus_type(struct device *dev)
 static void cnss_set_plat_priv(struct platform_device *plat_dev,
 			       struct cnss_plat_data *plat_priv)
 {
-	plat_env = plat_priv;
+	if (plat_env_index >= MAX_NUMBER_OF_SOCS) {
+		printk("ERROR: No space to allocate save the plat_priv\n");
+		return;
+	}
+	plat_env[plat_env_index++] = plat_priv;
+}
+
+static struct cnss_plat_data *cnss_get_plat_priv_by_device_id(int id)
+{
+	int i;
+
+	for (i = 0; i < plat_env_index; i++) {
+		if (plat_env[i]->device_id == id)
+			return plat_env[i];
+	}
+	return NULL;
 }
 
 static struct cnss_plat_data *cnss_get_plat_priv(struct platform_device
 						 *plat_dev)
 {
-	return plat_env;
+	int i;
+
+	if (!plat_dev)
+		return NULL;
+
+	for (i = 0; i < plat_env_index; i++) {
+		if (plat_env[i]->plat_dev == plat_dev)
+			return plat_env[i];
+	}
+	return NULL;
 }
 
 void *cnss_bus_dev_to_bus_priv(struct device *dev)
@@ -134,7 +160,7 @@ struct cnss_plat_data *cnss_bus_dev_to_plat_priv(struct device *dev)
 	case CNSS_BUS_PCI:
 		return cnss_pci_priv_to_plat_priv(bus_priv);
 	case CNSS_BUS_AHB:
-		return plat_env;
+		return cnss_get_plat_priv(to_platform_device(dev));
 	default:
 		return NULL;
 	}
@@ -193,10 +219,9 @@ int cnss_get_fw_files_for_target(struct cnss_fw_files *pfw_files,
 }
 EXPORT_SYMBOL(cnss_get_fw_files_for_target);
 
-int cnss_request_bus_bandwidth(int bandwidth)
+int cnss_request_bus_bandwidth(int bandwidth, struct cnss_plat_data *plat_priv)
 {
 	int ret;
-	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(NULL);
 	struct cnss_bus_bw_info *bus_bw_info;
 
 	if (!plat_priv)
@@ -444,9 +469,11 @@ out:
 	return ret;
 }
 
-int cnss_is_fw_ready(void)
+int cnss_is_fw_ready(struct device *dev)
 {
-	if (test_bit(CNSS_FW_READY, &plat_env->driver_state))
+	struct cnss_plat_data *plat_priv =  cnss_bus_dev_to_plat_priv(dev);
+
+	if (test_bit(CNSS_FW_READY, &plat_priv->driver_state))
 		return 1;
 	return 0;
 }
@@ -693,7 +720,7 @@ int cnss_power_down(struct device *dev)
 	if (!bus_priv || !plat_priv)
 		return -ENODEV;
 
-	cnss_request_bus_bandwidth(CNSS_BUS_WIDTH_NONE);
+	cnss_request_bus_bandwidth(CNSS_BUS_WIDTH_NONE, plat_priv);
 	cnss_pci_set_monitor_wake_intr(bus_priv, false);
 	cnss_pci_set_auto_suspended(bus_priv, 0);
 
@@ -756,49 +783,51 @@ int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 	struct cnss_subsys_info *subsys_info;
 	struct cnss_esoc_info *esoc_info;
 
-	plat_priv = plat_env;
+	for (i = 0; i < plat_env_index; i++) {
+		plat_priv = plat_env[i];
 
-	if (!plat_priv)
-		continue;
+		if (!plat_priv)
+			continue;
 
-	if (plat_priv->device_id != QCA8074_DEVICE_ID ||
-			strncmp(driver_ops->name, "pld_ahb", 7) != 0)
-		continue;
+		if (plat_priv->device_id != QCA8074_DEVICE_ID ||
+				strncmp(driver_ops->name, "pld_ahb", 7) != 0)
+			continue;
 
-	if (!plat_priv) {
-		cnss_pr_err("plat_priv is NULL!\n");
-		ret = -ENODEV;
-		goto out;
+		if (!plat_priv) {
+			cnss_pr_err("plat_priv is NULL!\n");
+			ret = -ENODEV;
+			goto out;
+		}
+
+		if (plat_priv->driver_ops) {
+			cnss_pr_err("Driver has already registered!\n");
+			ret = -EEXIST;
+			goto out;
+		}
+
+		plat_priv->driver_status = CNSS_LOAD_UNLOAD;
+		plat_priv->driver_ops = driver_ops;
+
+		if (plat_priv->device_id == QCA8074_DEVICE_ID) {
+			cnss_register_subsys(plat_priv);
+			esoc_info = &plat_priv->esoc_info;
+			esoc_info->modem_notify_handler =
+					cnss_register_qca8074_cb(plat_priv);
+		}
+
+		subsys_info = &plat_priv->subsys_info;
+		subsys_info->subsys_handle =
+			subsystem_get(subsys_info->subsys_desc.name);
+		if (!subsys_info->subsys_handle) {
+			ret = -EINVAL;
+			goto reset_ctx;
+		} else if (IS_ERR(subsys_info->subsys_handle)) {
+			ret = PTR_ERR(subsys_info->subsys_handle);
+			goto reset_ctx;
+		}
+
+		plat_priv->driver_status = CNSS_INITIALIZED;
 	}
-
-	if (plat_priv->driver_ops) {
-		cnss_pr_err("Driver has already registered!\n");
-		ret = -EEXIST;
-		goto out;
-	}
-
-	plat_priv->driver_status = CNSS_LOAD_UNLOAD;
-	plat_priv->driver_ops = driver_ops;
-
-	if (plat_priv->device_id == QCA8074_DEVICE_ID) {
-		cnss_register_subsys(plat_priv);
-		esoc_info = &plat_priv->esoc_info;
-		esoc_info->modem_notify_handler =
-			cnss_register_qca8074_cb(plat_priv);
-	}
-
-	subsys_info = &plat_priv->subsys_info;
-	subsys_info->subsys_handle =
-		subsystem_get(subsys_info->subsys_desc.name);
-	if (!subsys_info->subsys_handle) {
-		ret = -EINVAL;
-		goto reset_ctx;
-	} else if (IS_ERR(subsys_info->subsys_handle)) {
-		ret = PTR_ERR(subsys_info->subsys_handle);
-		goto reset_ctx;
-	}
-
-	plat_priv->driver_status = CNSS_INITIALIZED;
 
 	return 0;
 reset_ctx:
@@ -817,29 +846,31 @@ void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver_ops)
 	struct cnss_wlan_driver *ops;
 	int i;
 
-	plat_priv = plat_env;
+	for (i = 0; i < plat_env_index; i++) {
+		plat_priv = plat_env[i];
 
-	if (!plat_priv) {
-		cnss_pr_err("plat_priv is NULL!\n");
-		return;
+		if (!plat_priv) {
+			cnss_pr_err("plat_priv is NULL!\n");
+			return;
+		}
+
+		if (plat_priv->device_id != QCA8074_DEVICE_ID ||
+				strncmp(driver_ops->name, "pld_ahb", 7) != 0)
+			continue;
+		plat_priv->driver_status = CNSS_LOAD_UNLOAD;
+		ops = plat_priv->driver_ops;
+
+		subsys_info = &plat_priv->subsys_info;
+		if (subsys_info->subsys_handle)
+			subsystem_put(subsys_info->subsys_handle);
+		else
+			ops->remove(plat_priv->plat_dev);
+
+		subsys_info->subsys_handle = NULL;
+		cnss_unregister_qca8074_cb(plat_priv);
+		plat_priv->driver_ops = NULL;
+		plat_priv->driver_status = CNSS_UNINITIALIZED;
 	}
-
-	if (plat_priv->device_id != QCA8074_DEVICE_ID ||
-			strncmp(driver_ops->name, "pld_ahb", 7) != 0)
-		continue;
-	plat_priv->driver_status = CNSS_LOAD_UNLOAD;
-	ops = plat_priv->driver_ops;
-
-	subsys_info = &plat_priv->subsys_info;
-	if (subsys_info->subsys_handle)
-		subsystem_put(subsys_info->subsys_handle);
-	else
-		ops->remove(plat_priv->plat_dev);
-
-	subsys_info->subsys_handle = NULL;
-	cnss_unregister_qca8074_cb(plat_priv);
-	plat_priv->driver_ops = NULL;
-	plat_priv->driver_status = CNSS_UNINITIALIZED;
 }
 EXPORT_SYMBOL(cnss_wlan_unregister_driver);
 
@@ -1082,7 +1113,7 @@ static int cnss_qca6174_shutdown(struct cnss_plat_data *plat_priv)
 		return -EINVAL;
 
 	if (plat_priv->driver_status == CNSS_LOAD_UNLOAD) {
-		cnss_request_bus_bandwidth(CNSS_BUS_WIDTH_NONE);
+		cnss_request_bus_bandwidth(CNSS_BUS_WIDTH_NONE, plat_priv);
 		plat_priv->driver_ops->remove(pci_priv->pci_dev);
 		cnss_pci_set_monitor_wake_intr(pci_priv, false);
 		cnss_pci_set_auto_suspended(pci_priv, 0);
@@ -1220,7 +1251,7 @@ static int cnss_qca6290_shutdown(struct cnss_plat_data *plat_priv)
 		goto bypass_driver_remove;
 
 	if (plat_priv->driver_status == CNSS_LOAD_UNLOAD) {
-		cnss_request_bus_bandwidth(CNSS_BUS_WIDTH_NONE);
+		cnss_request_bus_bandwidth(CNSS_BUS_WIDTH_NONE, plat_priv);
 		plat_priv->driver_ops->remove(pci_priv->pci_dev);
 		cnss_pci_set_monitor_wake_intr(pci_priv, false);
 		cnss_pci_set_auto_suspended(pci_priv, 0);
@@ -1885,7 +1916,6 @@ static int cnss_remove(struct platform_device *plat_dev)
 	cnss_pci_deinit(plat_priv);
 	cnss_put_resources(plat_priv);
 	platform_set_drvdata(plat_dev, NULL);
-	plat_env = NULL;
 
 	return 0;
 }
