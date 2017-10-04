@@ -177,5 +177,8 @@ extern int cnss_wlan_enable(struct device *dev,
 			    enum cnss_driver_mode mode,
 			    const char *host_version);
 extern int cnss_wlan_disable(struct device *dev, enum cnss_driver_mode mode);
+int cnss_is_fw_ready(struct device *dev);
+void *cnss_subsystem_get(struct device *dev);
+void cnss_subsystem_put(struct device *dev);
 
 #endif /* _NET_CNSS2_H */

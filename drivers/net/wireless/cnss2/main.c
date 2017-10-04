@@ -195,7 +195,7 @@ EXPORT_SYMBOL(cnss_get_fw_files_for_target);
 
 int cnss_request_bus_bandwidth(int bandwidth)
 {
-	int ret = 0;
+	int ret;
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(NULL);
 	struct cnss_bus_bw_info *bus_bw_info;
 
@@ -244,7 +244,7 @@ EXPORT_SYMBOL(cnss_get_platform_cap);
 
 int cnss_get_soc_info(struct device *dev, struct cnss_soc_info *info)
 {
-	int ret = 0;
+	int ret;
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
 	void *bus_priv = cnss_bus_dev_to_bus_priv(dev);
 
@@ -326,7 +326,10 @@ int cnss_wlan_enable(struct device *dev,
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
 	struct wlfw_wlan_cfg_req_msg_v01 req;
 	u32 i;
-	int ret = 0;
+	int ret;
+
+	if (!plat_priv)
+		return 0;
 
 	if (plat_priv->device_id == QCA6174_DEVICE_ID)
 		return 0;
@@ -404,6 +407,9 @@ EXPORT_SYMBOL(cnss_wlan_enable);
 int cnss_wlan_disable(struct device *dev, enum cnss_driver_mode mode)
 {
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+
+	if (!plat_priv)
+		return 0;
 
 	if (plat_priv->device_id == QCA6174_DEVICE_ID)
 		return 0;
@@ -680,7 +686,7 @@ EXPORT_SYMBOL(cnss_power_up);
 
 int cnss_power_down(struct device *dev)
 {
-	int ret = 0;
+	int ret;
 	void *bus_priv = cnss_bus_dev_to_bus_priv(dev);
 	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
 
@@ -701,11 +707,63 @@ int cnss_power_down(struct device *dev)
 }
 EXPORT_SYMBOL(cnss_power_down);
 
+int cnss_unregister_qca8074_cb(struct cnss_plat_data *plat_priv)
+{
+	void *handler = plat_priv->esoc_info.modem_notify_handler;
+
+	if (handler) {
+		subsys_notif_unregister_notifier(handler, &plat_priv->modem_nb);
+		plat_priv->esoc_info.modem_notify_handler = NULL;
+	}
+}
+
+static int cnss_qca8074_notifier_nb(struct notifier_block *nb,
+				  unsigned long code,
+				  void *ss_handle)
+{
+	struct cnss_plat_data *plat_priv =
+		container_of(nb, struct cnss_plat_data, modem_nb);
+	struct cnss_pci_data *pci_priv = plat_priv->bus_priv;
+	struct cnss_wlan_driver *driver_ops;
+
+	driver_ops = plat_priv->driver_ops;
+
+	if (code == SUBSYS_AFTER_POWERUP) {
+		driver_ops->probe(plat_priv->plat_dev, plat_priv->plat_dev_id);
+	} else if (code == SUBSYS_BEFORE_SHUTDOWN) {
+		driver_ops->remove(plat_priv->plat_dev);
+	} else if (code == SUBSYS_RAMDUMP_NOTIFICATION) {
+		driver_ops->reinit(plat_priv->plat_dev, plat_priv->plat_dev_id);
+		return NOTIFY_DONE;
+	}
+
+	return NOTIFY_OK;
+}
+
+void *cnss_register_qca8074_cb(struct cnss_plat_data *plat_priv)
+{
+	struct cnss_subsys_info *subsys_info;
+	subsys_info = &plat_priv->subsys_info;
+	plat_priv->modem_nb.notifier_call = cnss_qca8074_notifier_nb;
+	return subsys_notif_register_notifier(subsys_info->subsys_desc.name,
+						&plat_priv->modem_nb);
+}
+
 int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 {
-	int ret = 0;
-	struct cnss_plat_data *plat_priv = cnss_get_plat_priv(NULL);
+	int ret, i;
+	struct cnss_plat_data *plat_priv;
 	struct cnss_subsys_info *subsys_info;
+	struct cnss_esoc_info *esoc_info;
+
+	plat_priv = plat_env;
+
+	if (!plat_priv)
+		continue;
+
+	if (plat_priv->device_id != QCA8074_DEVICE_ID ||
+			strncmp(driver_ops->name, "pld_ahb", 7) != 0)
+		continue;
 
 	if (!plat_priv) {
 		cnss_pr_err("plat_priv is NULL!\n");
@@ -721,8 +779,15 @@ int cnss_wlan_register_driver(struct cnss_wlan_driver *driver_ops)
 
 	plat_priv->driver_status = CNSS_LOAD_UNLOAD;
 	plat_priv->driver_ops = driver_ops;
-	subsys_info = &plat_priv->subsys_info;
 
+	if (plat_priv->device_id == QCA8074_DEVICE_ID) {
+		cnss_register_subsys(plat_priv);
+		esoc_info = &plat_priv->esoc_info;
+		esoc_info->modem_notify_handler =
+			cnss_register_qca8074_cb(plat_priv);
+	}
+
+	subsys_info = &plat_priv->subsys_info;
 	subsys_info->subsys_handle =
 		subsystem_get(subsys_info->subsys_desc.name);
 	if (!subsys_info->subsys_handle) {
@@ -747,26 +812,79 @@ EXPORT_SYMBOL(cnss_wlan_register_driver);
 
 void cnss_wlan_unregister_driver(struct cnss_wlan_driver *driver_ops)
 {
-	struct cnss_plat_data *plat_priv = cnss_get_plat_priv(NULL);
+	struct cnss_plat_data *plat_priv;
 	struct cnss_subsys_info *subsys_info;
+	struct cnss_wlan_driver *ops;
+	int i;
+
+	plat_priv = plat_env;
 
 	if (!plat_priv) {
 		cnss_pr_err("plat_priv is NULL!\n");
 		return;
 	}
 
+	if (plat_priv->device_id != QCA8074_DEVICE_ID ||
+			strncmp(driver_ops->name, "pld_ahb", 7) != 0)
+		continue;
 	plat_priv->driver_status = CNSS_LOAD_UNLOAD;
+	ops = plat_priv->driver_ops;
+
 	subsys_info = &plat_priv->subsys_info;
-	subsystem_put(subsys_info->subsys_handle);
+	if (subsys_info->subsys_handle)
+		subsystem_put(subsys_info->subsys_handle);
+	else
+		ops->remove(plat_priv->plat_dev);
+
 	subsys_info->subsys_handle = NULL;
+	cnss_unregister_qca8074_cb(plat_priv);
 	plat_priv->driver_ops = NULL;
 	plat_priv->driver_status = CNSS_UNINITIALIZED;
 }
 EXPORT_SYMBOL(cnss_wlan_unregister_driver);
 
+void  *cnss_subsystem_get(struct device *dev)
+{
+	struct cnss_plat_data *plat_priv;
+	struct cnss_subsys_info *subsys_info;
+	plat_priv = cnss_get_plat_priv_by_device_id(QCA8074_DEVICE_ID);
+
+	if (!plat_priv) {
+		return NULL;
+	}
+	subsys_info = &plat_priv->subsys_info;
+
+	if (subsys_info->subsys_handle) {
+		printk("Error: subsys handle is not NULL");
+		return NULL;
+	}
+	subsys_info->subsys_handle =
+				subsystem_get(subsys_info->subsys_desc.name);
+	return subsys_info->subsys_handle;
+}
+EXPORT_SYMBOL(cnss_subsystem_get);
+
+void cnss_subsystem_put(struct device *dev)
+{
+	struct cnss_plat_data *plat_priv;
+	struct cnss_subsys_info *subsys_info;
+
+	plat_priv = cnss_get_plat_priv_by_device_id(QCA8074_DEVICE_ID);
+
+	if (!plat_priv)
+		return;
+
+	subsys_info = &plat_priv->subsys_info;
+	if (subsys_info->subsys_handle)
+		subsystem_put(subsys_info->subsys_handle);
+
+	subsys_info->subsys_handle = NULL;
+}
+EXPORT_SYMBOL(cnss_subsystem_put);
+
 static int cnss_get_resources(struct cnss_plat_data *plat_priv)
 {
-	int ret = 0;
+	int ret;
 
 	ret = cnss_get_vreg(plat_priv);
 	if (ret) {
@@ -1342,6 +1460,9 @@ int cnss_register_subsys(struct cnss_plat_data *plat_priv)
 	case QCA6290_DEVICE_ID:
 		subsys_info->subsys_desc.name = "QCA6290";
 		break;
+	case QCA8074_DEVICE_ID:
+		subsys_info->subsys_desc.name = "q6v5-wcss";
+		return 0;
 	default:
 		cnss_pr_err("Unknown device ID: 0x%lx\n", plat_priv->device_id);
 		ret = -ENODEV;
@@ -1370,6 +1491,9 @@ out:
 void cnss_unregister_subsys(struct cnss_plat_data *plat_priv)
 {
 	struct cnss_subsys_info *subsys_info;
+
+	if (plat_priv->device_id == QCA8074_DEVICE_ID)
+		return;
 
 	subsys_info = &plat_priv->subsys_info;
 	subsys_unregister(subsys_info->subsys_device);
@@ -1646,7 +1770,6 @@ static int cnss_probe(struct platform_device *plat_dev)
 		ret = -EEXIST;
 		goto out;
 	}
-
 	of_id = of_match_device(cnss_of_match_table, &plat_dev->dev);
 	if (!of_id || !of_id->data) {
 		cnss_pr_err("Failed to find of match device!\n");
@@ -1665,6 +1788,7 @@ static int cnss_probe(struct platform_device *plat_dev)
 
 	plat_priv->plat_dev = plat_dev;
 	plat_priv->device_id = device_id->driver_data;
+	plat_priv->plat_dev_id = device_id;
 
 	switch(plat_priv->device_id) {
 		case QCA6290_DEVICE_ID:
