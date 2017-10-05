@@ -257,16 +257,11 @@ int cnss_wlfw_respond_mem_send_sync(struct cnss_plat_data *plat_priv)
 	memset(&req, 0, sizeof(req));
 	memset(&resp, 0, sizeof(resp));
 
-	if(plat_priv->device_id == QCA6290_DEVICE_ID) {
-		cnss_pr_dbg("Memory for FW, va: 0x%pK, pa: %pa, size: 0x%zx\n",
-				fw_mem->va, &fw_mem->pa, fw_mem->size);
+	printk("Memory for FW, va: 0x%pK, pa: 0x%pa, size: 0x%zx\n",
+			fw_mem->va, &fw_mem->pa, fw_mem->size);
 
-		req.addr = fw_mem->pa;
-		req.size = fw_mem->size;
-	} else {
-		req.addr = 0;
-		req.size = 0;
-	}
+	req.addr = fw_mem->pa;
+	req.size = fw_mem->size;
 
 	req_desc.max_msg_len = WLFW_RESPOND_MEM_REQ_MSG_V01_MAX_MSG_LEN;
 	req_desc.msg_id = QMI_WLFW_RESPOND_MEM_REQ_V01;
