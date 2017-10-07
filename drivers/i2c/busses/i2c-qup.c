@@ -1588,7 +1588,7 @@ nodma:
 	size = QUP_INPUT_FIFO_SIZE(io_mode);
 	qup->in_fifo_sz = qup->in_blk_sz * (2 << size);
 	qup->dma_threshold = min_t(unsigned long, qup->out_fifo_sz,
-				   qup->in_fifo_sz);
+				   qup->in_fifo_sz) / 2;
 
 	src_clk_freq = clk_get_rate(qup->clk);
 	fs_div = ((src_clk_freq / clk_freq) / 2) - 3;
