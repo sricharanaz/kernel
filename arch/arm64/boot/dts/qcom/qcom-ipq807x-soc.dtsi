@@ -394,7 +394,7 @@
 			interrupt-names = "hc_irq", "pwr_irq";
 
 			qcom,bus-width = <8>;
-			qcom,max_clk = <192000000>;
+			qcom,max_clk = <384000000>;
 
 			qcom,dedicated-io = <1>;
 

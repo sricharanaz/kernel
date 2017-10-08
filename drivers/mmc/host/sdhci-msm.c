@@ -2362,6 +2362,67 @@ out:
 
 static void sdhci_msm_set_clock(struct sdhci_host *host, unsigned int clock)
 {
+	struct mmc_ios  curr_ios = host->mmc->ios;
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct sdhci_msm_host *msm_host = pltfm_host->priv;
+	struct mmc_card *card = host->mmc->card;
+
+	if (curr_ios.timing == MMC_TIMING_MMC_HS400) {
+
+		/* Select the divided clock (free running MCLK/2) */
+		writel_relaxed(((readl_relaxed(host->ioaddr +
+				CORE_VENDOR_SPEC)
+				& ~CORE_HC_MCLK_SEL_MASK)
+				| CORE_HC_MCLK_SEL_HS400), host->ioaddr +
+				CORE_VENDOR_SPEC);
+		/*
+		 * Select HS400 mode using the HC_SELECT_IN from VENDOR SPEC
+		 * register
+		 */
+		if (msm_host->tuning_done && !msm_host->calibration_done) {
+				/*
+				 * Write 0x6 to HC_SELECT_IN and 1 to
+				 * HC_SELECT_IN_EN field in VENDOR_SPEC_FUNC
+				 */
+				writel_relaxed((readl_relaxed(host->ioaddr +
+						CORE_VENDOR_SPEC)
+						| CORE_HC_SELECT_IN_HS400
+						| CORE_HC_SELECT_IN_EN),
+						host->ioaddr +
+						CORE_VENDOR_SPEC);
+		}
+	} else {
+		if (!msm_host->use_cdclp533)
+			/* set CORE_PWRSAVE_DLL bit in CORE_VENDOR_SPEC3 */
+			writel_relaxed((readl_relaxed(host->ioaddr +
+					CORE_VENDOR_SPEC3)
+					& ~CORE_PWRSAVE_DLL), host->ioaddr +
+					CORE_VENDOR_SPEC3);
+
+		/* Select the default clock (free running MCLK) */
+		writel_relaxed(((readl_relaxed(host->ioaddr +
+					CORE_VENDOR_SPEC)
+					& ~CORE_HC_MCLK_SEL_MASK)
+					| CORE_HC_MCLK_SEL_DFLT), host->ioaddr +
+					CORE_VENDOR_SPEC);
+
+		/*
+		 * Disable HC_SELECT_IN to be able to use the UHS mode select
+		 * configuration from Host Control2 register for all other
+		 * modes.
+		 *
+		 * Write 0 to HC_SELECT_IN and HC_SELECT_IN_EN field
+		 * in VENDOR_SPEC_FUNC
+		 */
+		writel_relaxed((readl_relaxed(host->ioaddr +
+				CORE_VENDOR_SPEC)
+				& ~CORE_HC_SELECT_IN_EN
+				& ~CORE_HC_SELECT_IN_MASK), host->ioaddr +
+				CORE_VENDOR_SPEC);
+	}
+	/* Memory barrier to make sure register is written */
+	mb();
+
 	host->clock = clock;
 	sdhci_set_clock(host, clock);
 }
@@ -3117,6 +3178,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	msm_host->mmc->caps2 |= msm_host->pdata->caps2;
 	msm_host->mmc->caps2 |= MMC_CAP2_BOOTPART_NOACC;
 	msm_host->mmc->pm_caps |= MMC_PM_KEEP_POWER | MMC_PM_WAKE_SDIO_IRQ;
+	msm_host->mmc->caps2 |= MMC_CAP2_HS400_POST_TUNING;
 
 	if (msm_host->pdata->nonremovable)
 		msm_host->mmc->caps |= MMC_CAP_NONREMOVABLE;
