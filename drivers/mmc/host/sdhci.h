@@ -423,6 +423,9 @@ struct sdhci_host {
  */
 #define SDHCI_QUIRK2_NEED_DELAY_AFTER_INT_CLK_RST	(1<<16)
 
+/* Use reset workaround in case sdhci reset timeouts */
+#define SDHCI_QUIRK2_USE_RESET_WORKAROUND		(1<<26)
+
 	int irq;		/* Device IRQ */
 	void __iomem *ioaddr;	/* Mapped address */
 
@@ -514,6 +517,9 @@ struct sdhci_host {
 	unsigned int		tuning_count;	/* Timer count for re-tuning */
 	unsigned int		tuning_mode;	/* Re-tuning mode supported by host */
 #define SDHCI_TUNING_MODE_1	0
+	int reset_wa_applied; /* reset workaround status */
+	ktime_t reset_wa_t; /* time when the reset workaround is applied */
+	int reset_wa_cnt; /* total number of times workaround is used */
 
 	unsigned long private[0] ____cacheline_aligned;
 };
@@ -548,12 +554,18 @@ struct sdhci_ops {
 	void    (*adma_workaround)(struct sdhci_host *host, u32 intmask);
 	void	(*platform_init)(struct sdhci_host *host);
 	void    (*card_event)(struct sdhci_host *host);
+#define REQ_BUS_OFF	(1 << 0)
+#define REQ_BUS_ON	(1 << 1)
+#define REQ_IO_LOW	(1 << 2)
+#define REQ_IO_HIGH	(1 << 3)
+	void	(*check_power_status)(struct sdhci_host *host, u32 req_type);
 	void	(*voltage_switch)(struct sdhci_host *host);
 	int	(*select_drive_strength)(struct sdhci_host *host,
 					 struct mmc_card *card,
 					 unsigned int max_dtr, int host_drv,
 					 int card_drv, int *drv_type);
 	void	(*toggle_cdr)(struct sdhci_host *host, bool enable);
+	void	(*reset_workaround)(struct sdhci_host *host, u32 enable);
 };
 
 #ifdef CONFIG_MMC_SDHCI_IO_ACCESSORS

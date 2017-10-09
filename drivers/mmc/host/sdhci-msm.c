@@ -2611,6 +2611,48 @@ static void sdhci_msm_init(struct sdhci_host *host)
 	return;
 }
 
+void sdhci_msm_reset_workaround(struct sdhci_host *host, u32 enable)
+{
+	u32 vendor_func2;
+	unsigned long timeout;
+
+	vendor_func2 = readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC_FUNC2);
+
+	if (enable) {
+		writel_relaxed(vendor_func2 | HC_SW_RST_REQ, host->ioaddr +
+				CORE_VENDOR_SPEC_FUNC2);
+		timeout = 10000;
+		while (readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC_FUNC2) &
+				HC_SW_RST_REQ) {
+			if (timeout == 0) {
+				pr_info("%s: Applying wait idle disable workaround\n",
+					mmc_hostname(host->mmc));
+				/*
+				 * Apply the reset workaround to not wait for
+				 * pending data transfers on AXI before
+				 * resetting the controller. This could be
+				 * risky if the transfers were stuck on the
+				 * AXI bus.
+				 */
+				vendor_func2 = readl_relaxed(host->ioaddr +
+						CORE_VENDOR_SPEC_FUNC2);
+				writel_relaxed(vendor_func2 |
+					HC_SW_RST_WAIT_IDLE_DIS,
+					host->ioaddr + CORE_VENDOR_SPEC_FUNC2);
+				host->reset_wa_t = ktime_get();
+				return;
+			}
+			timeout--;
+			udelay(10);
+		}
+		pr_info("%s: waiting for SW_RST_REQ is successful\n",
+				mmc_hostname(host->mmc));
+	} else {
+		writel_relaxed(vendor_func2 & ~HC_SW_RST_WAIT_IDLE_DIS,
+				host->ioaddr + CORE_VENDOR_SPEC_FUNC2);
+	}
+}
+
 static struct sdhci_ops sdhci_msm_ops = {
 	.set_uhs_signaling = sdhci_msm_set_uhs_signaling,
 	.platform_execute_tuning = sdhci_msm_execute_tuning,
@@ -2621,6 +2663,7 @@ static struct sdhci_ops sdhci_msm_ops = {
 	.reset = sdhci_msm_reset,
 	.platform_init = sdhci_msm_init,
 	.toggle_cdr = sdhci_msm_toggle_cdr,
+	.reset_workaround = sdhci_msm_reset_workaround,
 };
 
 static void sdhci_set_default_hw_caps(struct sdhci_msm_host *msm_host,
@@ -2662,7 +2705,8 @@ static void sdhci_set_default_hw_caps(struct sdhci_msm_host *msm_host,
 	 * Enable one MID mode for SDCC5 (major 1) on 8916/8939 (minor 0x2e) and
 	 * on 8992 (minor 0x3e) as a workaround to reset for data stuck issue.
 	 */
-	if (major == 1 && (minor == 0x2e || minor == 0x3e)) {
+	if (major == 1 && (minor == 0x2e || minor == 0x3e || minor == 0x4d)) {
+		host->quirks2 |= SDHCI_QUIRK2_USE_RESET_WORKAROUND;
 		val = readl_relaxed(host->ioaddr + CORE_VENDOR_SPEC_FUNC2);
 		writel_relaxed((val | CORE_ONE_MID_EN),
 			host->ioaddr + CORE_VENDOR_SPEC_FUNC2);
