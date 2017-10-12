@@ -48,7 +48,7 @@ struct tzbsp_diag_t_v8 {
 				 * and size is varying based on AARCH64 TZ
 				 */
 	uint32_t ring_off;
-	uint32_t unused1[411];
+	uint32_t unused1[571];
 	struct tzbsp_diag_log_t log;
 };
 
