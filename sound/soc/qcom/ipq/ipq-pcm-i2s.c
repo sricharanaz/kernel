@@ -283,10 +283,8 @@ static int ipq_pcm_i2s_copy(struct snd_pcm_substream *substream, int chan,
 
 	no_of_descs = (size + (period_size - 1)) / period_size;
 
-	for (i = 0; i < no_of_descs; i++) {
-		ipq_mbox_desc_own(pcm_rtpriv->channel, offset / period_size, 1);
-		offset += period_size;
-	}
+	ipq_mbox_multi_desc_own(pcm_rtpriv->channel, offset / period_size,
+							1, no_of_descs);
 
 	if (pcm_rtpriv->dma_started)
 		ipq_mbox_dma_resume(pcm_rtpriv->channel);

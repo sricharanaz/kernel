@@ -162,6 +162,32 @@ void ipq_mbox_desc_own(u32 channel_id, int desc_no, int own)
 }
 EXPORT_SYMBOL(ipq_mbox_desc_own);
 
+void ipq_mbox_multi_desc_own(u32 channel_id, int desc_no,
+				int own, int no_of_desc)
+{
+	struct ipq_mbox_desc *desc;
+	struct ipq_mbox_rt_dir_priv *rtdir;
+	u32 chan;
+	u32 dir;
+	uint32_t i;
+
+	chan = ipq_convert_id_to_channel(channel_id);
+	dir = ipq_convert_id_to_dir(channel_id);
+
+	rtdir = &mbox_rtime[chan]->dir_priv[dir];
+
+	desc = rtdir->dma_virt_head;
+	desc = ipq_increment_desc(desc, desc_no);
+
+	for (i = 0; i < no_of_desc; i++) {
+		rtdir->write = desc_no + i;
+		desc->OWN = own;
+		desc->ei = 1;
+		desc = ipq_increment_desc(desc, 1);
+	}
+}
+EXPORT_SYMBOL(ipq_mbox_multi_desc_own);
+
 u32 ipq_mbox_get_played_offset(u32 channel_id)
 {
 	struct ipq_mbox_desc *desc, *write;
@@ -188,7 +214,7 @@ u32 ipq_mbox_get_played_offset(u32 channel_id)
 			break;
 		}
 
-		if (desc != write)
+		if (desc == write)
 			break;
 
 		desc = get_next(rtdir, desc);

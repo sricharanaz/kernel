@@ -147,6 +147,8 @@ struct ipq_mbox_desc *ipq_mbox_get_last_played(unsigned int channel_id);
 uint32_t ipq_mbox_get_elapsed_size(uint32_t channel_id);
 void ipq_mbox_vuc_setup(int channel_id);
 uint32_t ipq_mbox_get_played_offset_set_own(u32 channel_id);
+void ipq_mbox_multi_desc_own(u32 channel_id, int desc_no,
+					int own, int no_of_desc);
 
 static inline u32 ipq_convert_id_to_channel(u32 id)
 {
