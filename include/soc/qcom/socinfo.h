@@ -29,6 +29,12 @@
 #define CPU_IPQ8068 204
 #define CPU_IPQ8069 281
 
+#define CPU_IPQ8074 323
+#define CPU_IPQ8072 342
+#define CPU_IPQ8076 343
+#define CPU_IPQ8078 344
+
+
 static inline int read_ipq_cpu_type(void)
 {
 	const int *prop;
@@ -104,4 +110,51 @@ static inline int cpu_is_ipq806x(void)
 	return 0;
 #endif
 }
+
+static inline int cpu_is_ipq8072(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8072;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8074(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8074;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8076(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8076;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq8078(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return read_ipq_cpu_type() == CPU_IPQ8078;
+#else
+	return 0;
+#endif
+}
+
+static inline int cpu_is_ipq807x(void)
+{
+#ifdef CONFIG_ARCH_QCOM
+	return  cpu_is_ipq8072() || cpu_is_ipq8074() ||
+		cpu_is_ipq8076() || cpu_is_ipq8078();
+#else
+	return 0;
+#endif
+}
+
 #endif /* _ARCH_ARM_MACH_MSM_SOCINFO_H_ */
