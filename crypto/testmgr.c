@@ -153,6 +153,8 @@ static void hexdump(unsigned char *buf, unsigned int len)
 static void tcrypt_complete(struct crypto_async_request *req, int err)
 {
 	struct tcrypt_result *res = req->data;
+	if (err)
+		pr_err("Error received in %s(), error = %d\n", __func__, err);
 
 	if (err == -EINPROGRESS)
 		return;
@@ -424,16 +426,16 @@ static int test_hash(struct crypto_ahash *tfm, struct hash_testvec *template,
 	return 0;
 }
 
-static int __test_aead(struct crypto_aead *tfm, int enc,
-		       struct aead_testvec *template, unsigned int tcount,
-		       const bool diff_dst, const int align_offset)
+static int __test_aead(struct aead_testvec *template, unsigned int tcount,
+				int enc, const bool diff_dst, const int align_offset,
+				const char *driver, u32 type, u32 mask)
 {
-	const char *algo = crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm));
+	struct crypto_aead *tfm;
+	struct aead_request *req;
 	unsigned int i, j, k, n, temp;
 	int ret = -ENOMEM;
 	char *q;
 	char *key;
-	struct aead_request *req;
 	struct scatterlist *sg;
 	struct scatterlist *sgout;
 	const char *e, *d;
@@ -476,23 +478,32 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 	else
 		e = "decryption";
 
-	init_completion(&result.completion);
-
-	req = aead_request_alloc(tfm, GFP_KERNEL);
-	if (!req) {
-		pr_err("alg: aead%s: Failed to allocate request for %s\n",
-		       d, algo);
-		goto out;
-	}
-
-	aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				  tcrypt_complete, &result);
-
+	pr_info("running aead test for %s driver\n", driver);
 	for (i = 0, j = 0; i < tcount; i++) {
 		if (template[i].np)
 			continue;
-
 		j++;
+		tfm = crypto_alloc_aead(driver, type | CRYPTO_ALG_INTERNAL, mask);
+		if (IS_ERR(tfm)) {
+			pr_err("alg: aead: Failed to load transform for %s: "
+						"%ld\n", driver, PTR_ERR(tfm));
+			return PTR_ERR(tfm);
+		}
+
+		const char *algo = crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm));
+
+		init_completion(&result.completion);
+
+		req = aead_request_alloc(tfm, GFP_KERNEL);
+		if (!req) {
+			pr_err("alg: aead%s: Failed to allocate request for %s\n",
+						d, algo);
+			crypto_free_aead(tfm);
+			goto out;
+		}
+
+		aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+					tcrypt_complete, &result);
 
 		/* some templates have no input data but they will
 		 * touch input
@@ -503,8 +514,11 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 
 		ret = -EINVAL;
 		if (WARN_ON(align_offset + template[i].ilen >
-			    PAGE_SIZE || template[i].alen > PAGE_SIZE))
+			    PAGE_SIZE || template[i].alen > PAGE_SIZE)) {
+			aead_request_free(req);
+			crypto_free_aead(tfm);
 			goto out;
+		}
 
 		memcpy(input, template[i].input, template[i].ilen);
 		memcpy(assoc, template[i].assoc, template[i].alen);
@@ -523,6 +537,8 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 			       d, j, algo, template[i].klen,
 			       MAX_KEYLEN);
 			ret = -EINVAL;
+			aead_request_free(req);
+			crypto_free_aead(tfm);
 			goto out;
 		}
 		memcpy(key, template[i].key, template[i].klen);
@@ -531,6 +547,8 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		if (!ret == template[i].fail) {
 			pr_err("alg: aead%s: setkey failed on test %d for %s: flags=%x\n",
 			       d, j, algo, crypto_aead_get_flags(tfm));
+			aead_request_free(req);
+			crypto_free_aead(tfm);
 			goto out;
 		} else if (ret)
 			continue;
@@ -540,6 +558,8 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		if (ret) {
 			pr_err("alg: aead%s: Failed to set authsize to %u on test %d for %s\n",
 			       d, authsize, j, algo);
+			aead_request_free(req);
+			crypto_free_aead(tfm);
 			goto out;
 		}
 
@@ -575,24 +595,32 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 				       d, e, j, algo);
 				/* so really, we got a bad message */
 				ret = -EBADMSG;
+				aead_request_free(req);
+				crypto_free_aead(tfm);
 				goto out;
 			}
 			break;
 		case -EINPROGRESS:
 		case -EBUSY:
+			pr_info("aead test started for %s algorithm (cipher_keylen:%d, auth_keylen:%d) \n", algo, template[i].klen, template[i].alen);
 			wait_for_completion(&result.completion);
 			reinit_completion(&result.completion);
 			ret = result.err;
 			if (!ret)
 				break;
 		case -EBADMSG:
-			if (template[i].novrfy)
+			if (template[i].novrfy) {
 				/* verification failure was expected */
+				aead_request_free(req);
+				crypto_free_aead(tfm);
 				continue;
+			}
 			/* fall through */
 		default:
 			pr_err("alg: aead%s: %s failed on test %d for %s: ret=%d\n",
 			       d, e, j, algo, -ret);
+			aead_request_free(req);
+			crypto_free_aead(tfm);
 			goto out;
 		}
 
@@ -602,10 +630,16 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 			       d, j, e, algo);
 			hexdump(q, template[i].rlen);
 			ret = -EINVAL;
+			aead_request_free(req);
+			crypto_free_aead(tfm);
 			goto out;
 		}
+		pr_info("aead test completed for %s algorithm (cipher_keylen:%d, auth_keylen:%d) \n", algo, template[i].klen, template[i].alen);
+		aead_request_free(req);
+		crypto_free_aead(tfm);
 	}
 
+	pr_info("running aead test for %s driver on continuous buffers\n", driver);
 	for (i = 0, j = 0; i < tcount; i++) {
 		/* alignment tests are only done with continuous buffers */
 		if (align_offset != 0)
@@ -613,6 +647,28 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 
 		if (!template[i].np)
 			continue;
+
+		tfm = crypto_alloc_aead(driver, type | CRYPTO_ALG_INTERNAL, mask);
+		if (IS_ERR(tfm)) {
+			pr_err("alg: aead: Failed to load transform for %s: "
+						"%ld\n", driver, PTR_ERR(tfm));
+			return PTR_ERR(tfm);
+		}
+
+		const char *algo = crypto_tfm_alg_driver_name(crypto_aead_tfm(tfm));
+
+		init_completion(&result.completion);
+
+		req = aead_request_alloc(tfm, GFP_KERNEL);
+		if (!req) {
+			pr_err("alg: aead%s: Failed to allocate request for %s\n",
+						d, algo);
+			crypto_free_aead(tfm);
+			goto out;
+		}
+
+		aead_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+					tcrypt_complete, &result);
 
 		j++;
 
@@ -628,6 +684,8 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 			pr_err("alg: aead%s: setkey failed on test %d for %s: key size %d > %d\n",
 			       d, j, algo, template[i].klen, MAX_KEYLEN);
 			ret = -EINVAL;
+			aead_request_free(req);
+			crypto_free_aead(tfm);
 			goto out;
 		}
 		memcpy(key, template[i].key, template[i].klen);
@@ -636,6 +694,8 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		if (!ret == template[i].fail) {
 			pr_err("alg: aead%s: setkey failed on chunk test %d for %s: flags=%x\n",
 			       d, j, algo, crypto_aead_get_flags(tfm));
+			aead_request_free(req);
+			crypto_free_aead(tfm);
 			goto out;
 		} else if (ret)
 			continue;
@@ -650,8 +710,12 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		ret = -EINVAL;
 		for (k = 0, temp = 0; k < template[i].anp; k++) {
 			if (WARN_ON(offset_in_page(IDX[k]) +
-				    template[i].atap[k] > PAGE_SIZE))
+				    template[i].atap[k] > PAGE_SIZE)) {
+				aead_request_free(req);
+				crypto_free_aead(tfm);
 				goto out;
+			}
+
 			sg_set_buf(&sg[k],
 				   memcpy(axbuf[IDX[k] >> PAGE_SHIFT] +
 					  offset_in_page(IDX[k]),
@@ -668,10 +732,14 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 
 		for (k = 0, temp = 0; k < template[i].np; k++) {
 			if (WARN_ON(offset_in_page(IDX[k]) +
-				    template[i].tap[k] > PAGE_SIZE))
+				    template[i].tap[k] > PAGE_SIZE)) {
+				aead_request_free(req);
+				crypto_free_aead(tfm);
 				goto out;
+			}
 
 			q = xbuf[IDX[k] >> PAGE_SHIFT] + offset_in_page(IDX[k]);
+
 			memcpy(q, template[i].input + temp, template[i].tap[k]);
 			sg_set_buf(&sg[template[i].anp + k],
 				   q, template[i].tap[k]);
@@ -699,6 +767,8 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 		if (ret) {
 			pr_err("alg: aead%s: Failed to set authsize to %u on chunk test %d for %s\n",
 			       d, authsize, j, algo);
+			aead_request_free(req);
+			crypto_free_aead(tfm);
 			goto out;
 		}
 
@@ -707,6 +777,8 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 				    sg[template[i].anp + k - 1].length +
 				    authsize > PAGE_SIZE)) {
 				ret = -EINVAL;
+				aead_request_free(req);
+				crypto_free_aead(tfm);
 				goto out;
 			}
 
@@ -732,24 +804,32 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 				       d, e, j, algo);
 				/* so really, we got a bad message */
 				ret = -EBADMSG;
+				aead_request_free(req);
+				crypto_free_aead(tfm);
 				goto out;
 			}
 			break;
 		case -EINPROGRESS:
 		case -EBUSY:
+			pr_info("aead alignment test started for %s algorithm (cipher_keylen:%d, auth_keylen:%d) \n", algo, template[i].klen, template[i].alen);
 			wait_for_completion(&result.completion);
 			reinit_completion(&result.completion);
 			ret = result.err;
 			if (!ret)
 				break;
 		case -EBADMSG:
-			if (template[i].novrfy)
+			if (template[i].novrfy) {
 				/* verification failure was expected */
+				aead_request_free(req);
+				crypto_free_aead(tfm);
 				continue;
+			}
 			/* fall through */
 		default:
 			pr_err("alg: aead%s: %s failed on chunk test %d for %s: ret=%d\n",
 			       d, e, j, algo, -ret);
+			aead_request_free(req);
+			crypto_free_aead(tfm);
 			goto out;
 		}
 
@@ -770,6 +850,8 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 				pr_err("alg: aead%s: Chunk test %d failed on %s at page %u for %s\n",
 				       d, j, e, k, algo);
 				hexdump(q, n);
+				aead_request_free(req);
+				crypto_free_aead(tfm);
 				goto out;
 			}
 
@@ -789,17 +871,21 @@ static int __test_aead(struct crypto_aead *tfm, int enc,
 				pr_err("alg: aead%s: Result buffer corruption in chunk test %d on %s at page %u for %s: %u bytes:\n",
 				       d, j, e, k, algo, n);
 				hexdump(q, n);
+				aead_request_free(req);
+				crypto_free_aead(tfm);
 				goto out;
 			}
 
 			temp += template[i].tap[k];
 		}
+		pr_info("aead alignment test completed for %s algorithm (cipher_keylen:%d, auth_keylen:%d) \n", algo, template[i].klen, template[i].alen);
+		aead_request_free(req);
+		crypto_free_aead(tfm);
 	}
 
 	ret = 0;
 
 out:
-	aead_request_free(req);
 	kfree(sg);
 out_nosg:
 	if (diff_dst)
@@ -814,36 +900,47 @@ out_noxbuf:
 	return ret;
 }
 
-static int test_aead(struct crypto_aead *tfm, int enc,
-		     struct aead_testvec *template, unsigned int tcount)
+static int test_aead(struct aead_testvec *template, unsigned int tcount,
+				int enc, const char *driver, u32 type, u32 mask)
 {
+#ifdef CONFIG_CRYPTO_ALL_CASES
+	struct crypto_aead *tfm;
 	unsigned int alignmask;
+#endif
 	int ret;
 
 	/* test 'dst == src' case */
-	ret = __test_aead(tfm, enc, template, tcount, false, 0);
+	ret = __test_aead(template, tcount, enc, false, 0, driver, type, mask);
 	if (ret)
 		return ret;
-
+#ifdef CONFIG_CRYPTO_ALL_CASES
 	/* test 'dst != src' case */
-	ret = __test_aead(tfm, enc, template, tcount, true, 0);
+	ret = __test_aead(template, tcount, enc, true, 0, driver, type, mask);
 	if (ret)
 		return ret;
 
 	/* test unaligned buffers, check with one byte offset */
-	ret = __test_aead(tfm, enc, template, tcount, true, 1);
+	ret = __test_aead(template, tcount, enc, true, 1, driver, type, mask);
 	if (ret)
 		return ret;
 
+	tfm = crypto_alloc_aead(driver, type | CRYPTO_ALG_INTERNAL, mask);
+	if (IS_ERR(tfm)) {
+		printk(KERN_ERR "alg: aead: Failed to load transform for %s: "
+		       "%ld\n", driver, PTR_ERR(tfm));
+		return PTR_ERR(tfm);
+	}
+
 	alignmask = crypto_tfm_alg_alignmask(&tfm->base);
+	crypto_free_aead(tfm);
 	if (alignmask) {
 		/* Check if alignment mask for tfm is correctly set. */
-		ret = __test_aead(tfm, enc, template, tcount, true,
-				  alignmask + 1);
+		ret = __test_aead(template, tcount, enc, true,
+				  alignmask + 1, driver, type, mask);
 		if (ret)
 			return ret;
 	}
-
+#endif
 	return 0;
 }
 
@@ -922,15 +1019,14 @@ out_nobuf:
 	return ret;
 }
 
-static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
-			   struct cipher_testvec *template, unsigned int tcount,
-			   const bool diff_dst, const int align_offset)
+static int __test_skcipher(struct cipher_testvec *template, unsigned int tcount,
+				int enc, const bool diff_dst, const int align_offset,
+				const char *driver, u32 type, u32 mask)
 {
-	const char *algo =
-		crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
+	struct crypto_skcipher *tfm;
+	struct skcipher_request *req;
 	unsigned int i, j, k, n, temp;
 	char *q;
-	struct skcipher_request *req;
 	struct scatterlist sg[8];
 	struct scatterlist sgout[8];
 	const char *e, *d;
@@ -940,7 +1036,7 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 	char *xbuf[XBUFSIZE];
 	char *xoutbuf[XBUFSIZE];
 	int ret = -ENOMEM;
-	unsigned int ivsize = crypto_skcipher_ivsize(tfm);
+	unsigned int ivsize;
 
 	if (testmgr_alloc_buf(xbuf))
 		goto out_nobuf;
@@ -958,22 +1054,34 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 	else
 		e = "decryption";
 
-	init_completion(&result.completion);
-
-	req = skcipher_request_alloc(tfm, GFP_KERNEL);
-	if (!req) {
-		pr_err("alg: skcipher%s: Failed to allocate request for %s\n",
-		       d, algo);
-		goto out;
-	}
-
-	skcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
-				      tcrypt_complete, &result);
-
+	pr_info("cipher test for %s driver\n", driver);
 	j = 0;
 	for (i = 0; i < tcount; i++) {
 		if (template[i].np && !template[i].also_non_np)
 			continue;
+
+		tfm = crypto_alloc_skcipher(driver, type | CRYPTO_ALG_INTERNAL, mask);
+		if (IS_ERR(tfm)) {
+			pr_err("alg: skcipher: Failed to load transform for "
+					"%s: %ld\n", driver, PTR_ERR(tfm));
+			return PTR_ERR(tfm);
+		}
+
+		ivsize = crypto_skcipher_ivsize(tfm);
+
+		const char *algo = crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
+		init_completion(&result.completion);
+
+		req = skcipher_request_alloc(tfm, GFP_KERNEL);
+		if (!req) {
+			pr_err("alg: skcipher%s: Failed to allocate request for %s\n",
+				d, algo);
+			crypto_free_skcipher(tfm);
+			goto out;
+		}
+
+		skcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				      tcrypt_complete, &result);
 
 		if (template[i].iv)
 			memcpy(iv, template[i].iv, ivsize);
@@ -982,8 +1090,11 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 
 		j++;
 		ret = -EINVAL;
-		if (WARN_ON(align_offset + template[i].ilen > PAGE_SIZE))
+		if (WARN_ON(align_offset + template[i].ilen > PAGE_SIZE)) {
+			skcipher_request_free(req);
+			crypto_free_skcipher(tfm);
 			goto out;
+		}
 
 		data = xbuf[0];
 		data += align_offset;
@@ -999,6 +1110,8 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 		if (!ret == template[i].fail) {
 			pr_err("alg: skcipher%s: setkey failed on test %d for %s: flags=%x\n",
 			       d, j, algo, crypto_skcipher_get_flags(tfm));
+			skcipher_request_free(req);
+			crypto_free_skcipher(tfm);
 			goto out;
 		} else if (ret)
 			continue;
@@ -1020,6 +1133,7 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 			break;
 		case -EINPROGRESS:
 		case -EBUSY:
+			pr_info("%s test started for %s algorithm (cipher_keylen:%d) \n", e, algo, template[i].klen);
 			wait_for_completion(&result.completion);
 			reinit_completion(&result.completion);
 			ret = result.err;
@@ -1029,6 +1143,8 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 		default:
 			pr_err("alg: skcipher%s: %s failed on test %d for %s: ret=%d\n",
 			       d, e, j, algo, -ret);
+			skcipher_request_free(req);
+			crypto_free_skcipher(tfm);
 			goto out;
 		}
 
@@ -1038,6 +1154,8 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 			       d, j, e, algo);
 			hexdump(q, template[i].rlen);
 			ret = -EINVAL;
+			skcipher_request_free(req);
+			crypto_free_skcipher(tfm);
 			goto out;
 		}
 
@@ -1048,10 +1166,16 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 			       d, j, e, algo);
 			hexdump(iv, crypto_skcipher_ivsize(tfm));
 			ret = -EINVAL;
+			skcipher_request_free(req);
+			crypto_free_skcipher(tfm);
 			goto out;
 		}
+		skcipher_request_free(req);
+		crypto_free_skcipher(tfm);
+		pr_info("%s test completed for %s algorithm (cipher_keylen:%d) \n", e, algo, template[i].klen);
 	}
 
+	pr_info("cipher alignment test for %s driver\n", driver);
 	j = 0;
 	for (i = 0; i < tcount; i++) {
 		/* alignment tests are only done with continuous buffers */
@@ -1060,6 +1184,27 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 
 		if (!template[i].np)
 			continue;
+
+		tfm = crypto_alloc_skcipher(driver, type | CRYPTO_ALG_INTERNAL, mask);
+		if (IS_ERR(tfm)) {
+			pr_err("alg: skcipher: Failed to load transform for "
+					"%s: %ld\n", driver, PTR_ERR(tfm));
+			return PTR_ERR(tfm);
+		}
+		ivsize = crypto_skcipher_ivsize(tfm);
+		const char *algo = crypto_tfm_alg_driver_name(crypto_skcipher_tfm(tfm));
+		init_completion(&result.completion);
+
+		req = skcipher_request_alloc(tfm, GFP_KERNEL);
+		if (!req) {
+			pr_err("alg: skcipher%s: Failed to allocate request for %s\n",
+				d, algo);
+			crypto_free_skcipher(tfm);
+			goto out;
+		}
+
+		skcipher_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				      tcrypt_complete, &result);
 
 		if (template[i].iv)
 			memcpy(iv, template[i].iv, ivsize);
@@ -1077,6 +1222,8 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 		if (!ret == template[i].fail) {
 			pr_err("alg: skcipher%s: setkey failed on chunk test %d for %s: flags=%x\n",
 			       d, j, algo, crypto_skcipher_get_flags(tfm));
+			skcipher_request_free(req);
+			crypto_free_skcipher(tfm);
 			goto out;
 		} else if (ret)
 			continue;
@@ -1088,8 +1235,11 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 			sg_init_table(sgout, template[i].np);
 		for (k = 0; k < template[i].np; k++) {
 			if (WARN_ON(offset_in_page(IDX[k]) +
-				    template[i].tap[k] > PAGE_SIZE))
+				    template[i].tap[k] > PAGE_SIZE)) {
+				skcipher_request_free(req);
+				crypto_free_skcipher(tfm);
 				goto out;
+			}
 
 			q = xbuf[IDX[k] >> PAGE_SHIFT] + offset_in_page(IDX[k]);
 
@@ -1125,6 +1275,7 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 			break;
 		case -EINPROGRESS:
 		case -EBUSY:
+			pr_info("%s test on continuous buffers started for %s algorithm (cipher_keylen:%d) \n", e, algo, template[i].klen);
 			wait_for_completion(&result.completion);
 			reinit_completion(&result.completion);
 			ret = result.err;
@@ -1134,6 +1285,8 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 		default:
 			pr_err("alg: skcipher%s: %s failed on chunk test %d for %s: ret=%d\n",
 			       d, e, j, algo, -ret);
+			skcipher_request_free(req);
+			crypto_free_skcipher(tfm);
 			goto out;
 		}
 
@@ -1152,6 +1305,8 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 				pr_err("alg: skcipher%s: Chunk test %d failed on %s at page %u for %s\n",
 				       d, j, e, k, algo);
 				hexdump(q, template[i].tap[k]);
+				skcipher_request_free(req);
+				crypto_free_skcipher(tfm);
 				goto out;
 			}
 
@@ -1162,16 +1317,19 @@ static int __test_skcipher(struct crypto_skcipher *tfm, int enc,
 				pr_err("alg: skcipher%s: Result buffer corruption in chunk test %d on %s at page %u for %s: %u bytes:\n",
 				       d, j, e, k, algo, n);
 				hexdump(q, n);
+				skcipher_request_free(req);
+				crypto_free_skcipher(tfm);
 				goto out;
 			}
 			temp += template[i].tap[k];
 		}
+		skcipher_request_free(req);
+		crypto_free_skcipher(tfm);
+		pr_info("%s test completed on continuous buffers for %s algorithm (cipher_keylen:%d) \n", e, algo, template[i].klen);
 	}
 
 	ret = 0;
-
 out:
-	skcipher_request_free(req);
 	if (diff_dst)
 		testmgr_free_buf(xoutbuf);
 out_nooutbuf:
@@ -1180,36 +1338,46 @@ out_nobuf:
 	return ret;
 }
 
-static int test_skcipher(struct crypto_skcipher *tfm, int enc,
-			 struct cipher_testvec *template, unsigned int tcount)
+static int test_skcipher(struct cipher_testvec *template, unsigned int tcount,
+					int enc, const char *driver, u32 type, u32 mask)
 {
+#ifdef CONFIG_CRYPTO_ALL_CASES
+	struct crypto_skcipher *tfm;
 	unsigned int alignmask;
+#endif
 	int ret;
 
 	/* test 'dst == src' case */
-	ret = __test_skcipher(tfm, enc, template, tcount, false, 0);
+	ret = __test_skcipher(template, tcount, enc, false, 0, driver, type, mask);
 	if (ret)
 		return ret;
-
+#ifdef CONFIG_CRYPTO_ALL_CASES
 	/* test 'dst != src' case */
-	ret = __test_skcipher(tfm, enc, template, tcount, true, 0);
+	ret = __test_skcipher(template, tcount, enc, true, 0, driver, type, mask);
 	if (ret)
 		return ret;
 
 	/* test unaligned buffers, check with one byte offset */
-	ret = __test_skcipher(tfm, enc, template, tcount, true, 1);
+	ret = __test_skcipher(template, tcount, enc, true, 1, driver, type, mask);
 	if (ret)
 		return ret;
 
+	tfm = crypto_alloc_skcipher(driver, type | CRYPTO_ALG_INTERNAL, mask);
+	if (IS_ERR(tfm)) {
+		pr_err("alg: skcipher: Failed to load transform for "
+		       "%s: %ld\n", driver, PTR_ERR(tfm));
+		return PTR_ERR(tfm);
+	}
 	alignmask = crypto_tfm_alg_alignmask(&tfm->base);
+	crypto_free_skcipher(tfm);
 	if (alignmask) {
 		/* Check if alignment mask for tfm is correctly set. */
-		ret = __test_skcipher(tfm, enc, template, tcount, true,
-				      alignmask + 1);
+		ret = __test_skcipher(template, tcount, enc, true,
+				      alignmask + 1, driver, type, mask);
 		if (ret)
 			return ret;
 	}
-
+#endif
 	return 0;
 }
 
@@ -1534,29 +1702,24 @@ out:
 static int alg_test_aead(const struct alg_test_desc *desc, const char *driver,
 			 u32 type, u32 mask)
 {
-	struct crypto_aead *tfm;
 	int err = 0;
 
-	tfm = crypto_alloc_aead(driver, type | CRYPTO_ALG_INTERNAL, mask);
-	if (IS_ERR(tfm)) {
-		printk(KERN_ERR "alg: aead: Failed to load transform for %s: "
-		       "%ld\n", driver, PTR_ERR(tfm));
-		return PTR_ERR(tfm);
-	}
-
 	if (desc->suite.aead.enc.vecs) {
-		err = test_aead(tfm, ENCRYPT, desc->suite.aead.enc.vecs,
-				desc->suite.aead.enc.count);
+		err = test_aead(desc->suite.aead.enc.vecs,
+				desc->suite.aead.enc.count, ENCRYPT, driver, type, mask);
 		if (err)
 			goto out;
 	}
 
-	if (!err && desc->suite.aead.dec.vecs)
-		err = test_aead(tfm, DECRYPT, desc->suite.aead.dec.vecs,
-				desc->suite.aead.dec.count);
+	if (!err && desc->suite.aead.dec.vecs) {
+		err = test_aead(desc->suite.aead.dec.vecs,
+				desc->suite.aead.dec.count, DECRYPT, driver, type, mask);
+		if (err)
+			goto out;
+	}
+	pr_info("AEAD test completed for %s algorithm\n", driver);
 
 out:
-	crypto_free_aead(tfm);
 	return err;
 }
 
@@ -1592,29 +1755,23 @@ out:
 static int alg_test_skcipher(const struct alg_test_desc *desc,
 			     const char *driver, u32 type, u32 mask)
 {
-	struct crypto_skcipher *tfm;
 	int err = 0;
-
-	tfm = crypto_alloc_skcipher(driver, type | CRYPTO_ALG_INTERNAL, mask);
-	if (IS_ERR(tfm)) {
-		printk(KERN_ERR "alg: skcipher: Failed to load transform for "
-		       "%s: %ld\n", driver, PTR_ERR(tfm));
-		return PTR_ERR(tfm);
-	}
+	pr_info("Starting cipher test for %s driver\n", driver);
 
 	if (desc->suite.cipher.enc.vecs) {
-		err = test_skcipher(tfm, ENCRYPT, desc->suite.cipher.enc.vecs,
-				    desc->suite.cipher.enc.count);
+		err = test_skcipher(desc->suite.cipher.enc.vecs,
+				    desc->suite.cipher.enc.count, ENCRYPT, driver, type, mask);
 		if (err)
 			goto out;
 	}
 
-	if (desc->suite.cipher.dec.vecs)
-		err = test_skcipher(tfm, DECRYPT, desc->suite.cipher.dec.vecs,
-				    desc->suite.cipher.dec.count);
+	if (desc->suite.cipher.dec.vecs) {
+		err = test_skcipher(desc->suite.cipher.dec.vecs,
+				    desc->suite.cipher.dec.count, DECRYPT, driver, type, mask);
+	}
 
 out:
-	crypto_free_skcipher(tfm);
+	pr_info("cipher test %s for %s\n", err ? "failed" : "passed", driver);
 	return err;
 }
 
