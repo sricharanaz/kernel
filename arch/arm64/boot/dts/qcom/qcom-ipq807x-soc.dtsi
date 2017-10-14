@@ -805,7 +805,7 @@
 
 		nss_crypto: qcom,nss_crypto {
 			compatible = "qcom,nss-crypto";
-			qcom,max-contexts = <16>;
+			qcom,max-contexts = <64>;
 			qcom,max-context-size = <32>;
 			ranges;
 
