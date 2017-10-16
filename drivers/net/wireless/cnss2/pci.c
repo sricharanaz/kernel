@@ -39,6 +39,7 @@
 
 static DEFINE_SPINLOCK(pci_link_down_lock);
 
+extern bool daemon_support;
 static unsigned int pci_link_down_panic;
 module_param(pci_link_down_panic, uint, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(pci_link_down_panic,
@@ -647,16 +648,27 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv )
 	struct cnss_pci_data *pci_priv = plat_priv->bus_priv;
 	struct cnss_fw_mem *fw_mem = &plat_priv->fw_mem;
 
+	if (plat_priv->device_id == QCA6290_DEVICE_ID) {
+		fw_mem->pa = QCA6290_PAGING_MEM;
+		fw_mem->va = QCA6290_PAGING_MEM;
+		return 0;
+	}
+
 	if (plat_priv->device_id == QCA8074_DEVICE_ID) {
-		/*
-		 * No memory allocation need to be done for IPQ8074
-		 * However, a dummy mem response need to be sent to
-		 * make the state machine move to next state on the Q6
-		 * target side.
-		 */
-		fw_mem->pa = 0;
-		fw_mem->va = 0;
-		fw_mem->size = 0;
+		if (!daemon_support) {
+			fw_mem->pa = 0;
+			fw_mem->va = 0;
+			fw_mem->size = 0;
+			return 0;
+		}
+
+		if (fw_mem->size > Q6_CALDB_SIZE) {
+			printk("Error: Need more memory %x\n", fw_mem->size);
+			CNSS_ASSERT(0);
+			return -ENOMEM;
+		}
+		fw_mem->pa = Q6_CALDB_ADDR;
+		fw_mem->va = Q6_CALDB_ADDR;
 		return 0;
 	}
 	if (!fw_mem->va && fw_mem->size) {
@@ -664,10 +676,6 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv )
 		fw_mem->va = dma_alloc_coherent(&pci_priv->pci_dev->dev,
 						fw_mem->size, &fw_mem->pa,
 						GFP_KERNEL);
-#else
-		fw_mem->pa = QCA6290_PAGING_MEM;
-		fw_mem->va = QCA6290_PAGING_MEM;
-#endif
 
 		if (!fw_mem->va) {
 			cnss_pr_err("Failed to allocate memory for FW, size: 0x%zx\n",
@@ -676,6 +684,7 @@ int cnss_pci_alloc_fw_mem(struct cnss_plat_data *plat_priv )
 
 			return -ENOMEM;
 		}
+#endif
 	}
 
 	return 0;

@@ -309,6 +309,8 @@ struct wlfw_bdf_download_req_msg_v01 {
 	uint8_t data[QMI_WLFW_MAX_DATA_SIZE_V01];
 	uint8_t end_valid;
 	uint8_t end;
+	uint8_t bdf_type_valid;
+	uint8_t bdf_type;
 };
 
 #define WLFW_BDF_DOWNLOAD_REQ_MSG_V01_MAX_MSG_LEN 6178

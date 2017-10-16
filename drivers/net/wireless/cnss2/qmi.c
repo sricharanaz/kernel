@@ -25,6 +25,9 @@
 #define DEFAULT_BDF_FILE_NAME		"bdwlan.bin"
 #define BDF_FILE_NAME_PREFIX		"bdwlan.b"
 
+#define DEFAULT_CAL_FILE_NAME		"caldata.bin"
+#define CAL_FILE_NAME_PREFIX		"caldata.b"
+
 unsigned int wlfw_service_instance_id;
 static unsigned long qmi_timeout = 3000;
 module_param(qmi_timeout, ulong, S_IRUSR | S_IWUSR);
@@ -33,9 +36,13 @@ EXPORT_SYMBOL(qmi_timeout);
 
 #define QMI_WLFW_TIMEOUT_MS		qmi_timeout
 
-static bool daemon_support;
+bool daemon_support;
 module_param(daemon_support, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(daemon_support, "User space has cnss-daemon support or not");
+
+bool caldata_support;
+module_param(caldata_support, bool, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(caldata_support, "caldata support");
 
 static bool bdf_bypass = true;
 #ifdef CONFIG_CNSS2_DEBUG
@@ -128,7 +135,7 @@ static int cnss_wlfw_host_cap_send_sync(struct cnss_plat_data *plat_priv)
 	memset(&req, 0, sizeof(req));
 	memset(&resp, 0, sizeof(resp));
 
-	req.daemon_support_valid = 0;
+	req.daemon_support_valid = 1;
 	req.daemon_support = daemon_support;
 
 	cnss_pr_dbg("daemon_support is %d\n", req.daemon_support);
@@ -257,16 +264,11 @@ int cnss_wlfw_respond_mem_send_sync(struct cnss_plat_data *plat_priv)
 	memset(&req, 0, sizeof(req));
 	memset(&resp, 0, sizeof(resp));
 
-	if(plat_priv->device_id == QCA6290_DEVICE_ID) {
-		cnss_pr_dbg("Memory for FW, va: 0x%pK, pa: %pa, size: 0x%zx\n",
-				fw_mem->va, &fw_mem->pa, fw_mem->size);
+	printk("Memory for FW, va: 0x%pK, pa: 0x%pa, size: 0x%zx\n",
+			fw_mem->va, &fw_mem->pa, fw_mem->size);
 
-		req.addr = fw_mem->pa;
-		req.size = fw_mem->size;
-	} else {
-		req.addr = 0;
-		req.size = 0;
-	}
+	req.addr = fw_mem->pa;
+	req.size = fw_mem->size;
 
 	req_desc.max_msg_len = WLFW_RESPOND_MEM_REQ_MSG_V01_MAX_MSG_LEN;
 	req_desc.msg_id = QMI_WLFW_RESPOND_MEM_REQ_V01;
@@ -360,57 +362,72 @@ out:
 }
 
 int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
-		struct cnss_plat_data *plat_priv, unsigned int remaining)
+		struct cnss_plat_data *plat_priv, unsigned int remaining,
+		uint8_t is_end, uint8_t bdf_type)
 {
 	int ret;
-	const struct firmware *fw;
-	void *bdf_addr = NULL;
 	char filename[30];
+	const struct firmware *fw;
+	char *bdf_addr;
+	int size;
 
-	if (0xFF == plat_priv->board_info.board_id)
-		snprintf(filename, sizeof(filename), "IPQ8074/"
-					DEFAULT_BDF_FILE_NAME);
-	else
-		snprintf(filename, sizeof(filename), "IPQ8074/"
-			 BDF_FILE_NAME_PREFIX "%02x",
-			 plat_priv->board_info.board_id);
-
-	ret = request_firmware(&fw, filename,
-		&plat_priv->plat_dev->dev);
-
-	if (ret) {
-		cnss_pr_err("Failed to get BDF file %s", filename);
-		return ret;
+	if (plat_priv->board_info.board_id == 0xFF) {
+		if (bdf_type == BDF_TYPE_GOLDEN)
+			snprintf(filename, sizeof(filename),
+					"IPQ8074/" DEFAULT_BDF_FILE_NAME);
+		if (bdf_type == BDF_TYPE_CALDATA)
+			snprintf(filename, sizeof(filename),
+					"IPQ8074/" DEFAULT_CAL_FILE_NAME);
+	} else {
+		if (bdf_type == BDF_TYPE_GOLDEN)
+			snprintf(filename, sizeof(filename),
+					"IPQ8074/" BDF_FILE_NAME_PREFIX "%02x",
+					plat_priv->board_info.board_id);
+		if (bdf_type == BDF_TYPE_CALDATA)
+			snprintf(filename, sizeof(filename),
+					"IPQ8074/" CAL_FILE_NAME_PREFIX "%02x",
+					plat_priv->board_info.board_id);
 	}
 
+	ret = request_firmware(&fw, filename, &plat_priv->plat_dev->dev);
+	if (ret) {
+		cnss_pr_err("Failed to get BDF file %s (%d)", filename, ret);
+		return ret;
+	}
+	size = fw->size;
 	bdf_addr = ioremap(Q6_BDF_ADDR, BDF_MAX_SIZE);
-
 	if (!bdf_addr) {
 		cnss_pr_err("ERROR. not able to ioremap BDF location\n");
 		ret = -EIO;
 		goto out;
 	}
-
-	cnss_pr_info("BDF %s downloaded. size %d\n", filename, fw->size);
-
-	if (fw->size <= BDF_MAX_SIZE) {
-		memcpy(bdf_addr, fw->data, fw->size);
+	if (size != 0 && size <= BDF_MAX_SIZE) {
+		if (bdf_type == BDF_TYPE_GOLDEN) {
+			cnss_pr_info("BDF %s size %d\n", filename, fw->size);
+			memcpy(bdf_addr, fw->data, fw->size);
+		}
+		if (bdf_type == BDF_TYPE_CALDATA) {
+			memcpy(CALDATA_OFFSET(bdf_addr), fw->data, fw->size);
+			cnss_pr_info("CALDATA %s size %d offset 0x%x\n",
+					filename, fw->size, CALDATA_OFFSET(0));
+		}
 		req->total_size_valid = 1;
-		req->total_size = fw->size;
+		req->total_size = size;
 		req->data_valid = 0;
 		req->end_valid = 1;
 		req->end = 1;
-	} else {
-		cnss_pr_info("bdf size %d > segsz %d\n",
-			fw->size, BDF_MAX_SIZE);
 		req->data_len = remaining;
-		req->end = 1;
+		req->bdf_type = 0;
+		req->bdf_type_valid = 0;
+	} else {
+		cnss_pr_info("bdf size %d > segsz %d\n", size, BDF_MAX_SIZE);
+		req->data_len = remaining;
+		req->end = is_end;
 	}
-
 	iounmap(bdf_addr);
 out:
-
-	release_firmware(fw);
+	if (fw)
+		release_firmware(fw);
 	return ret;
 }
 
@@ -419,11 +436,12 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv)
 	struct wlfw_bdf_download_req_msg_v01 *req;
 	struct wlfw_bdf_download_resp_msg_v01 resp;
 	struct msg_desc req_desc, resp_desc;
-	char filename[MAX_BDF_FILE_NAME];
+	char filename[30];
 	const struct firmware *fw_entry;
 	const u8 *temp;
 	unsigned int remaining;
 	int ret = 0;
+	int bdf_downloaded = 0;
 
 	cnss_pr_dbg("Sending BDF download message, state: 0x%lx\n",
 		    plat_priv->driver_state);
@@ -444,6 +462,8 @@ int cnss_wlfw_bdf_dnld_send_sync(struct cnss_plat_data *plat_priv)
 	if (plat_priv->device_id == QCA8074_DEVICE_ID) {
 		temp = filename;
 		remaining = MAX_BDF_FILE_NAME;
+		if (caldata_support)
+			remaining = MAX_BDF_FILE_NAME * 2;
 		goto bypass_bdf;
 	}
 
@@ -492,9 +512,19 @@ bypass_bdf:
 			req->data_len = remaining;
 			req->end = 1;
 		}
-
-		if (plat_priv->device_id == QCA8074_DEVICE_ID)
-			cnss_wlfw_load_bdf(req, plat_priv, remaining);
+		if (plat_priv->device_id == QCA8074_DEVICE_ID) {
+			if (bdf_downloaded) {
+				cnss_wlfw_load_bdf(req, plat_priv,
+						MAX_BDF_FILE_NAME,
+						1, BDF_TYPE_CALDATA);
+				temp = filename;
+			} else {
+				cnss_wlfw_load_bdf(req, plat_priv,
+						MAX_BDF_FILE_NAME,
+						0, BDF_TYPE_GOLDEN);
+				bdf_downloaded = 1;
+			}
+		}
 
 		memcpy(req->data, temp, req->data_len);
 
@@ -507,6 +537,8 @@ bypass_bdf:
 			goto err_send;
 		}
 
+		cnss_pr_err("BDF download response , result: %d, err: %d\n",
+			    resp.resp.result, resp.resp.error);
 		if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
 			cnss_pr_err("BDF download request failed, result: %d, err: %d\n",
 				    resp.resp.result, resp.resp.error);

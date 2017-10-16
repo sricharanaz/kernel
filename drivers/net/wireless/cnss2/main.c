@@ -362,6 +362,9 @@ int cnss_wlan_enable(struct device *dev,
 	if (qmi_bypass)
 		return 0;
 
+	if (mode == CNSS_CALIBRATION)
+		goto skip_cfg;
+
 	if (!config || !host_version) {
 		cnss_pr_err("Invalid config or host_version pointer\n");
 		return -EINVAL;
@@ -417,10 +420,11 @@ int cnss_wlan_enable(struct device *dev,
 #else
 	req.shadow_reg_v2_valid = 0;
 #endif
-
-	ret = cnss_wlfw_wlan_cfg_send_sync(plat_priv, &req);
-	if (ret)
-		goto out;
+	if (mode != QMI_WLFW_CALIBRATION_V01) {
+		ret = cnss_wlfw_wlan_cfg_send_sync(plat_priv, &req);
+		if (ret)
+			goto out;
+	}
 
 skip_cfg:
 	ret = cnss_wlfw_wlan_mode_send_sync(plat_priv, mode);
@@ -471,13 +475,23 @@ out:
 
 int cnss_is_fw_ready(struct device *dev)
 {
-	struct cnss_plat_data *plat_priv =  cnss_bus_dev_to_plat_priv(dev);
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
 
 	if (test_bit(CNSS_FW_READY, &plat_priv->driver_state))
 		return 1;
 	return 0;
 }
 EXPORT_SYMBOL(cnss_is_fw_ready);
+
+int cnss_is_cold_boot_cal_done(struct device *dev)
+{
+	struct cnss_plat_data *plat_priv = cnss_bus_dev_to_plat_priv(dev);
+
+	if (test_bit(CNSS_COLD_BOOT_CAL_DONE, &plat_priv->driver_state))
+		return 1;
+	return 0;
+}
+EXPORT_SYMBOL(cnss_is_cold_boot_cal_done);
 
 static int cnss_fw_ready_hdlr(struct cnss_plat_data *plat_priv)
 {
