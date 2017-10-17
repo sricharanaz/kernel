@@ -639,7 +639,7 @@ static int __test_aead(struct aead_testvec *template, unsigned int tcount,
 		crypto_free_aead(tfm);
 	}
 
-	pr_info("running aead test for %s driver on continuous buffers\n", driver);
+	pr_info("running aead test for %s driver on noncontinuous buffers\n", driver);
 	for (i = 0, j = 0; i < tcount; i++) {
 		/* alignment tests are only done with continuous buffers */
 		if (align_offset != 0)
@@ -811,7 +811,7 @@ static int __test_aead(struct aead_testvec *template, unsigned int tcount,
 			break;
 		case -EINPROGRESS:
 		case -EBUSY:
-			pr_info("aead alignment test started for %s algorithm (cipher_keylen:%d, auth_keylen:%d) \n", algo, template[i].klen, template[i].alen);
+			pr_info("aead on noncontinuous test vectors started for %s algorithm (cipher_keylen:%d, auth_keylen:%d) \n", algo, template[i].klen, template[i].alen);
 			wait_for_completion(&result.completion);
 			reinit_completion(&result.completion);
 			ret = result.err;
@@ -878,7 +878,7 @@ static int __test_aead(struct aead_testvec *template, unsigned int tcount,
 
 			temp += template[i].tap[k];
 		}
-		pr_info("aead alignment test completed for %s algorithm (cipher_keylen:%d, auth_keylen:%d) \n", algo, template[i].klen, template[i].alen);
+		pr_info("aead on noncontinuous test vectors completed for %s algorithm (cipher_keylen:%d, auth_keylen:%d) \n", algo, template[i].klen, template[i].alen);
 		aead_request_free(req);
 		crypto_free_aead(tfm);
 	}
@@ -1175,7 +1175,7 @@ static int __test_skcipher(struct cipher_testvec *template, unsigned int tcount,
 		pr_info("%s test completed for %s algorithm (cipher_keylen:%d) \n", e, algo, template[i].klen);
 	}
 
-	pr_info("cipher alignment test for %s driver\n", driver);
+	pr_info("cipher test on noncontinuous test vectors for %s driver\n", driver);
 	j = 0;
 	for (i = 0; i < tcount; i++) {
 		/* alignment tests are only done with continuous buffers */
@@ -1275,7 +1275,7 @@ static int __test_skcipher(struct cipher_testvec *template, unsigned int tcount,
 			break;
 		case -EINPROGRESS:
 		case -EBUSY:
-			pr_info("%s test on continuous buffers started for %s algorithm (cipher_keylen:%d) \n", e, algo, template[i].klen);
+			pr_info("%s test on noncontinuous test vectors started for %s algorithm (cipher_keylen:%d) \n", e, algo, template[i].klen);
 			wait_for_completion(&result.completion);
 			reinit_completion(&result.completion);
 			ret = result.err;
@@ -1325,7 +1325,7 @@ static int __test_skcipher(struct cipher_testvec *template, unsigned int tcount,
 		}
 		skcipher_request_free(req);
 		crypto_free_skcipher(tfm);
-		pr_info("%s test completed on continuous buffers for %s algorithm (cipher_keylen:%d) \n", e, algo, template[i].klen);
+		pr_info("%s test completed on noncontinuous test vectors for %s algorithm (cipher_keylen:%d) \n", e, algo, template[i].klen);
 	}
 
 	ret = 0;
