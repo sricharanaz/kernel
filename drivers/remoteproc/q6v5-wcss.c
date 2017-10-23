@@ -76,6 +76,8 @@ static int debug_wcss;
 #define HALTACK BIT(0)
 #define BHS_EN_REST_ACK BIT(0)
 
+#define EM_QDSP6 164
+
 struct q6v5_rtable {
 	struct resource_table rtable;
 	struct fw_rsc_hdr last_hdr;
@@ -135,6 +137,8 @@ static struct class *dump_class;
 struct dump_file_private {
 	int remaining_bytes;
 	int rel_addr_off;
+	int ehdr_remaining_bytes;
+	char *ehdr;
 	struct task_struct *pdesc;
 };
 
@@ -175,7 +179,7 @@ static int q6_dump_open(struct inode *inode, struct file *file)
 
 	file->f_mode |= q6dump.fmode;
 
-	dfp = kmalloc(sizeof(struct dump_file_private), GFP_KERNEL);
+	dfp = kzalloc(sizeof(struct dump_file_private), GFP_KERNEL);
 	if (dfp == NULL) {
 		pr_err("%s:\tCan not allocate memory for private structure\n",
 				__func__);
@@ -221,6 +225,11 @@ static ssize_t q6_dump_read(struct file *file, char __user *buf, size_t count,
 		loff_t *ppos)
 {
 	void *buffer = NULL;
+	size_t elfcore_hdrsize;
+	Elf32_Phdr *phdr;
+	Elf32_Ehdr *ehdr;
+	int nsegments = 1;
+	size_t count2 = 0;
 	struct dump_file_private *dfp = (struct dump_file_private *)
 		file->private_data;
 
@@ -228,6 +237,56 @@ static ssize_t q6_dump_read(struct file *file, char __user *buf, size_t count,
 		return 0;
 
 	mod_timer(&dump_timeout, jiffies + msecs_to_jiffies(DUMP_TIMEOUT));
+
+	if (dfp->ehdr == NULL) {
+		elfcore_hdrsize = sizeof(*ehdr) + sizeof(*phdr) * nsegments;
+
+		ehdr = kzalloc(elfcore_hdrsize, GFP_KERNEL);
+		if (ehdr == NULL)
+			return -ENOMEM;
+
+		dfp->ehdr = (char *)ehdr;
+		phdr = (Elf32_Phdr *)(ehdr + 1);
+
+		memcpy(ehdr->e_ident, ELFMAG, SELFMAG);
+		ehdr->e_ident[EI_CLASS] = ELFCLASS32;
+		ehdr->e_ident[EI_DATA] = ELFDATA2LSB;
+		ehdr->e_ident[EI_VERSION] = EV_CURRENT;
+		ehdr->e_ident[EI_OSABI] = ELFOSABI_NONE;
+		ehdr->e_type = ET_CORE;
+		ehdr->e_machine = EM_QDSP6;
+		ehdr->e_version = EV_CURRENT;
+		ehdr->e_phoff = sizeof(*ehdr);
+		ehdr->e_ehsize = sizeof(*ehdr);
+		ehdr->e_phentsize = sizeof(*phdr);
+		ehdr->e_phnum = nsegments;
+
+		phdr->p_type = PT_LOAD;
+		phdr->p_offset = elfcore_hdrsize;
+		phdr->p_vaddr = phdr->p_paddr = q6dump.dump_phy_addr;
+		phdr->p_filesz = phdr->p_memsz = q6dump.dump_size;
+		phdr->p_flags = PF_R | PF_W | PF_X;
+
+		dfp->ehdr_remaining_bytes = elfcore_hdrsize;
+	}
+
+	if (dfp->ehdr_remaining_bytes) {
+		if (count > dfp->ehdr_remaining_bytes) {
+			count2 = dfp->ehdr_remaining_bytes;
+			copy_to_user(buf, dfp->ehdr + *ppos, count2);
+			buf += count2;
+			dfp->ehdr_remaining_bytes -= count2;
+			count -= count2;
+			kfree(dfp->ehdr);
+		} else {
+			copy_to_user(buf, dfp->ehdr + *ppos, count);
+			dfp->ehdr_remaining_bytes -= count;
+			if (!dfp->ehdr_remaining_bytes)
+				kfree(dfp->ehdr);
+			*ppos = *ppos + count;
+			return count;
+		}
+	}
 
 	if (count > dfp->remaining_bytes)
 		count = dfp->remaining_bytes;
@@ -250,7 +309,8 @@ static ssize_t q6_dump_read(struct file *file, char __user *buf, size_t count,
 
 	iounmap(buffer);
 
-	return count;
+	*ppos = *ppos + count + count2;
+	return count + count2;
 }
 
 static ssize_t q6_dump_write(struct file *file, const char __user *buf,
