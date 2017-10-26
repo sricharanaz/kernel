@@ -825,6 +825,9 @@ int cnss_wlfw_server_exit(struct cnss_plat_data *plat_priv)
 	cnss_pr_info("QMI WLFW service disconnected, state: 0x%lx\n",
 		     plat_priv->driver_state);
 
+	qmi_handle_destroy(plat_priv->qmi_wlfw_clnt);
+	plat_priv->qmi_wlfw_clnt = NULL;
+
 	return 0;
 }
 
