@@ -87,6 +87,48 @@
 };
 
 &tlmm {
+	pinctrl-0 = <&btcoex_pins>;
+	pinctrl-names = "default";
+
+	btcoex_pins: btcoex_pins {
+		mux_0 {
+			pins = "gpio64";
+			function = "pta1_1";
+			drive-strength = <6>;
+			bias-pull-down;
+		};
+		mux_1 {
+			pins = "gpio65";
+			function = "pta1_2";
+			drive-strength = <6>;
+			bias-pull-down;
+		};
+		mux_2 {
+			pins = "gpio66";
+			function = "pta1_0";
+			drive-strength = <6>;
+			bias-pull-down;
+		};
+		mux_3 {
+			pins = "gpio54";
+			function = "pta2_0";
+			drive-strength = <6>;
+			bias-pull-down;
+		};
+		 mux_4 {
+			pins = "gpio55";
+			function = "pta2_1";
+			drive-strength = <6>;
+			bias-pull-down;
+		};
+		 mux_5 {
+			pins = "gpio56";
+			function = "pta2_2";
+			drive-strength = <6>;
+			bias-pull-down;
+		};
+	};
+
 	mdio_pins: mdio_pinmux {
 		mux_0 {
 			pins = "gpio68";
