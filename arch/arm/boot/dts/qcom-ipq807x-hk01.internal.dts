@@ -17,7 +17,9 @@
 
 / {
 	/delete-node/ psci;
+};
 
+&soc {
 	restart@4ab000 {
 		compatible = "qcom,pshold";
 		reg = <0x4ab000 0x4>;
