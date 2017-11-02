@@ -1592,6 +1592,7 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
 	unsigned int max_bitflips = 0;
 	struct read_stats *buf;
+	bool flash_op_err = false;
 	int i;
 
 	buf = (struct read_stats *)nandc->reg_read_buf;
@@ -1612,16 +1613,18 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
 		buffer = le32_to_cpu(buf->buffer);
 		erased_cw = le32_to_cpu(buf->erased_cw);
 
-		if (flash & (FS_OP_ERR | FS_MPU_ERR)) {
+		if ((flash & FS_OP_ERR) && (buffer & BS_UNCORRECTABLE_BIT)) {
 			bool erased;
 
 			/* ignore erased codeword errors */
 			if (host->bch_enabled) {
 				erased = (erased_cw & ERASED_CW) == ERASED_CW ?
 					 true : false;
-			} else {
+			} else if (data_buf) {
 				erased = erased_chunk_check_and_fixup(data_buf,
 								      data_len);
+			} else {
+				erased = false;
 			}
 
 			if (erased) {
@@ -1654,6 +1657,8 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
 						max_t(unsigned int, max_bitflips, ret);
 				}
 			}
+		} else if (flash & (FS_OP_ERR | FS_MPU_ERR)) {
+			flash_op_err = true;
 		} else {
 			unsigned int stat;
 
@@ -1662,10 +1667,14 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
 			max_bitflips = max(max_bitflips, stat);
 		}
 
-		data_buf += data_len;
+		if (data_buf)
+			data_buf += data_len;
 		if (oob_buf)
 			oob_buf += oob_len + ecc->bytes;
 	}
+
+	if (flash_op_err)
+		return -EIO;
 
 	return max_bitflips;
 }
