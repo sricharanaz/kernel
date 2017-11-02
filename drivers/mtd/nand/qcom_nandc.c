@@ -1607,6 +1607,129 @@ static int check_flash_errors(struct qcom_nand_host *host, int cw_cnt)
 }
 
 /*
+ * Helper to perform the page raw read operation. The read_cw_mask will be
+ * used to specify the codewords for which the data should be read. The
+ * single page contains multiple CW. Sometime, only few CW data is required
+ * in complete page. Also, the starting start address will be determined with
+ * this CW mask to skip unnecessary data copy from NAND flash device. Then,
+ * actual data copy from NAND controller to data buffer will be done only
+ * for the CWs which have the mask set.
+ */
+static int
+nandc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
+		    uint8_t *data_buf, uint8_t *oob_buf,
+		    int page, unsigned long read_cw_mask)
+{
+	struct qcom_nand_host *host = to_qcom_nand_host(chip);
+	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
+	struct nand_ecc_ctrl *ecc = &chip->ecc;
+	int i, ret;
+	int read_location, start_step, last_step;
+
+	host->use_ecc = false;
+	start_step = ffs(read_cw_mask) - 1;
+	last_step = fls(read_cw_mask);
+
+	clear_bam_transaction(nandc);
+	set_address(host, host->cw_size * start_step, page);
+	update_rw_regs(host, last_step - start_step, true);
+
+	if (nandc->dma_bam_enabled)
+		config_bam_page_read(nandc);
+
+	for (i = start_step; i < last_step; i++) {
+		int data_size1, data_size2, oob_size1, oob_size2;
+		int reg_off = FLASH_BUF_ACC;
+
+		data_size1 = mtd->writesize - host->cw_size * (ecc->steps - 1);
+		oob_size1 = host->bbm_size;
+
+		if ((i == (ecc->steps - 1)) &&  !nandc->boot_layout) {
+			data_size2 = ecc->size - data_size1 -
+				     ((ecc->steps - 1) << 2);
+			oob_size2 = (ecc->steps << 2) + host->ecc_bytes_hw +
+				    host->spare_bytes;
+		} else {
+			data_size2 = host->cw_data - data_size1;
+			oob_size2 = host->ecc_bytes_hw + host->spare_bytes;
+		}
+
+		if (!(read_cw_mask & BIT(i))) {
+			if (nandc->dma_bam_enabled) {
+				nandc_set_reg(nandc, NAND_READ_LOCATION_0,
+					(0 << READ_LOCATION_OFFSET) |
+					(0 << READ_LOCATION_SIZE) |
+					(1 << READ_LOCATION_LAST));
+				config_bam_cw_read(nandc, false);
+			} else {
+				config_cw_read(nandc, false);
+			}
+
+			data_buf += data_size1 + data_size2;
+			oob_buf += oob_size1 + oob_size2;
+
+			continue;
+		}
+
+		if (nandc->dma_bam_enabled) {
+			read_location = 0;
+			nandc_set_reg(nandc, NAND_READ_LOCATION_0,
+				(read_location << READ_LOCATION_OFFSET) |
+				(data_size1 << READ_LOCATION_SIZE) |
+				(0 << READ_LOCATION_LAST));
+				read_location += data_size1;
+
+			nandc_set_reg(nandc, NAND_READ_LOCATION_1,
+				(read_location << READ_LOCATION_OFFSET) |
+				(oob_size1 << READ_LOCATION_SIZE) |
+				(0 << READ_LOCATION_LAST));
+			read_location += oob_size1;
+
+			nandc_set_reg(nandc, NAND_READ_LOCATION_2,
+				(read_location << READ_LOCATION_OFFSET) |
+				(data_size2 << READ_LOCATION_SIZE) |
+				(0 << READ_LOCATION_LAST));
+			read_location += data_size2;
+
+			nandc_set_reg(nandc, NAND_READ_LOCATION_3,
+				(read_location << READ_LOCATION_OFFSET) |
+				(oob_size2 << READ_LOCATION_SIZE) |
+				(1 << READ_LOCATION_LAST));
+
+			config_bam_cw_read(nandc, false);
+		} else {
+			config_cw_read(nandc, false);
+		}
+
+		read_data_dma(nandc, reg_off, data_buf, data_size1, 0);
+		reg_off += data_size1;
+		data_buf += data_size1;
+
+		read_data_dma(nandc, reg_off, oob_buf, oob_size1, 0);
+		reg_off += oob_size1;
+		oob_buf += oob_size1;
+
+		read_data_dma(nandc, reg_off, data_buf, data_size2, 0);
+		reg_off += data_size2;
+		data_buf += data_size2;
+
+		read_data_dma(nandc, reg_off, oob_buf, oob_size2, 0);
+		oob_buf += oob_size2;
+	}
+
+	ret = submit_descs(nandc);
+	if (ret)
+		dev_err(nandc->dev, "failure to read raw page\n");
+
+	free_descs(nandc);
+
+	if (!ret)
+		ret = check_flash_errors(host, last_step - start_step);
+
+	return 0;
+}
+
+/*
  * reads back status registers set by the controller to notify page read
  * errors. this is equivalent to what 'ecc->correct()' would do.
  */
@@ -1872,97 +1995,8 @@ static int qcom_nandc_read_page_raw(struct mtd_info *mtd,
 				    struct nand_chip *chip, uint8_t *buf,
 				    int oob_required, int page)
 {
-	struct qcom_nand_host *host = to_qcom_nand_host(chip);
-	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
-	u8 *data_buf, *oob_buf;
-	struct nand_ecc_ctrl *ecc = &chip->ecc;
-	int i, ret;
-	int read_location;
-
-	data_buf = buf;
-	oob_buf = chip->oob_poi;
-
-	host->use_ecc = false;
-
-	clear_bam_transaction(nandc);
-	update_rw_regs(host, ecc->steps, true);
-
-	if (nandc->dma_bam_enabled)
-		config_bam_page_read(nandc);
-
-	for (i = 0; i < ecc->steps; i++) {
-		int data_size1, data_size2, oob_size1, oob_size2;
-		int reg_off = FLASH_BUF_ACC;
-
-		data_size1 = mtd->writesize - host->cw_size * (ecc->steps - 1);
-		oob_size1 = host->bbm_size;
-
-		if ((i == (ecc->steps - 1)) &&  !nandc->boot_layout) {
-			data_size2 = ecc->size - data_size1 -
-				     ((ecc->steps - 1) << 2);
-			oob_size2 = (ecc->steps << 2) + host->ecc_bytes_hw +
-				    host->spare_bytes;
-		} else {
-			data_size2 = host->cw_data - data_size1;
-			oob_size2 = host->ecc_bytes_hw + host->spare_bytes;
-		}
-
-		if (nandc->dma_bam_enabled) {
-			read_location = 0;
-			nandc_set_reg(nandc, NAND_READ_LOCATION_0,
-				(read_location << READ_LOCATION_OFFSET) |
-				(data_size1 << READ_LOCATION_SIZE) |
-				(0 << READ_LOCATION_LAST));
-			read_location += data_size1;
-
-			nandc_set_reg(nandc, NAND_READ_LOCATION_1,
-				(read_location << READ_LOCATION_OFFSET) |
-				(oob_size1 << READ_LOCATION_SIZE) |
-				(0 << READ_LOCATION_LAST));
-			read_location += oob_size1;
-
-			nandc_set_reg(nandc, NAND_READ_LOCATION_2,
-				(read_location << READ_LOCATION_OFFSET) |
-				(data_size2 << READ_LOCATION_SIZE) |
-				(0 << READ_LOCATION_LAST));
-			read_location += data_size2;
-
-			nandc_set_reg(nandc, NAND_READ_LOCATION_3,
-				(read_location << READ_LOCATION_OFFSET) |
-				(oob_size2 << READ_LOCATION_SIZE) |
-				(1 << READ_LOCATION_LAST));
-
-			config_bam_cw_read(nandc, false);
-		} else {
-			config_cw_read(nandc, false);
-		}
-
-		read_data_dma(nandc, reg_off, data_buf, data_size1, 0);
-		reg_off += data_size1;
-		data_buf += data_size1;
-
-		read_data_dma(nandc, reg_off, oob_buf, oob_size1, 0);
-		reg_off += oob_size1;
-		oob_buf += oob_size1;
-
-		read_data_dma(nandc, reg_off, data_buf, data_size2, 0);
-		reg_off += data_size2;
-		data_buf += data_size2;
-
-		read_data_dma(nandc, reg_off, oob_buf, oob_size2, 0);
-		oob_buf += oob_size2;
-	}
-
-	ret = submit_descs(nandc);
-	if (ret)
-		dev_err(nandc->dev, "failure to read raw page\n");
-
-	free_descs(nandc);
-
-	if (!ret)
-		ret = check_flash_errors(host, ecc->steps);
-
-	return 0;
+	return nandc_read_page_raw(mtd, chip, buf, chip->oob_poi, page,
+				   BIT(chip->ecc.steps) - 1);
 }
 
 /* implements ecc->read_oob() */
