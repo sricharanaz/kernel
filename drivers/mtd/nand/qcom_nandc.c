@@ -1730,25 +1730,110 @@ nandc_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 /*
- * reads back status registers set by the controller to notify page read
- * errors. this is equivalent to what 'ecc->correct()' would do.
+ * Bitflips can happened in erased codewords also so this function counts the
+ * number of 0 in each CW for which ECC engine returns the uncorrectable
+ * error. The page will be assumed as erased if this count is less than or
+ * equal to the ecc->strength for each CW.
+ *
+ * 1. Both DATA and OOB need to be checked for number of 0. The
+ *    top-level API can be called with only data buf or oob buf so use
+ *    chip->buffers->databuf if data buf is null and chip->oob_poi if oob buf
+ *    is null for copying the raw bytes.
+ * 2. Perform raw read for all the CW which has uncorrectable errors.
+ * 3. For each CW, check the number of 0 in cw_data and usable oob bytes.
+ *    The bbm and spare bytes bit flip won’t affect the ECC so don’t check
+ *    the number of bitflips in this area.
  */
-static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
-			     u8 *oob_buf, bool last_cw)
+static int
+check_for_erased_page(struct qcom_nand_host *host, u8 *data_buf,
+		      u8 *oob_buf, unsigned long uncorrectable_err_cws,
+		      int page, unsigned int max_bitflips, bool last_cw)
 {
 	struct nand_chip *chip = &host->chip;
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
 	struct mtd_info *mtd = nand_to_mtd(chip);
 	struct nand_ecc_ctrl *ecc = &chip->ecc;
-	unsigned int max_bitflips = 0;
+	int i, start_step, last_step, ret = 0;
+
+	start_step = ffs(uncorrectable_err_cws) - 1;
+	last_step = fls(uncorrectable_err_cws);
+
+	if (!last_cw) {
+		if (!data_buf)
+			data_buf = chip->buffers->databuf;
+		if (!oob_buf)
+			oob_buf = chip->oob_poi;
+		data_buf += start_step * host->cw_data;
+		oob_buf += start_step * ecc->bytes;
+	}
+
+	clear_read_regs(nandc);
+	nandc_read_page_raw(mtd, chip, data_buf, oob_buf, page,
+			    uncorrectable_err_cws);
+
+	for (i = start_step; i < last_step; i++) {
+		int data_size, oob_size;
+
+		if ((i == (ecc->steps - 1)) && !nandc->boot_layout) {
+			data_size = ecc->size - ((ecc->steps - 1) << 2);
+			oob_size = (ecc->steps << 2) + host->ecc_bytes_hw;
+		} else {
+			data_size = host->cw_data;
+			oob_size = host->ecc_bytes_hw;
+		}
+
+		if (uncorrectable_err_cws & BIT(i)) {
+			/*
+			 * make sure it isn't an erased page reported
+			 * as not-erased by HW because of a few bitflips
+			 */
+			ret = nand_check_erased_ecc_chunk(data_buf,
+				data_size, oob_buf + host->bbm_size,
+				oob_size, NULL,
+				0, ecc->strength);
+			if (ret < 0) {
+				mtd->ecc_stats.failed++;
+			} else {
+				mtd->ecc_stats.corrected += ret;
+				max_bitflips =
+					max_t(unsigned int, max_bitflips, ret);
+			}
+		}
+
+		data_buf += data_size;
+		oob_buf += ecc->bytes;
+	}
+
+	return max_bitflips;
+}
+
+/*
+ * reads back status registers set by the controller to notify page read
+ * errors. this is equivalent to what 'ecc->correct()' would do.
+ */
+static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
+			     u8 *oob_buf, bool last_cw, int page)
+{
+	struct nand_chip *chip = &host->chip;
+	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
+	struct mtd_info *mtd = nand_to_mtd(chip);
+	struct nand_ecc_ctrl *ecc = &chip->ecc;
+	unsigned int max_bitflips = 0, uncorrectable_err_cws = 0;
 	struct read_stats *buf;
 	bool flash_op_err = false;
-	int i, cw_cnt;
+	u8 *data_buf_start = data_buf, *oob_buf_start = oob_buf;
+	int i, cw_cnt, start_cw;
 
-	cw_cnt = last_cw ? 1 : ecc->steps;
 	buf = (struct read_stats *)nandc->reg_read_buf;
+	if (last_cw) {
+		start_cw = ecc->steps - 1;
+		cw_cnt = 1;
+	} else {
+		start_cw = 0;
+		cw_cnt = ecc->steps;
+	}
 
-	for (i = 0; i < cw_cnt; i++, buf++) {
+	for (i = start_cw; i < start_cw + cw_cnt; i++, buf++) {
 		u32 flash, buffer, erased_cw;
 		int data_len, oob_len;
 
@@ -1778,36 +1863,8 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
 				erased = false;
 			}
 
-			if (erased) {
-				data_buf += data_len;
-				if (oob_buf)
-					oob_buf += oob_len + ecc->bytes;
-				continue;
-			}
-
-			if (buffer & BS_UNCORRECTABLE_BIT) {
-				int ret, ecclen, extraooblen;
-				void *eccbuf;
-
-				eccbuf = oob_buf ? oob_buf + oob_len : NULL;
-				ecclen = oob_buf ? host->ecc_bytes_hw : 0;
-				extraooblen = oob_buf ? oob_len : 0;
-
-				/*
-				 * make sure it isn't an erased page reported
-				 * as not-erased by HW because of a few bitflips
-				 */
-				ret = nand_check_erased_ecc_chunk(data_buf,
-					data_len, eccbuf, ecclen, oob_buf,
-					extraooblen, ecc->strength);
-				if (ret < 0) {
-					mtd->ecc_stats.failed++;
-				} else {
-					mtd->ecc_stats.corrected += ret;
-					max_bitflips =
-						max_t(unsigned int, max_bitflips, ret);
-				}
-			}
+			if (!erased)
+				uncorrectable_err_cws |= BIT(i);
 		} else if (flash & (FS_OP_ERR | FS_MPU_ERR)) {
 			flash_op_err = true;
 		} else {
@@ -1827,7 +1884,12 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
 	if (flash_op_err)
 		return -EIO;
 
-	return max_bitflips;
+	if (!uncorrectable_err_cws)
+		return max_bitflips;
+
+	return check_for_erased_page(host, data_buf_start, oob_buf_start,
+				     uncorrectable_err_cws, page,
+				     max_bitflips, last_cw);
 }
 
 /*
@@ -1835,7 +1897,7 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
  * ecc->read_oob()
  */
 static int read_page_ecc(struct qcom_nand_host *host, u8 *data_buf,
-			 u8 *oob_buf)
+			 u8 *oob_buf, int page)
 {
 	struct nand_chip *chip = &host->chip;
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
@@ -1921,7 +1983,7 @@ static int read_page_ecc(struct qcom_nand_host *host, u8 *data_buf,
 
 	if (!ret)
 		ret = parse_read_errors(host, data_buf_start, oob_buf_start,
-					false);
+					false, page);
 
 	return ret;
 }
@@ -1966,7 +2028,7 @@ static int copy_last_cw(struct qcom_nand_host *host, int page)
 		if (host->use_ecc)
 			ret = parse_read_errors(host, nandc->data_buffer,
 						nandc->data_buffer + size,
-						true);
+						true, page);
 		else
 			ret = check_flash_errors(host, 1);
 	}
@@ -1987,7 +2049,7 @@ static int qcom_nandc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	clear_bam_transaction(nandc);
 
-	return read_page_ecc(host, data_buf, oob_buf);
+	return read_page_ecc(host, data_buf, oob_buf, page);
 }
 
 /* implements ecc->read_page_raw() */
@@ -2014,7 +2076,7 @@ static int qcom_nandc_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 	set_address(host, 0, page);
 	update_rw_regs(host, ecc->steps, true);
 
-	return read_page_ecc(host, NULL, chip->oob_poi);
+	return read_page_ecc(host, NULL, chip->oob_poi, page);
 }
 
 /* implements ecc->write_page() */
