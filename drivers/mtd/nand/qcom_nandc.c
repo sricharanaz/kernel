@@ -1584,7 +1584,7 @@ struct read_stats {
  * errors. this is equivalent to what 'ecc->correct()' would do.
  */
 static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
-			     u8 *oob_buf)
+			     u8 *oob_buf, bool last_cw)
 {
 	struct nand_chip *chip = &host->chip;
 	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
@@ -1593,11 +1593,12 @@ static int parse_read_errors(struct qcom_nand_host *host, u8 *data_buf,
 	unsigned int max_bitflips = 0;
 	struct read_stats *buf;
 	bool flash_op_err = false;
-	int i;
+	int i, cw_cnt;
 
+	cw_cnt = last_cw ? 1 : ecc->steps;
 	buf = (struct read_stats *)nandc->reg_read_buf;
 
-	for (i = 0; i < ecc->steps; i++, buf++) {
+	for (i = 0; i < cw_cnt; i++, buf++) {
 		u32 flash, buffer, erased_cw;
 		int data_len, oob_len;
 
@@ -1769,7 +1770,8 @@ static int read_page_ecc(struct qcom_nand_host *host, u8 *data_buf,
 	free_descs(nandc);
 
 	if (!ret)
-		ret = parse_read_errors(host, data_buf_start, oob_buf_start);
+		ret = parse_read_errors(host, data_buf_start, oob_buf_start,
+					false);
 
 	return ret;
 }
