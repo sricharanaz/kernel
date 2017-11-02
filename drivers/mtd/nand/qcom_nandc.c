@@ -180,6 +180,8 @@
 /* data sgl size in bam transaction */
 #define BAM_DATA_SGL_SIZE	(128)
 
+#define QPIC_NAND_COMPLETION_TIMEOUT	msecs_to_jiffies(1000)
+
 /* NANDc reg offsets enumeration */
 enum {
 	NAND_FLASH_CMD,
@@ -232,6 +234,11 @@ enum {
  * @cmd_sgl_cnt - no of entries in command sgl.
  * @tx_sgl_cnt - no of entries in tx sgl.
  * @rx_sgl_cnt - no of entries in rx sgl.
+ * @chans_cnt - no of QPIC BAM channels in which the descriptors have been
+ *		submitted for this transaction.
+ * @completed_chans - no of QPIC BAM channels in which all the descriptors have
+ *		      been processed and completion callback has been triggered.
+ * @txn_done - the completion used for complete QPIC NAND transfer.
  */
 struct bam_transaction {
 	struct bam_cmd_element bam_ce[BAM_CMD_ELEMENT_SIZE];
@@ -243,6 +250,9 @@ struct bam_transaction {
 	uint32_t cmd_sgl_cnt;
 	uint32_t tx_sgl_cnt;
 	uint32_t rx_sgl_cnt;
+	uint32_t chans_cnt;
+	uint32_t completed_chans;
+	struct completion txn_done;
 };
 
 /**
@@ -536,6 +546,10 @@ struct bam_transaction *alloc_bam_transaction(
 	qcom_bam_sg_init_table(bam_txn->tx_sgl, BAM_DATA_SGL_SIZE);
 	qcom_bam_sg_init_table(bam_txn->rx_sgl, BAM_DATA_SGL_SIZE);
 
+	/* command channel will be always used so initialize with 1 */
+	bam_txn->chans_cnt = 1;
+	init_completion(&bam_txn->txn_done);
+
 	return bam_txn;
 }
 
@@ -552,6 +566,26 @@ void clear_bam_transaction(struct qcom_nand_controller *nandc)
 	bam_txn->cmd_sgl_cnt = 0;
 	bam_txn->tx_sgl_cnt = 0;
 	bam_txn->rx_sgl_cnt = 0;
+	/* command channel will be always used so initialize with 1 */
+	bam_txn->chans_cnt = 1;
+	bam_txn->completed_chans = 0;
+
+	reinit_completion(&bam_txn->txn_done);
+}
+
+/* Callback for DMA descriptor completion */
+static void qpic_bam_dma_done(void *data)
+{
+	struct bam_transaction *bam_txn = data;
+
+	bam_txn->completed_chans++;
+	/*
+	 * All the QPIC BAM channels will generate the callback upon completion
+	 * of last descriptor. Schedule the complete when all the QPIC BAM
+	 * channels have processed its descriptors.
+	 */
+	if (bam_txn->completed_chans == bam_txn->chans_cnt)
+		complete(&bam_txn->txn_done);
 }
 
 static inline struct qcom_nand_host *to_qcom_nand_host(struct nand_chip *chip)
@@ -1259,6 +1293,8 @@ static int prepare_bam_async_desc(struct qcom_nand_controller *nandc,
 	}
 
 	desc->dma_desc = dma_desc;
+	dma_desc->callback = qpic_bam_dma_done;
+	dma_desc->callback_param = nandc->bam_txn;
 
 	list_add_tail(&desc->node, &nandc->desc_list);
 
@@ -1281,6 +1317,8 @@ static int submit_descs(struct qcom_nand_controller *nandc)
 				DMA_DEV_TO_MEM);
 			if (r)
 				return r;
+
+			bam_txn->chans_cnt++;
 		}
 
 		if (bam_txn->tx_sgl_cnt) {
@@ -1289,6 +1327,8 @@ static int submit_descs(struct qcom_nand_controller *nandc)
 				DMA_MEM_TO_DEV);
 			if (r)
 				return r;
+
+			bam_txn->chans_cnt++;
 		}
 
 		r = prepare_bam_async_desc(nandc, nandc->cmd_chan,
@@ -1304,8 +1344,9 @@ static int submit_descs(struct qcom_nand_controller *nandc)
 	if (nandc->dma_bam_enabled) {
 		dma_async_issue_pending(nandc->tx_chan);
 		dma_async_issue_pending(nandc->rx_chan);
+		dma_async_issue_pending(nandc->cmd_chan);
 
-		if (dma_sync_wait(nandc->cmd_chan, cookie) != DMA_COMPLETE)
+		if (!wait_for_completion_timeout(&bam_txn->txn_done, QPIC_NAND_COMPLETION_TIMEOUT))
 			return -ETIMEDOUT;
 	} else {
 		if (dma_sync_wait(nandc->chan, cookie) != DMA_COMPLETE)
