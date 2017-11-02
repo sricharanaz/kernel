@@ -1034,7 +1034,7 @@ static int write_data_dma(struct qcom_nand_controller *nandc, int reg_off,
  * helper to prepare dma descriptors to configure registers needed for reading a
  * codeword/step in a page
  */
-static void config_cw_read(struct qcom_nand_controller *nandc)
+static void config_cw_read(struct qcom_nand_controller *nandc, bool use_ecc)
 {
 	write_reg_dma(nandc, NAND_FLASH_CMD, 3, 0);
 	write_reg_dma(nandc, NAND_DEV0_CFG0, 3, 0);
@@ -1051,9 +1051,14 @@ static void config_cw_read(struct qcom_nand_controller *nandc)
 	write_reg_dma(nandc, NAND_EXEC_CMD, 1, DMA_DESC_FLAG_BAM_NWD |
 				DMA_DESC_FLAG_BAM_NEXT_SGL);
 
-	read_reg_dma(nandc, NAND_FLASH_STATUS, 2, 0);
-	read_reg_dma(nandc, NAND_ERASED_CW_DETECT_STATUS, 1,
-				DMA_DESC_FLAG_BAM_NEXT_SGL);
+	if (use_ecc) {
+		read_reg_dma(nandc, NAND_FLASH_STATUS, 2, 0);
+		read_reg_dma(nandc, NAND_ERASED_CW_DETECT_STATUS, 1,
+			     DMA_DESC_FLAG_BAM_NEXT_SGL);
+	} else {
+		read_reg_dma(nandc, NAND_FLASH_STATUS, 1,
+			     DMA_DESC_FLAG_BAM_NEXT_SGL);
+	}
 }
 
 /*
@@ -1075,7 +1080,7 @@ static void config_bam_page_read(struct qcom_nand_controller *nandc)
  * Helpers to prepare DMA descriptors for configuring registers
  * before reading each codeword in NAND page with BAM.
  */
-static void config_bam_cw_read(struct qcom_nand_controller *nandc)
+static void config_bam_cw_read(struct qcom_nand_controller *nandc, bool use_ecc)
 {
 	if (nandc->dma_bam_enabled)
 		write_reg_dma(nandc, NAND_READ_LOCATION_0, 4, 0);
@@ -1083,9 +1088,14 @@ static void config_bam_cw_read(struct qcom_nand_controller *nandc)
 	write_reg_dma(nandc, NAND_FLASH_CMD, 1, DMA_DESC_FLAG_BAM_NEXT_SGL);
 	write_reg_dma(nandc, NAND_EXEC_CMD, 1, DMA_DESC_FLAG_BAM_NEXT_SGL);
 
-	read_reg_dma(nandc, NAND_FLASH_STATUS, 2, 0);
-	read_reg_dma(nandc, NAND_ERASED_CW_DETECT_STATUS, 1,
-				DMA_DESC_FLAG_BAM_NEXT_SGL);
+	if (use_ecc) {
+		read_reg_dma(nandc, NAND_FLASH_STATUS, 2, 0);
+		read_reg_dma(nandc, NAND_ERASED_CW_DETECT_STATUS, 1,
+			     DMA_DESC_FLAG_BAM_NEXT_SGL);
+	} else {
+		read_reg_dma(nandc, NAND_FLASH_STATUS, 1,
+			     DMA_DESC_FLAG_BAM_NEXT_SGL);
+	}
 }
 
 /*
@@ -1167,7 +1177,7 @@ static int nandc_param(struct qcom_nand_host *host)
 	nandc->buf_count = 512;
 	memset(nandc->data_buffer, 0xff, nandc->buf_count);
 
-	config_cw_read(nandc);
+	config_cw_read(nandc, false);
 
 	read_data_dma(nandc, FLASH_BUF_ACC, nandc->data_buffer,
 		      nandc->buf_count, 0);
@@ -1579,6 +1589,23 @@ struct read_stats {
 	__le32 erased_cw;
 };
 
+/* reads back FLASH_STATUS register set by the controller */
+static int check_flash_errors(struct qcom_nand_host *host, int cw_cnt)
+{
+	struct nand_chip *chip = &host->chip;
+	struct qcom_nand_controller *nandc = get_qcom_nand_controller(chip);
+	int i;
+
+	for (i = 0; i < cw_cnt; i++) {
+		u32 flash = le32_to_cpu(nandc->reg_read_buf[i]);
+
+		if (flash & (FS_OP_ERR | FS_MPU_ERR))
+			return -EIO;
+	}
+
+	return 0;
+}
+
 /*
  * reads back status registers set by the controller to notify page read
  * errors. this is equivalent to what 'ecc->correct()' would do.
@@ -1731,9 +1758,9 @@ static int read_page_ecc(struct qcom_nand_host *host, u8 *data_buf,
 					(1 << READ_LOCATION_LAST));
 			}
 
-			config_bam_cw_read(nandc);
+			config_bam_cw_read(nandc, true);
 		} else {
-			config_cw_read(nandc);
+			config_cw_read(nandc, true);
 		}
 
 		if (data_buf)
@@ -1802,7 +1829,7 @@ static int copy_last_cw(struct qcom_nand_host *host, int page)
 			(size << READ_LOCATION_SIZE) |
 			(1 << READ_LOCATION_LAST));
 
-	config_cw_read(nandc);
+	config_cw_read(nandc, host->use_ecc);
 
 	read_data_dma(nandc, FLASH_BUF_ACC, nandc->data_buffer, size, 0);
 
@@ -1811,6 +1838,15 @@ static int copy_last_cw(struct qcom_nand_host *host, int page)
 		dev_err(nandc->dev, "failed to copy last codeword\n");
 
 	free_descs(nandc);
+
+	if (!ret) {
+		if (host->use_ecc)
+			ret = parse_read_errors(host, nandc->data_buffer,
+						nandc->data_buffer + size,
+						true);
+		else
+			ret = check_flash_errors(host, 1);
+	}
 
 	return ret;
 }
@@ -1896,9 +1932,9 @@ static int qcom_nandc_read_page_raw(struct mtd_info *mtd,
 				(oob_size2 << READ_LOCATION_SIZE) |
 				(1 << READ_LOCATION_LAST));
 
-			config_bam_cw_read(nandc);
+			config_bam_cw_read(nandc, false);
 		} else {
-			config_cw_read(nandc);
+			config_cw_read(nandc, false);
 		}
 
 		read_data_dma(nandc, reg_off, data_buf, data_size1, 0);
@@ -1922,6 +1958,9 @@ static int qcom_nandc_read_page_raw(struct mtd_info *mtd,
 		dev_err(nandc->dev, "failure to read raw page\n");
 
 	free_descs(nandc);
+
+	if (!ret)
+		ret = check_flash_errors(host, ecc->steps);
 
 	return 0;
 }
