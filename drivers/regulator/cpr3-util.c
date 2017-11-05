@@ -1860,11 +1860,16 @@ static int cpr4_load_core_and_temp_adj(struct cpr3_regulator *vreg,
 	}
 
 	sdelta_size = sdelta->max_core_count * sdelta->temp_band_count;
-	snprintf(str, sizeof(str), use_corner_band ?
-	 "corner_band=%d core_config_count=%d temp_band_count=%d sdelta_size=%d\n"
-	 : "corner=%d core_config_count=%d temp_band_count=%d sdelta_size=%d\n",
-		 num, sdelta->max_core_count,
-		 sdelta->temp_band_count, sdelta_size);
+	if (use_corner_band)
+		snprintf(str, sizeof(str),
+			 "corner_band=%d core_config_count=%d temp_band_count=%d sdelta_size=%d\n",
+			 num, sdelta->max_core_count,
+			 sdelta->temp_band_count, sdelta_size);
+	else
+		snprintf(str, sizeof(str),
+			 "corner=%d core_config_count=%d temp_band_count=%d sdelta_size=%d\n",
+			 num, sdelta->max_core_count,
+			 sdelta->temp_band_count, sdelta_size);
 
 	cpr3_debug(vreg, "%s", str);
 
@@ -1873,10 +1878,14 @@ static int cpr4_load_core_and_temp_adj(struct cpr3_regulator *vreg,
 	if (!sdelta->table)
 		return -ENOMEM;
 
-	snprintf(str, sizeof(str), use_corner_band ?
-		 "qcom,cpr-corner-band%d-temp-core-voltage-adjustment" :
-		 "qcom,cpr-corner%d-temp-core-voltage-adjustment",
-		 num + CPR3_CORNER_OFFSET);
+	if (use_corner_band)
+		snprintf(str, sizeof(str),
+			 "qcom,cpr-corner-band%d-temp-core-voltage-adjustment",
+			 num + CPR3_CORNER_OFFSET);
+	else
+		snprintf(str, sizeof(str),
+			 "qcom,cpr-corner%d-temp-core-voltage-adjustment",
+			 num + CPR3_CORNER_OFFSET);
 
 	rc = cpr3_parse_array_property(vreg, str, sdelta_size,
 				sdelta->table);
@@ -1981,7 +1990,7 @@ int cpr4_parse_core_count_temp_voltage_adj(
 		if (!allow_core_count_adj)
 			return -ENOMEM;
 
-		snprintf(prop_str, sizeof(prop_str), use_corner_band ?
+		snprintf(prop_str, sizeof(prop_str), "%s", use_corner_band ?
 			 "qcom,corner-band-allow-core-count-adjustment" :
 			 "qcom,corner-allow-core-count-adjustment");
 
@@ -2005,7 +2014,7 @@ int cpr4_parse_core_count_temp_voltage_adj(
 			goto done;
 		}
 
-		snprintf(prop_str, sizeof(prop_str), use_corner_band ?
+		snprintf(prop_str, sizeof(prop_str), "%s", use_corner_band ?
 			 "qcom,corner-band-allow-temp-adjustment" :
 			 "qcom,corner-allow-temp-adjustment");
 
