@@ -1798,15 +1798,23 @@ int mhi_register_device(struct mhi_device *mhi_device,
 		return -EPROBE_DEFER;
 
 	/* Traverse thru the list */
+	ret = of_machine_is_compatible("qcom,ipq807x");
+
 	mutex_lock(&mhi_device_drv->lock);
 	list_for_each_entry(itr, &mhi_device_drv->head, node) {
 		struct platform_device *pdev = itr->plat_dev;
 
 		core = &itr->core;
-		if (pdev->dev.of_node == of_node && core->domain == domain &&
+		if (!ret && pdev->dev.of_node == of_node && core->domain == domain &&
 		    core->bus == bus && core->slot == slot &&
 		    (core->dev_id == PCI_ANY_ID || (core->dev_id == dev_id))) {
 			/* change default dev_id to current dev_id */
+			core->dev_id = dev_id;
+			mhi_dev_ctxt = itr;
+			break;
+		} else if ((pdev->dev.of_node == of_node) &&
+				((core->dev_id == PCI_ANY_ID) ||
+				(core->dev_id == dev_id))) {
 			core->dev_id = dev_id;
 			mhi_dev_ctxt = itr;
 			break;
