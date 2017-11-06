@@ -523,6 +523,11 @@
 			hwlocks = <&tcsr_mutex 0>;
 		};
 
+		tzlog: qca,tzlog {
+			compatible = "qca,tzlog";
+			interrupts = <0 244 1>;
+		};
+
 		tcsr_mutex_block: syscon@1905000 {
 			compatible = "syscon";
 			reg = <0x1905000 0x8000>;

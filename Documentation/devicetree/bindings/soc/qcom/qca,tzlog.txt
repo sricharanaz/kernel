@@ -1,0 +1,16 @@
+QCA TZLOG
+
+This binding describes tzlog used to inspect log created by TZ. This driver
+also provides capability to capture SMMU and XPU faults found by TZ.
+
+Required properties:
+ - compatible: must contain "qca,tzlog"
+ - interrupts: must contain interrupt used by TZ when XPU or SMMU faults are
+		found
+
+Example:
+
+	qca,tzlog {
+		compatible = "qca,tzlog";
+		interrupts = <0 244 0>;
+	};

@@ -21,6 +21,13 @@
 #include <linux/dma-mapping.h>
 #include <linux/qcom_scm.h>
 #include <linux/slab.h>
+#include <linux/irqdomain.h>
+#include <linux/interrupt.h>
+#include <linux/irqreturn.h>
+#include <linux/io.h>
+#include <linux/of.h>
+#include <linux/irq.h>
+#include <linux/platform_device.h>
 
 /* Maximum size for buffers to support AARCH64 TZ */
 #define BUF_LEN 0x2000
@@ -72,22 +79,52 @@ static const struct file_operations fops_tz_log = {
 	.read = tz_log_read,
 };
 
-static int __init init_tz_log(void)
+static irqreturn_t tzerr_irq(int irq, void *data)
+{
+	panic("Access Violation!!!\n");
+}
+
+static int qca_tzlog_probe(struct platform_device *pdev)
 {
 	int filevalue;
+	int irq;
 	dirret = debugfs_create_dir("qcom_debug_logs", NULL);
 	fileret = debugfs_create_file("tz_log", 0444, dirret,
 					&filevalue, &fops_tz_log);
 
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "unable to get tzlog interrupt\n");
+		return -EIO;
+	}
+
+	devm_request_irq(&pdev->dev, irq, tzerr_irq,
+				IRQF_ONESHOT, "tzerror", NULL);
+
 	return 0;
 }
 
-static void __exit exit_tz_log(void)
+static int qca_tzlog_remove(struct platform_device *pdev)
 {
 	/* removing the directory recursively which
 	in turn cleans all the file */
 	debugfs_remove_recursive(dirret);
+
+	return 0;
 }
 
-module_init(init_tz_log);
-module_exit(exit_tz_log);
+static const struct of_device_id qca_tzlog_of_match[] = {
+	{ .compatible = "qca,tzlog" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, qca_tzlog_of_match);
+
+static struct platform_driver qca_tzlog_driver = {
+	.probe = qca_tzlog_probe,
+	.remove = qca_tzlog_remove,
+	.driver  = {
+		.name  = "qca_tzlog",
+		.of_match_table = qca_tzlog_of_match,
+	},
+};
+module_platform_driver(qca_tzlog_driver);
