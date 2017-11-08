@@ -101,7 +101,7 @@ Example:
 	mdio@90000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "qcom,ipq40xx-mdio";
+		compatible = "qcom,ipq40xx-mdio", "qcom,qca-mdio";
 		reg = <0x90000 0x64>;
 	};
 
