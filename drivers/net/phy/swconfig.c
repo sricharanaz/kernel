@@ -161,6 +161,12 @@ swconfig_speed_str(enum switch_port_speed speed)
 		return "100baseT";
 	case SWITCH_PORT_SPEED_1000:
 		return "1000baseT";
+	case SWITCH_PORT_SPEED_2500:
+		return "2500baseT";
+	case SWITCH_PORT_SPEED_5000:
+		return "5000baseT";
+	case SWITCH_PORT_SPEED_10000:
+		return "10000baseT";
 	default:
 		break;
 	}
