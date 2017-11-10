@@ -22,6 +22,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/fips.h>
 
 #include "internal.h"
 
@@ -218,7 +219,7 @@ static int cryptomgr_test(void *data)
 	goto skiptest;
 #endif
 
-	if (type & CRYPTO_ALG_TESTED)
+	if ((type & CRYPTO_ALG_TESTED) || !fips_enabled)
 		goto skiptest;
 
 	err = alg_test(param->driver, param->alg, type, CRYPTO_ALG_TESTED);
@@ -246,17 +247,6 @@ static int cryptomgr_schedule_test(struct crypto_alg *alg)
 	memcpy(param->driver, alg->cra_driver_name, sizeof(param->driver));
 	memcpy(param->alg, alg->cra_name, sizeof(param->alg));
 	type = alg->cra_flags;
-
-	type |= CRYPTO_ALG_TESTED;
-	/* This piece of crap needs to disappear into per-type test hooks. */
-#ifndef CONFIG_CRYPTO_MANAGER_DISABLE_TESTS
-	if (!((type ^ CRYPTO_ALG_TYPE_BLKCIPHER) &
-	      CRYPTO_ALG_TYPE_BLKCIPHER_MASK) && !(type & CRYPTO_ALG_GENIV) &&
-	    ((alg->cra_flags & CRYPTO_ALG_TYPE_MASK) ==
-	     CRYPTO_ALG_TYPE_BLKCIPHER ? alg->cra_blkcipher.ivsize :
-					 alg->cra_ablkcipher.ivsize))
-		type |= CRYPTO_ALG_TESTED;
-#endif
 
 	param->type = type;
 
