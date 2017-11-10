@@ -371,22 +371,23 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 	char *bdf_addr;
 	int size;
 
-	if (plat_priv->board_info.board_id == 0xFF) {
-		if (bdf_type == BDF_TYPE_GOLDEN)
+	switch (bdf_type) {
+	case BDF_TYPE_GOLDEN:
+		if (plat_priv->board_info.board_id == 0xFF)
 			snprintf(filename, sizeof(filename),
 					"IPQ8074/" DEFAULT_BDF_FILE_NAME);
-		if (bdf_type == BDF_TYPE_CALDATA)
-			snprintf(filename, sizeof(filename),
-					"IPQ8074/" DEFAULT_CAL_FILE_NAME);
-	} else {
-		if (bdf_type == BDF_TYPE_GOLDEN)
+		else
 			snprintf(filename, sizeof(filename),
 					"IPQ8074/" BDF_FILE_NAME_PREFIX "%02x",
 					plat_priv->board_info.board_id);
+		break;
+	case BDF_TYPE_CALDATA:
 		if (bdf_type == BDF_TYPE_CALDATA)
 			snprintf(filename, sizeof(filename),
-					"IPQ8074/" CAL_FILE_NAME_PREFIX "%02x",
-					plat_priv->board_info.board_id);
+					"IPQ8074/" DEFAULT_CAL_FILE_NAME);
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	ret = request_firmware(&fw, filename, &plat_priv->plat_dev->dev);
