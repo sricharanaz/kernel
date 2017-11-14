@@ -253,9 +253,6 @@ int ipq_pcm_init(struct ipq_pcm_params *params)
 	/* MBOX reset */
 	ipq_glb_mbox_reset();
 
-	if (ipq_hw == IPQ8074)
-		ipq_pcm_clk_cfg(params->rate);
-
 	/* write ADSS_PCM_DIVIDER_REG */
 	writel(PCM_DIVIDER_VAL, adss_pcm_base + AADSS_PCM_DIVIDER_REG);
 
@@ -278,9 +275,6 @@ int ipq_pcm_init(struct ipq_pcm_params *params)
 
 	/* write ADSS_PCM_OFFSET_REG */
 	writel(PCM_OFFSET_VAL, adss_pcm_base + AADSS_PCM_OFFSET_REG);
-
-	if (ipq_hw == IPQ8074)
-		ipq_pcm_clk_enable();
 
 	/* write ADSS_PCM_BITMAP_REG */
 	reg_val = 0;
