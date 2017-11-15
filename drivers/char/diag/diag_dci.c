@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1372,6 +1372,7 @@ void diag_dci_notify_client(int peripheral_mask, int data, int proc)
 		dci_ops_tbl[proc].peripheral_status &= ~peripheral_mask;
 
 	/* Notify the DCI process that the peripheral DCI Channel is up */
+	mutex_lock(&driver->dci_mutex);
 	list_for_each_safe(start, temp, &driver->dci_client_list) {
 		entry = list_entry(start, struct diag_dci_client_tbl, track);
 		if (entry->client_info.token != proc)
@@ -1385,6 +1386,7 @@ void diag_dci_notify_client(int peripheral_mask, int data, int proc)
 							info.si_int, stat);
 		}
 	}
+	mutex_unlock(&driver->dci_mutex);
 }
 
 static int diag_send_dci_pkt(struct diag_cmd_reg_t *entry,
@@ -1855,6 +1857,7 @@ static int diag_process_dci_pkt_rsp(unsigned char *buf, int len)
 	reg_entry.cmd_code_hi = header->subsys_cmd_code;
 	reg_entry.cmd_code_lo = header->subsys_cmd_code;
 
+	mutex_lock(&driver->cmd_reg_mutex);
 	temp_entry = diag_cmd_search(&reg_entry, ALL_PROC);
 	if (temp_entry) {
 		reg_item = container_of(temp_entry, struct diag_cmd_reg_t,
@@ -1866,6 +1869,7 @@ static int diag_process_dci_pkt_rsp(unsigned char *buf, int len)
 				reg_entry.cmd_code, reg_entry.subsys_id,
 				reg_entry.cmd_code_hi);
 	}
+	mutex_unlock(&driver->cmd_reg_mutex);
 
 	return ret;
 }
@@ -2815,14 +2819,15 @@ int diag_dci_deinit_client(struct diag_dci_client_tbl *entry)
 	if (!entry)
 		return DIAG_DCI_NOT_SUPPORTED;
 
-	token = entry->client_info.token;
-
 	mutex_lock(&driver->dci_mutex);
+
+	token = entry->client_info.token;
 	/*
 	 * Remove the entry from the list before freeing the buffers
 	 * to ensure that we don't have any invalid access.
 	 */
-	list_del(&entry->track);
+	if (!list_empty(&entry->track))
+		list_del(&entry->track);
 	driver->num_dci_client--;
 	/*
 	 * Clear the client's log and event masks, update the cumulative
@@ -2851,7 +2856,8 @@ int diag_dci_deinit_client(struct diag_dci_client_tbl *entry)
 		req_entry = list_entry(start, struct dci_pkt_req_entry_t,
 				       track);
 		if (req_entry->client_id == entry->client_info.client_id) {
-			list_del(&req_entry->track);
+			if (!list_empty(&req_entry->track))
+				list_del(&req_entry->track);
 			kfree(req_entry);
 		}
 	}
@@ -2860,7 +2866,8 @@ int diag_dci_deinit_client(struct diag_dci_client_tbl *entry)
 	mutex_lock(&entry->write_buf_mutex);
 	list_for_each_entry_safe(buf_entry, temp, &entry->list_write_buf,
 							buf_track) {
-		list_del(&buf_entry->buf_track);
+		if (!list_empty(&buf_entry->buf_track))
+			list_del(&buf_entry->buf_track);
 		if (buf_entry->buf_type == DCI_BUF_SECONDARY) {
 			mutex_lock(&buf_entry->data_mutex);
 			diagmem_free(driver, buf_entry->data, POOL_TYPE_DCI);
