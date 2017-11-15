@@ -20,6 +20,7 @@
 #include <dt-bindings/clock/qca,apss-ipq807x.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
+#include "qcom-ipq807x-mhi.dtsi"
 
 / {
 	psci {
