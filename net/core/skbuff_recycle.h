@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -128,6 +128,12 @@ static inline bool consume_skb_can_recycle(const struct sk_buff *skb,
 		return false;
 
 	if (unlikely(skb_is_nonlinear(skb)))
+		return false;
+
+	if (unlikely(skb_shinfo(skb)->frag_list))
+		return false;
+
+	if (unlikely(skb_shinfo(skb)->nr_frags))
 		return false;
 
 	if (unlikely(skb->fclone != SKB_FCLONE_UNAVAILABLE))
