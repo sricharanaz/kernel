@@ -820,7 +820,6 @@
 				clock-names = "crypto_clk", "crypto_nocclk",
 						"crypto_ppeclk";
 				clock-frequency = /bits/ 64 <600000000 600000000 300000000>;
-				qcom,dma-queue-depth = <256>;
 				qcom,dma-mask = <0xff>;
 				qcom,transform-enabled;
 				qcom,aes128-cbc;

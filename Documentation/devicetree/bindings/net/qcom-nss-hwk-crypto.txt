@@ -16,7 +16,6 @@ Required properties:
 - compatible: "qcom,eip197".
 - reg-names: Indicates various resources passed to driver by name.
 - reg: physical address and length of the register set for the device.
-- qcom,dma-queue-depth: Max descriptor in a ring
 - qcom,dma-mask: Max dma rings supported, each bit represent a ring number
 - qcom,transform-enabled: Whether Packet for tranformation will be sent from host or not.
 - qcom,aes128-cbc: Enable crypto algorithm
@@ -68,7 +67,6 @@ example:
 			compatible = "qcom,eip197";
 			reg-names = "crypto_pbase";
 			reg = <0x39800000 0x7ffff>;
-			qcom,dma-queue-depth = <256>;
 			qcom,dma-mask = <0xff>;
 			qcom,transform-enabled;
 			qcom,aes128-cbc;
