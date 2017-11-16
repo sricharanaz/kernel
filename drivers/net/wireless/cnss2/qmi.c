@@ -40,7 +40,7 @@ bool daemon_support;
 module_param(daemon_support, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(daemon_support, "User space has cnss-daemon support or not");
 
-bool caldata_support;
+bool caldata_support = true;
 module_param(caldata_support, bool, S_IRUSR | S_IWUSR);
 MODULE_PARM_DESC(caldata_support, "caldata support");
 
