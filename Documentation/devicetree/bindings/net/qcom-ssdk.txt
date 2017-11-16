@@ -2,7 +2,7 @@
 
 
 Required properties:
-- compatible: = should be "qcom,ess-switch";
+- compatible: = should be "qcom,ess-switch-ipq807x";
 - reg: Base address and size for the ess-switch register space
 - switch_access_mode: should be "local bus"
 - switch_mac_mode: should be "0-0xe" or "0xff"
@@ -12,7 +12,7 @@ Required properties:
 Example:
 
 ess-switch@3a000000 {
-	compatible = "qcom,ess-switch";
+	compatible = "qcom,ess-switch-ipq807x";
 	reg = <0x3a000000 0x1000000>;
 	switch_access_mode = "local bus";
 	switch_mac_mode = <0x0>;
