@@ -260,9 +260,23 @@
 		};
 	};
 
+	pwm_pins: pwm_pinmux {
+		mux_1 {
+			pins = "gpio25";
+			function = "pwm02";
+			drive-strength = <8>;
+		};
+	};
 };
 
 &soc {
+	pwm {
+		pinctrl-0 = <&pwm_pins>;
+		pinctrl-names = "default";
+		used-pwm-indices = <1>, <0>, <0>, <0>;
+		status = "disabled";
+	};
+
 	gpio_keys {
 		compatible = "gpio-keys";
 		pinctrl-0 = <&button_pins>;
