@@ -1713,7 +1713,14 @@
 			dmas = <&blsp_dma 17>, <&blsp_dma 16>;
 			dma-names = "rx", "tx";
 		};
-
+		pwm {
+			compatible = "qca,ipq4019-pwm";
+			clocks = <&gcc GCC_ADSS_PWM_CLK>;
+			clock-names = "core";
+			pwm-base-index = <0>;
+			used-pwm-indices = <1>, <1>, <1>, <1>;
+			status = "disabled";
+		};
 	};
 
 	clocks {
