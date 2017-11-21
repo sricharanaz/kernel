@@ -3522,7 +3522,7 @@ static int diag_probe(struct platform_device *pdev)
 	pr_debug("diagchar initializing ..\n");
 	driver->num = 1;
 	driver->name = ((void *)driver) + sizeof(struct diagchar_dev);
-	strlcpy(driver->name, "diag", 4);
+	strlcpy(driver->name, "diag", 5);
 	/* Get major number from kernel and initialize */
 	error = alloc_chrdev_region(&dev, driver->minor_start,
 				    driver->num, driver->name);
