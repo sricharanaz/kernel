@@ -40,8 +40,13 @@
 #define RPM_SMI_CLK				22
 #define RPM_SMI_A_CLK				23
 #define RPM_PLL4_CLK				24
+/* ipq8064 */
+#define RPM_NSS_FABRIC_0_CLK			25
+#define RPM_NSS_FABRIC_0_A_CLK			26
+#define RPM_NSS_FABRIC_1_CLK			27
+#define RPM_NSS_FABRIC_1_A_CLK			28
 
-/* SMD RPM clocks */
+/* msm8916 */
 #define RPM_SMD_XO_CLK_SRC				0
 #define RPM_SMD_XO_A_CLK_SRC			1
 #define RPM_SMD_PCNOC_CLK				2

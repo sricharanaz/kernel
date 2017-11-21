@@ -476,10 +476,33 @@ static const struct rpm_clk_desc rpm_clk_apq8064 = {
 	.num_clks = ARRAY_SIZE(apq8064_clks),
 };
 
+/* ipq8064 */
+DEFINE_CLK_RPM(ipq8064, cxo_clk, cxo_a_clk, QCOM_RPM_CXO_CLK);
+DEFINE_CLK_RPM(ipq8064, pxo_clk, pxo_a_clk, QCOM_RPM_PXO_CLK);
+DEFINE_CLK_RPM(ipq8064, ebi1_clk, ebi1_a_clk, QCOM_RPM_EBI1_CLK);
+DEFINE_CLK_RPM(ipq8064, apps_fabric_clk, apps_fabric_a_clk, QCOM_RPM_APPS_FABRIC_CLK);
+DEFINE_CLK_RPM(ipq8064, nss_fabric0_clk, nss_fabric0_a_clk, QCOM_RPM_NSS_FABRIC_0_CLK);
+DEFINE_CLK_RPM(ipq8064, nss_fabric1_clk, nss_fabric1_a_clk, QCOM_RPM_NSS_FABRIC_1_CLK);
+
+static struct clk_rpm *ipq8064_clks[] = {
+	[RPM_CXO_A_CLK] = &ipq8064_cxo_a_clk,
+	[RPM_PXO_A_CLK] = &ipq8064_pxo_a_clk,
+	[RPM_EBI1_A_CLK] = &ipq8064_ebi1_a_clk,
+	[RPM_APPS_FABRIC_A_CLK] = &ipq8064_apps_fabric_a_clk,
+	[RPM_NSS_FABRIC_0_A_CLK] = &ipq8064_nss_fabric0_a_clk,
+	[RPM_NSS_FABRIC_1_A_CLK] = &ipq8064_nss_fabric1_a_clk,
+};
+
+static const struct rpm_clk_desc rpm_clk_ipq8064 = {
+        .clks = ipq8064_clks,
+        .num_clks = ARRAY_SIZE(ipq8064_clks),
+};
+
 static const struct of_device_id rpm_clk_match_table[] = {
 	{ .compatible = "qcom,rpmcc-msm8660", .data = &rpm_clk_msm8660 },
 	{ .compatible = "qcom,rpmcc-apq8060", .data = &rpm_clk_msm8660 },
 	{ .compatible = "qcom,rpmcc-apq8064", .data = &rpm_clk_apq8064 },
+	{ .compatible = "qcom,rpmcc-ipq8064", .data = &rpm_clk_ipq8064 },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, rpm_clk_match_table);
