@@ -38,22 +38,22 @@
 #define CTRL_0_REG_DEFAULT_VALUE	0x1500F
 #define CTRL_0_REG_C45_DEFAULT_VALUE	0x1510F
 
-#define IPQ40XX_MDIO_RETRY	1000
-#define IPQ40XX_MDIO_DELAY	10
+#define QCA_MDIO_RETRY	1000
+#define QCA_MDIO_DELAY	10
 
-#define IPQ40XX_MAX_PHY_RESET	2
+#define QCA_MAX_PHY_RESET	2
 
-struct ipq40xx_mdio_data {
+struct qca_mdio_data {
 	struct mii_bus *mii_bus;
 	void __iomem *membase;
 	int phy_irq[PHY_MAX_ADDR];
 };
 
-static int ipq40xx_mdio_wait_busy(struct ipq40xx_mdio_data *am)
+static int qca_mdio_wait_busy(struct qca_mdio_data *am)
 {
 	int i;
 
-	for (i = 0; i < IPQ40XX_MDIO_RETRY; i++) {
+	for (i = 0; i < QCA_MDIO_RETRY; i++) {
 		unsigned int busy;
 
 		busy = readl(am->membase + MDIO_CTRL_4_REG);
@@ -61,7 +61,7 @@ static int ipq40xx_mdio_wait_busy(struct ipq40xx_mdio_data *am)
 		if (!busy)
 			return 0;
 
-		udelay(IPQ40XX_MDIO_DELAY);
+		udelay(QCA_MDIO_DELAY);
 	}
 
 	pr_err("%s: MDIO operation timed out\n", am->mii_bus->name);
@@ -69,13 +69,13 @@ static int ipq40xx_mdio_wait_busy(struct ipq40xx_mdio_data *am)
 	return -ETIMEDOUT;
 }
 
-static int ipq40xx_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
+static int qca_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 {
-	struct ipq40xx_mdio_data *am = bus->priv;
+	struct qca_mdio_data *am = bus->priv;
 	int value = 0;
 	unsigned int cmd = 0;
 
-	if (ipq40xx_mdio_wait_busy(am))
+	if (qca_mdio_wait_busy(am))
 		return 0xffff;
 
 	if (regnum & MII_ADDR_C45) {
@@ -101,14 +101,14 @@ static int ipq40xx_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	writel(cmd, am->membase + MDIO_CTRL_4_REG);
 
 	/* Wait complete */
-	if (ipq40xx_mdio_wait_busy(am))
+	if (qca_mdio_wait_busy(am))
 		return 0xffff;
 
 	if (regnum & MII_ADDR_C45) {
 		cmd = MDIO_CTRL_4_ACCESS_START |
 			MDIO_CTRL_4_ACCESS_CODE_C45_READ;
 		writel(cmd, am->membase + MDIO_CTRL_4_REG);
-		if (ipq40xx_mdio_wait_busy(am))
+		if (qca_mdio_wait_busy(am))
 			return 0xffff;
 	}
 
@@ -118,13 +118,13 @@ static int ipq40xx_mdio_read(struct mii_bus *bus, int mii_id, int regnum)
 	return value;
 }
 
-static int ipq40xx_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
-			      u16 value)
+static int qca_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
+			  u16 value)
 {
-	struct ipq40xx_mdio_data *am = bus->priv;
+	struct qca_mdio_data *am = bus->priv;
 	unsigned int cmd = 0;
 
-	if (ipq40xx_mdio_wait_busy(am))
+	if (qca_mdio_wait_busy(am))
 		return 0xffff;
 
 	if (regnum & MII_ADDR_C45) {
@@ -140,7 +140,7 @@ static int ipq40xx_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 		cmd = MDIO_CTRL_4_ACCESS_START |
 			MDIO_CTRL_4_ACCESS_CODE_C45_ADDR;
 		writel(cmd, am->membase + MDIO_CTRL_4_REG);
-		if (ipq40xx_mdio_wait_busy(am))
+		if (qca_mdio_wait_busy(am))
 			return -ETIMEDOUT;
 	} else {
 		writel(CTRL_0_REG_DEFAULT_VALUE, am->membase + MDIO_CTRL_0_REG);
@@ -160,13 +160,13 @@ static int ipq40xx_mdio_write(struct mii_bus *bus, int mii_id, int regnum,
 	writel(cmd, am->membase + MDIO_CTRL_4_REG);
 
 	/* Wait write complete */
-	if (ipq40xx_mdio_wait_busy(am))
+	if (qca_mdio_wait_busy(am))
 		return -ETIMEDOUT;
 
 	return 0;
 }
 
-static int ipq40xx_phy_gpio_set(struct platform_device *pdev, int number)
+static int qca_phy_gpio_set(struct platform_device *pdev, int number)
 {
 	int ret;
 
@@ -195,7 +195,7 @@ phy_reset_out:
 	return ret;
 }
 
-static int ipq40xx_phy_reset(struct platform_device *pdev)
+static int qca_phy_reset(struct platform_device *pdev)
 {
 	struct device_node *mdio_node;
 	int phy_reset_gpio_number;
@@ -207,7 +207,7 @@ static int ipq40xx_phy_reset(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	for (i = 0; i < IPQ40XX_MAX_PHY_RESET; i++) {
+	for (i = 0; i < QCA_MAX_PHY_RESET; i++) {
 		ret = of_get_named_gpio(mdio_node, "phy-reset-gpio", i);
 		if (ret < 0) {
 			dev_info(&pdev->dev, "Could not find phy-reset-gpio\n");
@@ -215,7 +215,7 @@ static int ipq40xx_phy_reset(struct platform_device *pdev)
 		}
 
 		phy_reset_gpio_number = ret;
-		ret = ipq40xx_phy_gpio_set(pdev, phy_reset_gpio_number);
+		ret = qca_phy_gpio_set(pdev, phy_reset_gpio_number);
 		if (ret)
 			return ret;
 	}
@@ -223,13 +223,13 @@ static int ipq40xx_phy_reset(struct platform_device *pdev)
 	return 0;
 }
 
-static int ipq40xx_mdio_probe(struct platform_device *pdev)
+static int qca_mdio_probe(struct platform_device *pdev)
 {
-	struct ipq40xx_mdio_data *am;
+	struct qca_mdio_data *am;
 	struct resource *res;
 	int ret, i;
 
-	ret = ipq40xx_phy_reset(pdev);
+	ret = qca_phy_reset(pdev);
 	if (ret)
 		dev_err(&pdev->dev, "Could not find qca8075 reset gpio\n");
 
@@ -259,9 +259,9 @@ static int ipq40xx_mdio_probe(struct platform_device *pdev)
 
 	writel(CTRL_0_REG_DEFAULT_VALUE, am->membase + MDIO_CTRL_0_REG);
 
-	am->mii_bus->name = "ipq40xx_mdio";
-	am->mii_bus->read = &ipq40xx_mdio_read;
-	am->mii_bus->write = &ipq40xx_mdio_write;
+	am->mii_bus->name = "qca_mdio";
+	am->mii_bus->read = &qca_mdio_read;
+	am->mii_bus->write = &qca_mdio_write;
 	am->mii_bus->irq = am->phy_irq;
 	am->mii_bus->priv = am;
 	am->mii_bus->parent = &pdev->dev;
@@ -276,7 +276,7 @@ static int ipq40xx_mdio_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_free_bus;
 
-	dev_info(&pdev->dev, "ipq40xx-mdio driver was registered\n");
+	dev_info(&pdev->dev, "qca-mdio driver was registered\n");
 
 	return 0;
 
@@ -290,9 +290,9 @@ err_out:
 	return ret;
 }
 
-static int ipq40xx_mdio_remove(struct platform_device *pdev)
+static int qca_mdio_remove(struct platform_device *pdev)
 {
-	struct ipq40xx_mdio_data *am = platform_get_drvdata(pdev);
+	struct qca_mdio_data *am = platform_get_drvdata(pdev);
 
 	if (am) {
 		mdiobus_unregister(am->mii_bus);
@@ -305,22 +305,23 @@ static int ipq40xx_mdio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id ipq40xx_mdio_dt_ids[] = {
+static const struct of_device_id qca_mdio_dt_ids[] = {
 	{ .compatible = "qcom,ipq40xx-mdio" },
+	{ .compatible = "qcom,qca-mdio" },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, ipq40xx_mdio_dt_ids);
+MODULE_DEVICE_TABLE(of, qca_mdio_dt_ids);
 
-static struct platform_driver ipq40xx_mdio_driver = {
-	.probe = ipq40xx_mdio_probe,
-	.remove = ipq40xx_mdio_remove,
+static struct platform_driver qca_mdio_driver = {
+	.probe = qca_mdio_probe,
+	.remove = qca_mdio_remove,
 	.driver = {
-		.name = "ipq40xx-mdio",
-		.of_match_table = ipq40xx_mdio_dt_ids,
+		.name = "qca-mdio",
+		.of_match_table = qca_mdio_dt_ids,
 	},
 };
 
-module_platform_driver(ipq40xx_mdio_driver);
+module_platform_driver(qca_mdio_driver);
 
-MODULE_DESCRIPTION("IPQ40XX MDIO interface driver");
+MODULE_DESCRIPTION("QCA MDIO interface driver");
 MODULE_LICENSE("Dual BSD/GPL");
