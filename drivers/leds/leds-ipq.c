@@ -72,6 +72,8 @@ static struct ipq_led_data *leds;
 static void *ledc_base_addr;
 static int blink_idx_cnt;
 static int led_blink_array[MAX_BLINK_IDX];
+static int led_blink_src[MAX_BLINK_IDX];
+static const u32 *blink_src;
 
 static int ipq_set_led_blink_set(struct led_classdev *led_cdev,
 		unsigned long *delay_on, unsigned long *delay_off)
@@ -123,13 +125,34 @@ static int ipq_set_led_blink_set(struct led_classdev *led_cdev,
 
 	blink_value = blink_enable | blink_freq | blink_duty;
 	reg = readl(LEDC_ADDR(LEDC_CG9_OFFSET));
-	blink_value = blink_value << (led_dat->led_blink_idx * 8);
-	mask = ~(0xFF << (led_dat->led_blink_idx * 8));
+	/* Only for SoC with limited blink sources */
+	if (blink_src
+	    && led_blink_src[led_dat->led_blink_idx] >= LEDC_ST_BLINK_0) {
+		blink_value = blink_value <<
+				(8 * (led_blink_src[led_dat->led_blink_idx]
+				      % LEDC_ST_BLINK_0));
+		mask = ~(0xFF << (8 * (led_blink_src[led_dat->led_blink_idx]
+				       % LEDC_ST_BLINK_0)));
+	} else {
+		blink_value = blink_value << (led_dat->led_blink_idx * 8);
+		mask = ~(0xFF << (led_dat->led_blink_idx * 8));
+	}
 	reg = (reg & mask) | blink_value;
 	writel(reg, LEDC_ADDR(LEDC_CG9_OFFSET));
 
 	return 0;
 }
+
+void ipq_led_set_blink(int led_idx,
+		       unsigned long delay_on, unsigned long delay_off)
+{
+	struct ipq_led_data leds;
+
+	leds.led_blink_idx = led_idx;
+
+	ipq_set_led_blink_set(&leds.cdev, &delay_on, &delay_off);
+}
+EXPORT_SYMBOL(ipq_led_set_blink);
 
 static void ipq_set_led_brightness_set(struct led_classdev *led_cdev,
 		enum led_brightness brightness)
@@ -151,7 +174,16 @@ static void ipq_set_led_brightness_set(struct led_classdev *led_cdev,
 	ipq_set_led_blink_set(led_cdev, &delay_on, &delay_off);
 	writel(reg, LEDC_ADDR(LEDC_CG6_OFFSET));
 }
-EXPORT_SYMBOL(ipq_set_led_brightness_set);
+
+void ipq_led_set_brightness(int led_idx, unsigned int brightness)
+{
+	struct ipq_led_data leds;
+
+	leds.led_blink_idx = led_idx;
+
+	ipq_set_led_brightness_set(&leds.cdev, brightness);
+}
+EXPORT_SYMBOL(ipq_led_set_brightness);
 
 int ipq_led_source_select(int led_num, enum led_source src_type)
 {
@@ -175,6 +207,8 @@ EXPORT_SYMBOL(ipq_led_source_select);
 static int __init ipq_led_probe(struct platform_device *pdev)
 {
 	int ret, i;
+	int lenp;
+	int led_num;
 	uint32_t val_arr[LEDC_MAX_OFFSET];
 	char buf[BUF_NAME_LEN];
 	struct resource *res;
@@ -222,6 +256,36 @@ static int __init ipq_led_probe(struct platform_device *pdev)
 			"invalid or missing property: blink indices\n");
 		return -ENODEV;
 	};
+
+	memset(led_blink_src, -1, MAX_BLINK_IDX * sizeof(int));
+	/* Optional - Required when there is limited blink sources */
+	blink_src = of_get_property(of_node,
+				  "qcom,ledc_blink_idx_src_pair", &lenp);
+
+	if (blink_src) {
+		if (!lenp || lenp / sizeof(int) > MAX_BLINK_IDX * 2) {
+			dev_err(&pdev->dev, "empty/exceeded range for qcom,ledc_blink_idx_src_pair");
+			return -ENODEV;
+		}
+
+		for (i = 0; i < lenp / sizeof(int); i += 2) {
+			led_num = led_blink_array[be32_to_cpu(blink_src[i])];
+			if (be32_to_cpu(blink_src[i]) < MAX_BLINK_IDX
+			    && be32_to_cpu(blink_src[i + 1]) >= WIFI_2G_0
+			    && be32_to_cpu(blink_src[i + 1])
+			       <= LEDC_ST_BLINK_3) {
+				led_blink_src[be32_to_cpu(blink_src[i])] =
+					be32_to_cpu(blink_src[i + 1]);
+
+				ipq_led_source_select(led_num,
+						be32_to_cpu(blink_src[i + 1]));
+			} else {
+				dev_err(&pdev->dev,
+					 "invalid property qcom,ledc_blink_idx_src_pair");
+				return -ENODEV;
+			}
+		}
+	}
 
 	leds = kzalloc((sizeof(*leds) * blink_idx_cnt), GFP_KERNEL);
 	if (!leds) {
