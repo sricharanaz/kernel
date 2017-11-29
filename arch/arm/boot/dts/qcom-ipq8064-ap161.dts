@@ -1,0 +1,101 @@
+/* Copyright (c) 2017 The Linux Foundation. All rights reserved.
+ *
+ * Permission to use, copy, modify, and/or distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ *
+ */
+
+#include "qcom-ipq8064-v1.0.dtsi"
+
+/ {
+	model = "QCA IPQ8064/AP161";
+	compatible = "qcom,ipq8064-ap161", "qcom,ipq8064";
+
+	aliases {
+		serial0 = &gsbi4_serial;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
+		reg = <0x42000000 0x1e000000>;
+		device_type = "memory";
+	};
+
+	soc {
+		pinmux@800000 {
+			spi_pins: spi_pins {
+				mux {
+					pins = "gpio18", "gpio19", "gpio21";
+					function = "gsbi5";
+					drive-strength = <10>;
+					bias-none;
+				};
+			};
+		};
+
+		gsbi@16300000 {
+			qcom,mode = <GSBI_PROT_I2C_UART>;
+			status = "ok";
+			serial@16340000 {
+				status = "ok";
+			};
+		};
+
+		pcie0: pci@1b500000 {
+			status = "ok";
+		};
+
+		pcie1: pci@1b700000 {
+			status = "ok";
+		};
+
+		pcie2: pci@1b900000 {
+			status = "ok";
+		};
+
+		gsbi5: gsbi@1a200000 {
+			qcom,mode = <GSBI_PROT_SPI>;
+			status = "ok";
+
+			spi4: spi@1a280000 {
+				status = "ok";
+				spi-max-frequency = <50000000>;
+
+				pinctrl-0 = <&spi_pins>;
+				pinctrl-names = "default";
+
+				cs-gpios = <&qcom_pinmux 20 0>;
+				dmas = <&adm_dma 6>, <&adm_dma 5>;
+				dma-names = "rx", "tx";
+				qcom,rx-crci = <9>;
+				qcom,tx-crci = <10>;
+
+				flash: m25p80@0 {
+					compatible = "s25fl256s1";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					spi-max-frequency = <50000000>;
+					reg = <0>;
+
+					m25p,fast-read;
+				};
+			};
+		};
+	};
+};
+
+&adm_dma {
+	status = "ok";
+};
