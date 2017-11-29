@@ -155,6 +155,23 @@
 
 				#reset-cells = <1>;
 			};
+
+			i2c0: i2c@18018000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "snps,designware-i2c";
+				reg = <0x18018000 0x80>;
+				interrupt-parent = <&miscintc>;
+				interrupts = <24>;
+				is_old_version = <1>;
+				i2c-sck-gpio = <6>;
+				i2c-sda-gpio = <5>;
+				i2c-tx-fifo-depth = <16>;
+				i2c-rx-fifo-depth = <64>;
+				clocks = <&pll 3>;
+				clock-names = "ref";
+				status = "disabled";
+			};
 		};
 
 		spi_0: spi@1f000000 {

@@ -42,6 +42,9 @@
 #include <linux/platform_data/i2c-designware.h>
 #include "i2c-designware-core.h"
 
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
+
 static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
 {
 	return clk_get_rate(dev->clk)/1000;
@@ -156,6 +159,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 
 	dev->dev = &pdev->dev;
 	dev->irq = irq;
+	dev->is_old_version = 0;
 	platform_set_drvdata(pdev, dev);
 
 	/* fast mode by default because of legacy reasons */
@@ -177,6 +181,12 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 		of_property_read_u32(pdev->dev.of_node, "clock-frequency",
 				     &clk_freq);
 
+		of_property_read_u32(pdev->dev.of_node, "is_old_version",
+					&dev->is_old_version);
+		of_property_read_u32(pdev->dev.of_node, "i2c-tx-fifo-depth",
+					&dev->tx_fifo_depth);
+		of_property_read_u32(pdev->dev.of_node, "i2c-rx-fifo-depth",
+					&dev->rx_fifo_depth);
 		/* Only standard mode at 100kHz and fast mode at 400kHz
 		 * are supported.
 		 */
@@ -221,7 +231,7 @@ static int dw_i2c_plat_probe(struct platform_device *pdev)
 					     1000000);
 	}
 
-	if (!dev->tx_fifo_depth) {
+	if (!dev->tx_fifo_depth && !dev->is_old_version) {
 		u32 param1 = i2c_dw_read_comp_param(dev);
 
 		dev->tx_fifo_depth = ((param1 >> 16) & 0xff) + 1;

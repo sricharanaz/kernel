@@ -92,6 +92,35 @@ static int ath79_gpio_direction_output(struct gpio_chip *chip,
 	return 0;
 }
 
+void ath79_gpio_input_select(struct gpio_chip *chip, unsigned gpio,
+					u8 shift, u8 reg_off)
+{
+	struct ath79_gpio_ctrl *ctrl = to_ath79_gpio_ctrl(chip);
+	unsigned long flags;
+	unsigned int reg;
+	u32 t;
+
+	WARN_ON(!soc_is_ar934x() && !soc_is_qca953x() && !soc_is_qca956x() &&
+			!soc_is_qcn550x());
+
+	if (gpio >= ctrl->chip.ngpio)
+		return;
+
+	reg = AR934X_GPIO_REG_IN_ENABLE0 + (4 * reg_off);
+
+	spin_lock_irqsave(&ctrl->lock, flags);
+
+	t = __raw_readl(ctrl->base + reg);
+	t &= ~(0xff << shift);
+	t |= gpio << shift;
+	__raw_writel(t, (ctrl->base) + reg);
+
+	/* flush write */
+	(void) __raw_readl((ctrl->base) + reg);
+
+	spin_unlock_irqrestore(&ctrl->lock, flags);
+}
+
 void ath79_gpio_output_select(struct gpio_chip *chip,
 					unsigned gpio, u8 val)
 {
@@ -244,7 +273,7 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 	bool oe_inverted;
 	int err;
 	const __be32 *paddr;
-	int len;
+	int len, i2c_sda, i2c_sck;
 	int i;
 	u8 *art = KSEG1ADDR(0x1fff0000);
 
@@ -303,6 +332,17 @@ static int ath79_gpio_probe(struct platform_device *pdev)
 		if (board_id == AP147_V2_ID)
 			ath79_gpio_function_enable(&ctrl->chip,
 						AR934X_GPIO_FUNC_JTAG_DISABLE);
+	}
+
+	if (strncmp(mips_get_machine_name(), "QCA AP152 Board", 15) == 0) {
+		of_property_read_u32(np, "i2c-sda", &i2c_sda);
+		of_property_read_u32(np, "i2c-sck", &i2c_sck);
+		ar934x_gpio_direction_output(&ctrl->chip, i2c_sda, 0);
+		ar934x_gpio_direction_output(&ctrl->chip, i2c_sck, 0);
+		ath79_gpio_input_select(&ctrl->chip, i2c_sda,
+					QCA956X_GPIO_IN_MUX_I2C_SDA, 4);
+		ath79_gpio_input_select(&ctrl->chip, i2c_sck,
+					QCA956X_GPIO_IN_MUX_I2C_SCK, 4);
 	}
 
 	paddr = of_get_property(np, "val,gpio", &len);
