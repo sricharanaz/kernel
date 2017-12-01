@@ -4107,14 +4107,14 @@ static struct glink_core_xprt_ctx *glink_create_dummy_xprt_ctx(
 	rwref_lock_init(&xprt_ptr->xprt_state_lhb0,
 			glink_dummy_xprt_ctx_release);
 
-	strlcpy(xprt_ptr->name, "dummy", GLINK_NAME_SIZE);
+	strlcpy(xprt_ptr->name, "smem", GLINK_NAME_SIZE);
 	strlcpy(xprt_ptr->edge, orig_xprt_ctx->edge, GLINK_NAME_SIZE);
 	if_ptr->poll = dummy_poll;
 	if_ptr->mask_rx_irq = dummy_mask_rx_irq;
 	if_ptr->reuse_rx_intent = dummy_reuse_rx_intent;
 	if_ptr->wait_link_down = dummy_wait_link_down;
 	if_ptr->allocate_rx_intent = dummy_allocate_rx_intent;
-	if_ptr->deallocate_rx_intent = dummy_deallocate_rx_intent;
+	if_ptr->deallocate_rx_intent = orig_xprt_ctx->ops->deallocate_rx_intent;
 	if_ptr->tx_cmd_local_rx_intent = dummy_tx_cmd_local_rx_intent;
 	if_ptr->tx_cmd_local_rx_done = dummy_tx_cmd_local_rx_done;
 	if_ptr->tx = dummy_tx;
