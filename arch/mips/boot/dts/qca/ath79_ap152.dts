@@ -57,7 +57,11 @@
 				val,gpio = <
 					33 3
 					32 4
+					77 5
+					73 6
 				>;
+				i2c-sda = <5>;
+				i2c-sck = <6>;
 			};
 
 			pll-controller@18050000 {
@@ -99,6 +103,10 @@
 						"mem_base","io_base";
 				interrupt-parent = <&ip3_int>;
 				interrupts = <2>;
+				status = "okay";
+			};
+
+			i2c0: i2c@18018000 {
 				status = "okay";
 			};
 		};

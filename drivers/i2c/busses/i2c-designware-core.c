@@ -63,13 +63,18 @@
 #define DW_IC_TXFLR		0x74
 #define DW_IC_RXFLR		0x78
 #define DW_IC_SDA_HOLD		0x7c
+#define DW_IC_SRESET		0x7c
 #define DW_IC_TX_ABRT_SOURCE	0x80
+
 #define DW_IC_ENABLE_STATUS	0x9c
 #define DW_IC_COMP_PARAM_1	0xf4
 #define DW_IC_COMP_VERSION	0xf8
 #define DW_IC_SDA_HOLD_MIN_VERS	0x3131312A
 #define DW_IC_COMP_TYPE		0xfc
 #define DW_IC_COMP_TYPE_VALUE	0x44570140
+
+#define DW_IC_VERSION		0x84
+#define DW_IC_VERSION_VALUE	0x31303141
 
 #define DW_IC_INTR_RX_UNDER	0x001
 #define DW_IC_INTR_RX_OVER	0x002
@@ -256,8 +261,13 @@ static void __i2c_dw_enable(struct dw_i2c_dev *dev, bool enable)
 
 	do {
 		dw_writel(dev, enable, DW_IC_ENABLE);
-		if ((dw_readl(dev, DW_IC_ENABLE_STATUS) & 1) == enable)
-			return;
+		if (dev->is_old_version) {
+			if ((dw_readl(dev, DW_IC_ENABLE) & 1) == enable)
+				return;
+		} else {
+			if ((dw_readl(dev, DW_IC_ENABLE_STATUS) & 1) == enable)
+				return;
+		}
 
 		/*
 		 * Wait 10 times the signaling period of the highest I2C
@@ -269,6 +279,19 @@ static void __i2c_dw_enable(struct dw_i2c_dev *dev, bool enable)
 
 	dev_warn(dev->dev, "timeout in %sabling adapter\n",
 		 enable ? "en" : "dis");
+}
+
+static void i2c_dw_sreset(struct dw_i2c_dev *dev)
+{
+	int timeout = 100;
+
+	do {
+		dw_writel(dev, 0x1, DW_IC_SRESET);
+		if ((dw_readl(dev, DW_IC_SRESET) & 1) == 0)
+			return;
+	} while (timeout--);
+
+	dev_warn(dev->dev, "timeout in soft reset\n");
 }
 
 /**
@@ -297,23 +320,40 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 
 	input_clock_khz = dev->get_clk_rate_khz(dev);
 
-	reg = dw_readl(dev, DW_IC_COMP_TYPE);
-	if (reg == ___constant_swab32(DW_IC_COMP_TYPE_VALUE)) {
-		/* Configure register endianess access */
-		dev->accessor_flags |= ACCESS_SWAP;
-	} else if (reg == (DW_IC_COMP_TYPE_VALUE & 0x0000ffff)) {
-		/* Configure register access mode 16bit */
-		dev->accessor_flags |= ACCESS_16BIT;
-	} else if (reg != DW_IC_COMP_TYPE_VALUE) {
-		dev_err(dev->dev, "Unknown Synopsys component type: "
-			"0x%08x\n", reg);
-		if (dev->release_lock)
-			dev->release_lock(dev);
-		return -ENODEV;
+	if (!(dev->is_old_version)) {
+		reg = dw_readl(dev, DW_IC_COMP_TYPE);
+		if (reg == ___constant_swab32(DW_IC_COMP_TYPE_VALUE)) {
+			/* Configure register endianess access */
+			dev->accessor_flags |= ACCESS_SWAP;
+		} else if (reg == (DW_IC_COMP_TYPE_VALUE & 0x0000ffff)) {
+			/* Configure register access mode 16bit */
+			dev->accessor_flags |= ACCESS_16BIT;
+		} else if (reg != DW_IC_COMP_TYPE_VALUE) {
+			dev_err(dev->dev,
+				"Unknown Synopsys component type:" "0x%08x\n",
+				reg);
+			if (dev->release_lock)
+				dev->release_lock(dev);
+			return -ENODEV;
+		}
+	} else {
+		reg = dw_readl(dev, DW_IC_VERSION);
+		if (reg != DW_IC_VERSION_VALUE) {
+			dev_err(dev->dev,
+				"Unknown Synopsys component type:" "0x%08x\n",
+				reg);
+			if (dev->release_lock)
+				dev->release_lock(dev);
+			return -ENODEV;
+		}
 	}
 
 	/* Disable the adapter */
 	__i2c_dw_enable(dev, false);
+
+	if (dev->is_old_version)
+		/* Issue Soft Reset */
+		i2c_dw_sreset(dev);
 
 	/* set standard and fast speed deviders for high/low periods */
 
@@ -324,6 +364,9 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 	if (dev->ss_hcnt && dev->ss_lcnt) {
 		hcnt = dev->ss_hcnt;
 		lcnt = dev->ss_lcnt;
+	} else if (dev->is_old_version) {
+		hcnt = (input_clock_khz * 4000) / 1000000;
+		lcnt = (input_clock_khz * 4700) / 1000000;
 	} else {
 		hcnt = i2c_dw_scl_hcnt(input_clock_khz,
 					4000,	/* tHD;STA = tHIGH = 4.0 us */
@@ -343,6 +386,9 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 	if (dev->fs_hcnt && dev->fs_lcnt) {
 		hcnt = dev->fs_hcnt;
 		lcnt = dev->fs_lcnt;
+	} else if (dev->is_old_version) {
+		hcnt = (input_clock_khz * 600) / 1000000;
+		lcnt = (input_clock_khz * 1300) / 1000000;
 	} else {
 		hcnt = i2c_dw_scl_hcnt(input_clock_khz,
 					600,	/* tHD;STA = tHIGH = 0.6 us */
@@ -486,13 +532,15 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 			buf = msgs[dev->msg_write_idx].buf;
 			buf_len = msgs[dev->msg_write_idx].len;
 
-			/* If both IC_EMPTYFIFO_HOLD_MASTER_EN and
-			 * IC_RESTART_EN are set, we must manually
-			 * set restart bit between messages.
-			 */
-			if ((dev->master_cfg & DW_IC_CON_RESTART_EN) &&
-					(dev->msg_write_idx > 0))
-				need_restart = true;
+			if (!(dev->is_old_version)) {
+				/* If both IC_EMPTYFIFO_HOLD_MASTER_EN and
+				 * IC_RESTART_EN are set, we must manually
+				 * set restart bit between messages.
+				 */
+				if ((dev->master_cfg & DW_IC_CON_RESTART_EN) &&
+						(dev->msg_write_idx > 0))
+					need_restart = true;
+			}
 		}
 
 		tx_limit = dev->tx_fifo_depth - dw_readl(dev, DW_IC_TXFLR);
@@ -501,19 +549,22 @@ i2c_dw_xfer_msg(struct dw_i2c_dev *dev)
 		while (buf_len > 0 && tx_limit > 0 && rx_limit > 0) {
 			u32 cmd = 0;
 
-			/*
-			 * If IC_EMPTYFIFO_HOLD_MASTER_EN is set we must
-			 * manually set the stop bit. However, it cannot be
-			 * detected from the registers so we set it always
-			 * when writing/reading the last byte.
-			 */
-			if (dev->msg_write_idx == dev->msgs_num - 1 &&
-			    buf_len == 1)
-				cmd |= BIT(9);
+			if (!(dev->is_old_version)) {
+				/*
+				 * If IC_EMPTYFIFO_HOLD_MASTER_EN is set we must
+				 * manually set the stop bit. However, it
+				 * cannot be detected from the registers so we
+				 * set it always when writing/reading the last
+				 * byte.
+				 */
+				if (dev->msg_write_idx == dev->msgs_num - 1 &&
+				    buf_len == 1)
+					cmd |= BIT(9);
 
-			if (need_restart) {
-				cmd |= BIT(10);
-				need_restart = false;
+				if (need_restart) {
+					cmd |= BIT(10);
+					need_restart = false;
+				}
 			}
 
 			if (msgs[dev->msg_write_idx].flags & I2C_M_RD) {
