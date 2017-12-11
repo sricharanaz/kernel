@@ -33,6 +33,7 @@
 			cpu-supply = <&smb208_s2a>;
 			voltage-tolerance = <5>;
 			cpu_fab_threshold = <1000000000>;
+			operating-points-v2 = <&cpu_opp_table>;
 		};
 
 		cpu@1 {
@@ -48,6 +49,7 @@
 			clock-latency = <100000>;
 			cpu-supply = <&smb208_s2b>;
 			cpu_fab_threshold = <1000000000>;
+			operating-points-v2 = <&cpu_opp_table>;
 		};
 
 		L2: l2-cache {
@@ -119,39 +121,63 @@
 		#clock-cells = <1>;
 	};
 
+        cpu_opp_table: opp_table {
+                compatible = "operating-points-v2";
+
+                /*
+                 * Missing opp-shared property means CPUs switch DVFS states
+                 * independently.
+                 */
+
+                opp-1400000000 {
+                        opp-hz = /bits/ 64 <1400000000>;
+                        opp-microvolt-speed0-pvs0-v0 = <1250000>;
+                        opp-microvolt-speed0-pvs1-v0 = <1175000>;
+                        opp-microvolt-speed0-pvs2-v0 = <1125000>;
+                        opp-microvolt-speed0-pvs3-v0 = <1050000>;
+ 
+                };
+                opp-800000000 {
+                        opp-hz = /bits/ 64 <800000000>;
+                        opp-microvolt-speed0-pvs0-v0 = <1100000>;
+                        opp-microvolt-speed0-pvs1-v0 = <1025000>;
+                        opp-microvolt-speed0-pvs2-v0 = <995000>;
+                        opp-microvolt-speed0-pvs3-v0 = <900000>;
+ 
+                };
+                opp-384000000 {
+                        opp-hz = /bits/ 64 <384000000>;
+                        opp-microvolt-speed0-pvs0-v0 = <1000000>;
+                        opp-microvolt-speed0-pvs1-v0 = <925000>;
+                        opp-microvolt-speed0-pvs2-v0 = <875000>;
+                        opp-microvolt-speed0-pvs3-v0 = <800000>;
+                };
+                opp-1000000000 {
+                        opp-hz = /bits/ 64 <1000000000>;
+                        opp-microvolt-speed0-pvs0-v0 = <1150000>;
+                        opp-microvolt-speed0-pvs1-v0 = <1075000>;
+                        opp-microvolt-speed0-pvs2-v0 = <1025000>;
+                        opp-microvolt-speed0-pvs3-v0 = <950000>;
+ 
+                };
+                opp-600000000 {
+                        opp-hz = /bits/ 64 <600000000>;
+                        opp-microvolt-speed0-pvs0-v0 = <1050000>;
+                        opp-microvolt-speed0-pvs1-v0 = <975000>;
+                        opp-microvolt-speed0-pvs2-v0 = <925000>;
+                        opp-microvolt-speed0-pvs3-v0 = <850000>;
+                };
+                opp-1200000000 {
+                        opp-hz = /bits/ 64 <1200000000>;
+                        opp-microvolt-speed0-pvs0-v0 = <1200000>;
+                        opp-microvolt-speed0-pvs1-v0 = <1125000>;
+                        opp-microvolt-speed0-pvs2-v0 = <1075000>;
+                        opp-microvolt-speed0-pvs3-v0 = <1000000>;
+                };
+        };
+
 	qcom,pvs {
 		qcom,pvs-format-a;
-		qcom,speed0-pvs0-bin-v0 =
-			< 1400000000 1250000 >,
-			< 1200000000 1200000 >,
-			< 1000000000 1150000 >,
-			 < 800000000 1100000 >,
-			 < 600000000 1050000 >,
-			 < 384000000 1000000 >;
-
-		qcom,speed0-pvs1-bin-v0 =
-			< 1400000000 1175000 >,
-			< 1200000000 1125000 >,
-			< 1000000000 1075000 >,
-			 < 800000000 1025000 >,
-			 < 600000000  975000 >,
-			 < 384000000  925000 >;
-
-		qcom,speed0-pvs2-bin-v0 =
-			< 1400000000 1125000 >,
-			< 1200000000 1075000 >,
-			< 1000000000 1025000 >,
-			 < 800000000  995000 >,
-			 < 600000000  925000 >,
-			 < 384000000  875000 >;
-
-		qcom,speed0-pvs3-bin-v0 =
-			< 1400000000 1050000 >,
-			< 1200000000 1000000 >,
-			< 1000000000  950000 >,
-			 < 800000000  900000 >,
-			 < 600000000  850000 >,
-			 < 384000000  800000 >;
 	};
 
 	soc: soc {
