@@ -125,9 +125,12 @@ static int of_dev_node_match(struct device *dev, void *data)
 
 static bool is_spi_device(struct device_node *np)
 {
-	struct device *dev;
+	struct device *dev = NULL;
 
+#ifdef CONFIG_SPI_MASTER
 	dev = bus_find_device(&spi_bus_type, NULL, np, of_dev_node_match);
+#endif
+
 	if (!dev)
 		return false;
 
