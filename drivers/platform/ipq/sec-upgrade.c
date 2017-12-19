@@ -318,6 +318,27 @@ store_apdp_version(struct device *dev,
 	return generic_version(dev, buf, SW_TYPE_APDP, 2, count);
 }
 
+static ssize_t
+store_sec_auth(struct device *dev,
+			struct device_attribute *sec_attr,
+			const char *buf, size_t count)
+{
+	char *in_buf;
+
+	in_buf = kzalloc(count, GFP_KERNEL);
+	if (in_buf == NULL)
+		return -ENOMEM;
+
+	memcpy(in_buf, buf, count);
+	in_buf[count-1] = '\0';
+
+	return count;
+}
+
+static struct device_attribute sec_attr =
+	__ATTR(sec_auth, 0644, NULL, store_sec_auth);
+
+struct kobject *sec_kobj;
 /*
  * Do not change the order of attributes.
  * New types should be added at the end
@@ -411,8 +432,9 @@ err_ver:
 
 static int qfprom_probe(struct platform_device *pdev)
 {
-	int err;
+	int err, ret;
 	int16_t sw_bitmap = 0;
+	char lbuf;
 
 	if (!qcom_scm_is_available()) {
 		pr_info("SCM call is not initialized, defering probe\n");
@@ -433,6 +455,31 @@ static int qfprom_probe(struct platform_device *pdev)
 	}
 
 	device_register(&device_qfprom);
+
+	/*
+	 * Registering sec_auth under "/sys/sec_authenticate"
+	   only if board is secured
+	 */
+	ret = qcom_qfprom_show_authenticate(&lbuf);
+	if (ret) {
+		pr_err("%s: Error in QFPROM read : %d\n", __func__, ret);
+		return ret;
+	}
+
+	if (lbuf == 1) {
+		sec_kobj = kobject_create_and_add("sec_upgrade", NULL);
+		if (!sec_kobj) {
+			pr_info("Failed to register sec_upgrade sysfs\n");
+			return -ENOMEM;
+		}
+
+		err = sysfs_create_file(sec_kobj, &sec_attr.attr);
+		if (err) {
+			pr_info("Failed to register sec_auth sysfs\n");
+			kobject_put(sec_kobj);
+			sec_kobj = NULL;
+		}
+	}
 
 	return qfprom_create_files(ARRAY_SIZE(qfprom_attrs), sw_bitmap);
 }
