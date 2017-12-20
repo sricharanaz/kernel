@@ -19,22 +19,18 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
-#include <linux/android_pmem.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
-#include <mach/clk.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/soc.h>
-#include <mach/msm_iomap-8x60.h>
-#include <mach/audio_dma_msm8k.h>
-#include <mach/socinfo.h>
-#include <sound/dai.h>
-#include "ipq-pcm.h"
-#include "ipq-lpaif.h"
+#include <linux/of_device.h>
+#include <linux/reset.h>
+#include "ipq806x-pcm.h"
+#include "ipq806x-lpaif.h"
 #include "ipq806x.h"
 
 struct ipq_lpaif_dai_baseinfo dai_info;
@@ -44,7 +40,8 @@ struct dai_drv *dai[MAX_LPAIF_CHANNELS];
 static spinlock_t dai_lock;
 struct clk *lpaif_pcm_bit_clk;
 EXPORT_SYMBOL(lpaif_pcm_bit_clk);
-static uint32_t chip_version;
+struct reset_control *lpaif_blk_rst;
+EXPORT_SYMBOL(lpaif_blk_rst);
 
 int ipq_pcm_int_enable(uint8_t dma_ch)
 {
@@ -199,14 +196,6 @@ int ipq_cfg_pcm_active_slot_count(uint8_t slot_count, uint8_t dir)
 {
 	uint32_t cfg;
 
-	/* Multi slot supported only from AK 2.0 */
-	if (SOCINFO_VERSION_MAJOR(chip_version) < 2) {
-		if (slot_count != 1)
-			return -ENOTSUPP;
-		else
-			return 0; /*Nothing to update for AK 1.0 */
-	}
-
 	if (slot_count > LPA_IF_PCM_MAX_ACT_SLOT)
 		return -EINVAL;
 
@@ -228,11 +217,6 @@ EXPORT_SYMBOL(ipq_cfg_pcm_active_slot_count);
 int ipq_cfg_pcm_tx_active_slot(uint32_t slot, uint32_t val)
 {
 	uint32_t cfg;
-
-	/* Supported only from AK 2.0 */
-	if ((SOCINFO_VERSION_MAJOR(chip_version) < 2) &&
-		(slot != LPA_IF_TPCM_SLOT0))
-		return -ENOTSUPP;
 
 	switch (slot) {
 	case LPA_IF_TPCM_SLOT0:
@@ -270,11 +254,6 @@ int ipq_cfg_pcm_rx_active_slot(uint32_t slot, uint32_t val)
 {
 	uint32_t cfg;
 
-	/* Supported only from AK 2.0 */
-	if ((SOCINFO_VERSION_MAJOR(chip_version) < 2) &&
-		(slot != LPA_IF_RPCM_SLOT0))
-		return -ENOTSUPP;
-
 	switch (slot) {
 	case LPA_IF_RPCM_SLOT0:
 		cfg = readl(dai_info.base + LPA_IF_PCM_0);
@@ -309,13 +288,13 @@ EXPORT_SYMBOL(ipq_cfg_pcm_rx_active_slot);
 
 void ipq_pcm_start(void)
 {
-	clk_reset(lpaif_pcm_bit_clk, LPAIF_PCM_DEASSERT);
+	reset_control_deassert(lpaif_blk_rst);
 }
 EXPORT_SYMBOL(ipq_pcm_start);
 
 void ipq_pcm_stop(void)
 {
-	clk_reset(lpaif_pcm_bit_clk, LPAIF_PCM_ASSERT);
+	reset_control_assert(lpaif_blk_rst);
 }
 EXPORT_SYMBOL(ipq_pcm_stop);
 
@@ -477,11 +456,11 @@ int ipq_lpaif_dai_config_dma(uint32_t dma_ch)
 		return -EINVAL;
 
 	writel(dai[dma_ch]->buffer_phys,
-			dai_info.base + LPAIF_DMA_BASE(dma_ch));
+			dai_info.base + LPA_IF_DMA_BASE_ADDR(dma_ch));
 	writel(((dai[dma_ch]->buffer_len >> 2) - 1),
-			dai_info.base + LPAIF_DMA_BUFF_LEN(dma_ch));
+			dai_info.base + LPA_IF_DMA_BUFF_LEN(dma_ch));
 	writel(((dai[dma_ch]->period_len >> 2) - 1),
-			dai_info.base + LPAIF_DMA_PER_LEN(dma_ch));
+			dai_info.base + LPA_IF_DMA_PER_LEN(dma_ch));
 	mb(); /* ensure the hardware sees the change */
 
 	return 0;
@@ -493,7 +472,7 @@ void ipq_lpaif_disable_dma(uint32_t dma_ch)
 	unsigned long flag;
 
 	spin_lock_irqsave(&dai_lock, flag);
-	writel(0x0, dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	writel(0x0, dai_info.base + LPA_IF_DMACTL(dma_ch));
 	spin_unlock_irqrestore(&dai_lock, flag);
 }
 EXPORT_SYMBOL(ipq_lpaif_disable_dma);
@@ -513,7 +492,7 @@ static void ipq_lpaif_dai_disable_codec(uint32_t dma_ch, int codec)
 		intr_val = intr_val & ~(LPA_IF_MIC_EN);
 
 	writel(intr_val, dai_info.base + LPAIF_MI2S_CTL_OFFSET(codec));
-	writel(0x0, dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	writel(0x0, dai_info.base + LPA_IF_DMACTL(dma_ch));
 
 	spin_unlock_irqrestore(&dai_lock, flag);
 }
@@ -561,7 +540,7 @@ static int ipq_cfg_lpaif_dma_ch(uint32_t lpaif_dma_ch, uint32_t channels,
 
 	spin_lock_irqsave(&dai_lock, flags);
 
-	cfg = readl(dai_info.base + LPAIF_DMA_CTL(lpaif_dma_ch));
+	cfg = readl(dai_info.base + LPA_IF_DMACTL(lpaif_dma_ch));
 
 	if ((lpaif_dma_ch == PCM0_DMA_WR_CH) ||
 		(lpaif_dma_ch == PCM0_DMA_RD_CH)) {
@@ -599,7 +578,7 @@ static int ipq_cfg_lpaif_dma_ch(uint32_t lpaif_dma_ch, uint32_t channels,
 	}
 
 	if (!ret)
-		writel(cfg, dai_info.base + LPAIF_DMA_CTL(lpaif_dma_ch));
+		writel(cfg, dai_info.base + LPA_IF_DMACTL(lpaif_dma_ch));
 
 	spin_unlock_irqrestore(&dai_lock, flags);
 	return ret;
@@ -630,14 +609,14 @@ int ipq_lpaif_cfg_dma(uint32_t dma_ch, struct dai_dma_params *params,
 		return ret;
 	}
 
-	cfg = readl(dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	cfg = readl(dai_info.base + LPA_IF_DMACTL(dma_ch));
 	cfg |= (LPA_IF_DMACTL_FIFO_WM_8 |
 			LPA_IF_DMACTL_BURST_EN);
-	writel(cfg, dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	writel(cfg, dai_info.base + LPA_IF_DMACTL(dma_ch));
 
-	cfg = readl(dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	cfg = readl(dai_info.base + LPA_IF_DMACTL(dma_ch));
 	cfg |= LPA_IF_DMACTL_ENABLE;
-	writel(cfg, dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	writel(cfg, dai_info.base + LPA_IF_DMACTL(dma_ch));
 
 	return 0;
 }
@@ -645,7 +624,7 @@ EXPORT_SYMBOL(ipq_lpaif_cfg_dma);
 
 int ipq_lpaif_dai_stop(uint32_t dma_ch)
 {
-	writel(0x0, dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	writel(0x0, dai_info.base + LPA_IF_DMACTL(dma_ch));
 	return 0;
 }
 EXPORT_SYMBOL(ipq_lpaif_dai_stop);
@@ -657,7 +636,7 @@ int ipq_lpaif_pcm_stop(uint32_t dma_ch)
 	spin_lock_irqsave(&dai_lock, flags);
 	writel(0x0, dai_info.base + LPAIF_IRQ_EN(0));
 	writel(~0x0, dai_info.base + LPAIF_IRQ_CLEAR(0));
-	writel(0x0, dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	writel(0x0, dai_info.base + LPA_IF_DMACTL(dma_ch));
 	spin_unlock_irqrestore(&dai_lock, flags);
 	return 0;
 }
@@ -667,9 +646,9 @@ uint8_t ipq_lpaif_dma_stop(uint8_t dma_ch)
 {
 	uint32_t cfg;
 
-	cfg = readl(dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	cfg = readl(dai_info.base + LPA_IF_DMACTL(dma_ch));
 	cfg &= ~(LPA_IF_DMACTL_ENABLE);
-	writel(cfg, dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	writel(cfg, dai_info.base + LPA_IF_DMACTL(dma_ch));
 	return 0;
 }
 EXPORT_SYMBOL(ipq_lpaif_dma_stop);
@@ -678,9 +657,9 @@ uint8_t ipq_lpaif_dma_start(uint8_t dma_ch)
 {
 	uint32_t cfg;
 
-	cfg = readl(dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	cfg = readl(dai_info.base + LPA_IF_DMACTL(dma_ch));
 	cfg |= LPA_IF_DMACTL_ENABLE;
-	writel(cfg, dai_info.base + LPAIF_DMA_CTL(dma_ch));
+	writel(cfg, dai_info.base + LPA_IF_DMACTL(dma_ch));
 	return 0;
 }
 EXPORT_SYMBOL(ipq_lpaif_dma_start);
@@ -787,52 +766,65 @@ static void ipq_lpaif_dai_ch_free(void)
 
 static struct resource *lpa_irq;
 
+static const struct of_device_id ipq_lpaif_match_table[] = {
+	{ .compatible = "qca,ipq806x-lpaif" },
+	{},
+};
+
 static int ipq_lpaif_dai_probe(struct platform_device *pdev)
 {
 	uint8_t i;
 	int32_t rc;
 	struct resource *lpa_res;
 	struct device *lpaif_device;
+	const struct of_device_id *match;
+	int irq;
+
+	match = of_match_device(ipq_lpaif_match_table, &pdev->dev);
+	if (!match)
+		return -ENODEV;
 
 	lpaif_device = &pdev->dev;
-	chip_version = *((uint32_t *)lpaif_device->platform_data);
 
-	lpa_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ipq-dai");
+	lpa_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!lpa_res) {
 		dev_err(&pdev->dev, "%s: %d:error getting resource\n",
 				__func__, __LINE__);
 		return -ENODEV;
 	}
-	dai_info.base = ioremap(lpa_res->start,
-			(lpa_res->end - lpa_res->start));
+	dai_info.base = devm_ioremap_resource(&pdev->dev, lpa_res);
 	if (!dai_info.base) {
 		dev_err(&pdev->dev, "%s: %d:error remapping resource\n",
 				__func__, __LINE__);
 		return -ENOMEM;
 	}
 
-	lpa_irq = platform_get_resource_byname(
-			pdev, IORESOURCE_IRQ, "ipq-dai-irq");
-	if (!lpa_irq) {
-		dev_err(&pdev->dev, "%s: %d: failed get irq res\n",
-				__func__, __LINE__);
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0) {
+		dev_err(&pdev->dev, "%s: lpaif IRQ %d is not provided\n",
+						__func__, irq);
 		rc = -ENODEV;
 		goto error;
 	}
 
-	rc = request_irq(lpa_irq->start, dai_irq_handler,
-			IRQF_TRIGGER_RISING, "ipq-lpaif-intr", NULL);
-
-	if (rc < 0) {
-		dev_err(&pdev->dev, "%s: %d:irq resource request failed\n",
-				__func__, __LINE__);
+	rc = devm_request_irq(&pdev->dev, irq, dai_irq_handler, 0,
+				"ipq806x-lpaif", NULL);
+	if (rc) {
+		dev_err(&pdev->dev, "request_irq() failed with ret: %d\n", rc);
 		goto error;
 	}
 
-	lpaif_pcm_bit_clk = clk_get(&pdev->dev, "pcm_bit_clk");
-	if (!lpaif_pcm_bit_clk) {
+	lpaif_pcm_bit_clk = devm_clk_get(&pdev->dev, "pcm_bit_clk");
+	if (IS_ERR(lpaif_pcm_bit_clk)) {
 		dev_err(&pdev->dev, "%s: %d: cannot get PCM bit clock\n",
 				__func__, __LINE__);
+		rc = -EINVAL;
+		goto error_irq;
+	}
+
+	lpaif_blk_rst = devm_reset_control_get(&pdev->dev, "lcc_pcm_reset");
+	if (IS_ERR(lpaif_blk_rst)) {
+		rc = -EINVAL;
 		goto error_irq;
 	}
 
@@ -852,9 +844,9 @@ static int ipq_lpaif_dai_probe(struct platform_device *pdev)
 	return 0;
 error_mem:
 	clk_put(lpaif_pcm_bit_clk);
+	ipq_lpaif_dai_ch_free();
 error_irq:
 	free_irq(lpa_irq->start, NULL);
-	ipq_lpaif_dai_ch_free();
 error:
 	iounmap(dai_info.base);
 	return rc;
@@ -868,33 +860,18 @@ static int ipq_lpaif_dai_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver dai_driver = {
-	.probe = ipq_lpaif_dai_probe,
-	.remove = ipq_lpaif_dai_remove,
-	.driver = {
-		.name = "ipq-lpaif",
-		.owner = THIS_MODULE
-		},
+#define DRIVER_NAME "ipq806x-lpaif"
+
+static struct platform_driver ipq_lpaif_driver = {
+	.probe		= ipq_lpaif_dai_probe,
+	.remove		= ipq_lpaif_dai_remove,
+	.driver		= {
+		.name		= DRIVER_NAME,
+		.of_match_table	= ipq_lpaif_match_table,
+	},
 };
 
-static int __init dai_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&dai_driver);
-	if (ret)
-		pr_err("%s: %d:registration failed\n", __func__, __LINE__);
-
-	return ret;
-}
-
-static void __exit dai_exit(void)
-{
-	platform_driver_unregister(&dai_driver);
-}
-
-module_init(dai_init);
-module_exit(dai_exit);
+module_platform_driver(ipq_lpaif_driver);
 
 MODULE_DESCRIPTION("IPQ LPA_IF Driver");
 MODULE_LICENSE("Dual BSD/GPL");

@@ -151,13 +151,13 @@ struct ipq_pcm_params {
 	uint32_t rx_slots[4];
 };
 extern struct clk *lpaif_pcm_bit_clk;
+extern struct reset_control *lpaif_blk_rst;
 
-extern void ipq_pcm_init(void);
-extern int ipq_pcm_init_v2(struct ipq_pcm_params *params);
-extern void ipq_pcm_deinit(void);
-extern uint32_t ipq_pcm_data(char **rx_buf, char **tx_buf);
-extern void ipq_pcm_done(void);
-static void pcm_start_test(void);
-
+extern int ipq806x_pcm_init(struct ipq_pcm_params *params);
+extern void ipq806x_pcm_deinit(void);
+extern uint32_t ipq806x_pcm_data(char **rx_buf, char **tx_buf);
+extern void ipq806x_pcm_done(void);
+extern int pcm_test_init(struct platform_device *pdev);
+extern void pcm_test_exit(struct platform_device *pdev);
 
 #endif /*_IPQ_PCM_H */
