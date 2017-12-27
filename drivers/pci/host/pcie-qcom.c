@@ -982,11 +982,11 @@ static void qcom_pcie_deinit_v3(struct qcom_pcie *pcie)
 {
 	struct qcom_pcie_resources_v3 *res = &pcie->res.v3;
 
-	clk_disable_unprepare(res->sys_noc_clk);
 	clk_disable_unprepare(res->axi_m_clk);
 	clk_disable_unprepare(res->axi_s_clk);
 	clk_disable_unprepare(res->ahb_clk);
 	clk_disable_unprepare(res->aux_clk);
+	clk_disable_unprepare(res->sys_noc_clk);
 	regulator_disable(res->vdda);
 	regulator_disable(res->vdda_phy);
 	regulator_disable(res->vdda_refclk);
