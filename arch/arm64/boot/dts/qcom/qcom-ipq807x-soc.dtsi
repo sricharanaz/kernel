@@ -1561,9 +1561,9 @@
 			compatible = "qca,ledc";
 			reg = <0x191E000 0x20070>;
 			reg-names = "ledc_base_addr";
-			qcom,tcsr_ledc_values = <0x0320193 0x2739CE60 \
-						0x2739CE73 0x2739CE73 \
-						0x0139CE73 0xFFFFFFFF \
+			qcom,tcsr_ledc_values = <0x0320193 0x00000000 \
+						0x00000000 0x00000000 \
+						0x00000000 0xFFFFFFFF \
 						0x00000000 0xFFFFFFFF \
 						0x007D0820 0x00000000 \
 						0x10482094 0x03FFFFE1>;
