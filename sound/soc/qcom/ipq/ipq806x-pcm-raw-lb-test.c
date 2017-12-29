@@ -24,7 +24,8 @@
 #include <linux/kthread.h>
 #include <linux/string.h>
 #include <linux/platform_device.h>
-#include "ipq-pcm.h"
+#include <linux/of_device.h>
+#include "ipq806x-pcm.h"
 
 /*
  * This is an external loopback test module for PCM interface.
@@ -65,12 +66,13 @@ struct pcm_lb_test_ctx {
 };
 
 static struct pcm_lb_test_ctx ctx;
-static unsigned int start;
+static unsigned long int start;
+static void pcm_start_test(void);
 
 static ssize_t show_pcm_lb_value(struct device_driver *driver,
 						char *buff)
 {
-	return sprintf(buff, "%d", start);
+	return sprintf(buff, "%ld", start);
 }
 
 static ssize_t store_pcm_lb_value(struct device_driver *driver,
@@ -96,14 +98,14 @@ static void pcm_lb_drv_attr_deinit(struct platform_device *pdev)
 	driver_remove_file(pdev->dev.driver, &driver_attr_pcmlb);
 }
 
-uint32_t pcm_read_write(void)
+static uint32_t pcm_read_write(void)
 {
 	char *rx_buff;
 	char *tx_buff;
 	uint32_t i;
 	uint32_t size;
 
-	size = ipq_pcm_data(&rx_buff, &tx_buff);
+	size = ipq806x_pcm_data(&rx_buff, &tx_buff);
 	ctx.last_rx_buff = rx_buff;
 
 	if (IS_PCM_LBTEST_RX_TO_TX(start)) {
@@ -118,11 +120,11 @@ uint32_t pcm_read_write(void)
 			ctx.tx_data++;
 		}
 	}
-	ipq_pcm_done();
+	ipq806x_pcm_done();
 	return size;
 }
 
-uint32_t pcm_init(void)
+static uint32_t pcm_init(void)
 {
 	struct ipq_pcm_params  cfg_params;
 	uint32_t ret = 0;
@@ -130,7 +132,13 @@ uint32_t pcm_init(void)
 	switch (start) {
 	case PCM_LBTEST_8BIT_8KHZ_2CH_TX_TO_RX:
 	case PCM_LBTEST_8BIT_8KHZ_2CH_RX_TO_TX:
-		ipq_pcm_init();
+		cfg_params.bit_width = CHANNEL_BIT_WIDTH;
+		cfg_params.rate = CHANNEL_SAMPLING_RATE;
+		cfg_params.slot_count = NUM_PCM_SLOTS;
+		cfg_params.active_slot_count = 1;
+		cfg_params.rx_slots[0] = 0;
+		cfg_params.tx_slots[0] = 0;
+		ret = ipq806x_pcm_init(&cfg_params);
 		break;
 
 	case PCM_LBTEST_16BIT_16KHZ_2CH_TX_TO_RX:
@@ -143,7 +151,7 @@ uint32_t pcm_init(void)
 		cfg_params.tx_slots[1] = 4;
 		cfg_params.rx_slots[0] = 1;
 		cfg_params.rx_slots[1] = 4;
-		ret = ipq_pcm_init_v2(&cfg_params);
+		ret = ipq806x_pcm_init(&cfg_params);
 		break;
 
 	case PCM_LBTEST_16BIT_8KHZ_4CH_TX_TO_RX:
@@ -160,7 +168,7 @@ uint32_t pcm_init(void)
 		cfg_params.rx_slots[1] = 1;
 		cfg_params.rx_slots[2] = 8;
 		cfg_params.rx_slots[3] = 9;
-		ret = ipq_pcm_init_v2(&cfg_params);
+		ret = ipq806x_pcm_init(&cfg_params);
 		break;
 
 	default:
@@ -171,14 +179,14 @@ uint32_t pcm_init(void)
 	return ret;
 }
 
-void pcm_deinit(void)
+static void pcm_deinit(void)
 {
 	memset((void *)&ctx, 0, sizeof(ctx));
 	start = 0;
-	ipq_pcm_deinit();
+	ipq806x_pcm_deinit();
 }
 
-void process_read(uint32_t size)
+static void process_read(uint32_t size)
 {
 	uint32_t index;
 	static uint32_t continuous_failures;
@@ -236,7 +244,7 @@ void process_read(uint32_t size)
 	}
 }
 
-int pcm_test_rw(void *data)
+static int pcm_test_rw(void *data)
 {
 	struct sched_param param;
 	uint32_t ret;
@@ -277,7 +285,7 @@ int pcm_test_rw(void *data)
 
 static void pcm_start_test(void)
 {
-	pr_notice("%s : %d\n", __func__, start);
+	pr_notice("%s : %ld\n", __func__, start);
 	if (start) {
 		if (ctx.running) {
 			pr_notice("%s : Test already running\n", __func__);

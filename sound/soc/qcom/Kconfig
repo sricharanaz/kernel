@@ -94,3 +94,15 @@ config SND_SOC_IPQ_PCM_SPDIF
 config SND_SOC_IPQ_PCM_RAW
 	tristate
 	depends on SND_SOC_IPQ
+
+config SND_SOC_IPQ806X_PCM_RAW
+	tristate "Soc PCM support for IPQ806X platform"
+	depends on SND_SOC_QCOM && HAS_DMA
+	select SND_SOC_IPQ806X_LPAIF
+	help
+	Say Y or M to if you want to add support for PCM on
+	Qualcomm Atheros IPQ806X based board.
+
+config SND_SOC_IPQ806X_LPAIF
+	tristate
+	depends on SND_SOC_QCOM

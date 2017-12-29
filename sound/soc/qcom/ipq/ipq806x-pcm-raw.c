@@ -21,7 +21,6 @@
 #include <linux/wait.h>
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
-#include <linux/memory_alloc.h>
 #include <asm/dma.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>
@@ -29,16 +28,17 @@
 #include <sound/pcm.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
-#include <mach/clk.h>
 #include <linux/irq.h>
 #include <linux/kthread.h>
 #include <linux/delay.h>
 #include <linux/wait.h>
 #include <linux/io.h>
-#include "ipq-lpaif.h"
+#include <linux/of_device.h>
+#include <linux/reset-controller.h>
+#include <linux/reset.h>
+#include "ipq806x-lpaif.h"
 #include "ipq806x.h"
-#include "ipq-pcm.h"
-#include <mach/audio_dma_msm8k.h>
+#include "ipq806x-pcm.h"
 
 /*
 * RT Miss counter buckets
@@ -64,7 +64,6 @@ static int voice_free_dma_buffer(struct device *dev,
 		struct voice_dma_buffer *dma_buff);
 static int dsp_flag;
 static int dsp_realtime_flag;
-int ipq_pcm_init_v2(struct ipq_pcm_params *params);
 
 #ifdef RTMISS_PROC_CNTRS
 unsigned rtmiss_cnts[NR_CNTS] = { 0 };
@@ -76,7 +75,7 @@ static int rtmiss_cnt_show(struct seq_file *p, void *v)
 
 	seq_puts(p, "RTMISS:");
 	for (i = 0; i < NR_CNTS; i++)
-		seq_puts(p, " %5u", rtmiss_cnts[i]);
+		seq_printf(p, " %5u", rtmiss_cnts[i]);
 
 	seq_putc(p, '\n');
 
@@ -158,7 +157,7 @@ static irqreturn_t pcm_irq_handler(int intrsrc, void *data)
 	 */
 
 	dma_addr = (void *)readl(dai_info.base +
-				LPAIF_DMA_CURR_ADDR(PCM0_DMA_WR_CH));
+				LPA_IF_DMA_CURR_ADDR(PCM0_DMA_WR_CH));
 	offset = (uint32_t)(dma_addr - rx_dma_buffer->addr);
 	dma_at = offset / (rx_dma_buffer->size / NUM_BUFFERS);
 
@@ -203,21 +202,7 @@ int ipq_pcm_check_flag(void)
 }
 EXPORT_SYMBOL(ipq_pcm_check_flag);
 
-void ipq_pcm_init(void)
-{
-	struct ipq_pcm_params pcm_params;
-
-	pcm_params.bit_width = CHANNEL_BIT_WIDTH;
-	pcm_params.rate = CHANNEL_SAMPLING_RATE;
-	pcm_params.slot_count = NUM_PCM_SLOTS;
-	pcm_params.active_slot_count = 1;
-	pcm_params.rx_slots[0] = 0;
-	pcm_params.tx_slots[0] = 0;
-	ipq_pcm_init_v2(&pcm_params);
-}
-EXPORT_SYMBOL(ipq_pcm_init);
-
-uint32_t ipq_pcm_validate_params(struct ipq_pcm_params *params)
+static uint32_t ipq_pcm_validate_params(struct ipq_pcm_params *params)
 {
 	uint32_t bits_in_frame;
 
@@ -290,7 +275,7 @@ uint32_t ipq_pcm_validate_params(struct ipq_pcm_params *params)
 	return 0;
 }
 
-int ipq_pcm_init_v2(struct ipq_pcm_params *params)
+int ipq806x_pcm_init(struct ipq_pcm_params *params)
 {
 	uint32_t ret;
 	uint32_t buf_size;
@@ -304,10 +289,7 @@ int ipq_pcm_init_v2(struct ipq_pcm_params *params)
 	bits_in_frame = params->slot_count * params->bit_width;
 	atomic_set(&data_avail, 0);
 	atomic_set(&data_at, 1);
-	clk_reset(lpaif_pcm_bit_clk, LPAIF_PCM_ASSERT);
-
-	/* Put the PCM instance to Reset */
-	ipq_cfg_pcm_reset(1);
+	reset_control_assert(lpaif_blk_rst);
 
 	/* Sync source internal */
 	ipq_cfg_pcm_sync_src(1);
@@ -330,12 +312,13 @@ int ipq_pcm_init_v2(struct ipq_pcm_params *params)
 		if (ret)
 			return ret;
 
-		ipq_cfg_pcm_rx_active_slot(i, params->rx_slots[i]);
+		ret = ipq_cfg_pcm_rx_active_slot(i, params->rx_slots[i]);
 		if (ret)
 			return ret;
 	}
 
 	/* Configure bit width */
+
 	ipq_cfg_pcm_width(params->bit_width, 0);
 	ipq_cfg_pcm_width(params->bit_width, 1);
 
@@ -407,7 +390,7 @@ int ipq_pcm_init_v2(struct ipq_pcm_params *params)
 	}
 
 	/* take PCM out of reset to start it */
-	ipq_cfg_pcm_reset(0);
+	reset_control_deassert(lpaif_blk_rst);
 
 	context.needs_deinit = 1;
 	return 0;
@@ -422,12 +405,12 @@ err_mem_tx:
 	voice_free_dma_buffer(&pcm_pdev->dev, rx_dma_buffer);
 	return ret;
 }
-EXPORT_SYMBOL(ipq_pcm_init_v2);
+EXPORT_SYMBOL(ipq806x_pcm_init);
 
-void ipq_pcm_deinit(void)
+void ipq806x_pcm_deinit(void)
 {
 	context.needs_deinit = 0;
-	clk_reset(lpaif_pcm_bit_clk, LPAIF_PCM_ASSERT);
+	reset_control_assert(lpaif_blk_rst);
 	clk_disable_unprepare(lpaif_pcm_bit_clk);
 	 /* set Rx active slot count to default. */
 	ipq_cfg_pcm_active_slot_count(LPA_IF_PCM_DEFAULT_SLOT_COUNT, 0);
@@ -444,9 +427,9 @@ void ipq_pcm_deinit(void)
 	if (rx_dma_buffer)
 		voice_free_dma_buffer(&pcm_pdev->dev, rx_dma_buffer);
 }
-EXPORT_SYMBOL(ipq_pcm_deinit);
+EXPORT_SYMBOL(ipq806x_pcm_deinit);
 
-int ipq_pcm_data(char **rx_buf, char **tx_buf)
+uint32_t ipq806x_pcm_data(char **rx_buf, char **tx_buf)
 {
 	unsigned long flag;
 	uint32_t offset;
@@ -461,13 +444,13 @@ int ipq_pcm_data(char **rx_buf, char **tx_buf)
 
 	return (rx_dma_buffer->size / NUM_BUFFERS);
 }
-EXPORT_SYMBOL(ipq_pcm_data);
+EXPORT_SYMBOL(ipq806x_pcm_data);
 
-void ipq_pcm_done(void)
+void ipq806x_pcm_done(void)
 {
 	atomic_set(&data_avail, 0);
 }
-EXPORT_SYMBOL(ipq_pcm_done);
+EXPORT_SYMBOL(ipq806x_pcm_done);
 
 static int voice_allocate_dma_buffer(struct device *dev,
 		struct voice_dma_buffer *dma_buffer)
@@ -492,6 +475,11 @@ static int voice_free_dma_buffer(struct device *dev,
 	dma_buff->area = NULL;
 	return 0;
 }
+
+static const struct of_device_id qca_raw_match_table[] = {
+	{ .compatible = "qca,ipq806x-pcm", },
+	{},
+};
 
 static int ipq_pcm_driver_probe(struct platform_device *pdev)
 {
@@ -523,6 +511,12 @@ static int ipq_pcm_driver_probe(struct platform_device *pdev)
 
 	pcm_test_init(pcm_pdev);
 	spin_lock_init(&pcm_lock);
+
+#ifdef RTMISS_PROC_CNTRS
+	/* Create RT miss count proc entry */
+	proc_rtmiss_cnt_init();
+#endif
+
 	return 0;
 
 error_mem:
@@ -537,50 +531,28 @@ static int ipq_pcm_driver_remove(struct platform_device *pdev)
 	kfree(rx_dma_buffer);
 
 	pcm_test_exit(pdev);
-	return 0;
-}
-
-static struct platform_driver ipq_pcm_driver = {
-	.driver = {
-		.name   = "ipq-pcm-raw",
-		.owner  = THIS_MODULE,
-	},
-	.probe  = ipq_pcm_driver_probe,
-	.remove = ipq_pcm_driver_remove,
-};
-
-static int __init ipq_lpass_d2_pcm_init(void)
-{
-	int ret;
-
-	ret = platform_driver_register(&ipq_pcm_driver);
-	if (ret) {
-		pr_err("%s: Failed to register VoIP platform driver\n",
-				__func__);
-	}
-
-#ifdef RTMISS_PROC_CNTRS
-	/* Create RT miss count proc entry */
-	proc_rtmiss_cnt_init();
-#endif
-	return ret;
-}
-
-static void __exit ipq_lpass_d2_pcm_exit(void)
-{
-	if (context.needs_deinit)
-		ipq_pcm_deinit();
-
-	platform_driver_unregister(&ipq_pcm_driver);
 
 #ifdef RTMISS_PROC_CNTRS
 	/* Remove RT miss count proc entry */
 	proc_rtmiss_cnt_exit();
 #endif
+
+	return 0;
 }
 
-module_init(ipq_lpass_d2_pcm_init);
-module_exit(ipq_lpass_d2_pcm_exit);
+
+#define DRIVER_NAME "ipq806x-pcm-raw"
+
+static struct platform_driver ipq_pcm_raw_driver = {
+	.probe	= ipq_pcm_driver_probe,
+	.remove	= ipq_pcm_driver_remove,
+	.driver	= {
+		.name	= DRIVER_NAME,
+		.of_match_table	= qca_raw_match_table,
+	},
+};
+
+module_platform_driver(ipq_pcm_raw_driver);
 
 MODULE_DESCRIPTION("IPQ RAW PCM VoIP Platform Driver");
 MODULE_LICENSE("Dual BSD/GPL");

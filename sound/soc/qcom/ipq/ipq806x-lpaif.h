@@ -16,8 +16,6 @@
 #ifndef IPQ_LPA_IF_H
 #define IPQ_LPA_IF_H
 
-#include <sound/dai.h>
-
 #define MAX_LPAIF_CHANNELS 9
 
 #define IPQ_LPAIF_PHYS		0x28100000
@@ -163,12 +161,12 @@
 
 #define LPA_IF_DMACTL_ENABLE			(1 << 0)
 
-#define LPA_IF_DMA_BASE_ADDR(x)			(0x6004 + (1000 * x))
-#define LPA_IF_DMA_BUFF_LEN(x)			(0x6008 + (1000 * x))
-#define LPA_IF_DMA_CURR_ADDR(x)			(0x600c + (1000 * x))
-#define LPA_IF_DMA_PER_LEN(x)			(0x6010 + (1000 * x))
-#define LPA_IF_DMA_PER_CNT(x)			(0x6014 + (1000 * x))
-#define LPA_IF_DMA_FRM(x)			(0x6018 + (1000 * x))
+#define LPA_IF_DMA_BASE_ADDR(x)			(0x6004 + (0x1000 * x))
+#define LPA_IF_DMA_BUFF_LEN(x)			(0x6008 + (0x1000 * x))
+#define LPA_IF_DMA_CURR_ADDR(x)			(0x600c + (0x1000 * x))
+#define LPA_IF_DMA_PER_LEN(x)			(0x6010 + (0x1000 * x))
+#define LPA_IF_DMA_PER_CNT(x)			(0x6014 + (0x1000 * x))
+#define LPA_IF_DMA_FRM(x)			(0x6018 + (0x1000 * x))
 
 #define DMA_DONE		0x0
 #define DMA_ERR			1
@@ -272,6 +270,23 @@ enum LPA_IF_RPCM_SLOT {
 	LPA_IF_RPCM_SLOT2,
 	LPA_IF_RPCM_SLOT3,
 	LPA_IF_RPCM_MAX_SLOT = 4,
+};
+
+struct dai_dma_params {
+	u8 *buffer;
+	uint32_t src_start;
+	uint32_t bus_id;
+	int buffer_size;
+	int period_size;
+	int channels;
+};
+
+enum {
+	DAI_SPKR = 0,
+	DAI_MIC,
+	DAI_MI2S,
+	DAI_SEC_SPKR,
+	DAI_SEC_MIC,
 };
 
 struct ipq_lpaif_dai_baseinfo {
