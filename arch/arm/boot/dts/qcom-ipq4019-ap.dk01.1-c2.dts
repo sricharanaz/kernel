@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2017, The Linux Foundation. All rights reserved.
+
+#include "qcom-ipq4019-ap.dk01.1.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. IPQ40xx/AP-DK01.1-C2";
+
+	soc {
+		spi_0: spi@78b5000 { /* BLSP1 QUP1 */
+			status = "ok";
+			cs-gpios = <&tlmm 54 0>, <&tlmm 59 0>;
+			num-cs = <2>;
+
+			mt29f@1 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "spinand,mt29f";
+				reg = <1>;
+				spi-max-frequency = <24000000>;
+			};
+
+		};
+	};
+};
