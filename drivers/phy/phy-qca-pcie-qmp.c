@@ -105,6 +105,8 @@
 #define PCIE_USB3_PCS_TXDEEMPH_M3P5DB_V0                0x828
 #define PCIE_USB3_PCS_SW_RESET                          0x800
 #define PCIE_USB3_PCS_START_CONTROL                     0x808
+#define PCIE_QSERDES_TX_TX_EMP_POST1_LVL		0x218
+#define PCIE_QSERDES_TX_SLEW_CNTL			0x240
 
 struct qca_pcie_qmp_phy {
 	void __iomem *base;
@@ -189,6 +191,8 @@ static const struct phy_regs pcie_phy_regs[] = {
 	{ PCIE_USB3_PCS_TXDEEMPH_M3P5DB_V0,			0x0000000e },
 	{ PCIE_USB3_PCS_SW_RESET,				0x00000000 },
 	{ PCIE_USB3_PCS_START_CONTROL,				0x00000003 },
+	{ PCIE_QSERDES_TX_TX_EMP_POST1_LVL,			0x00000036 },
+	{ PCIE_QSERDES_TX_SLEW_CNTL,				0x0000000A },
 };
 
 static int qca_pcie_qmp_phy_init(struct qca_pcie_qmp_phy *pcie)
