@@ -291,6 +291,7 @@ enum {
 
 struct ipq_lpaif_dai_baseinfo {
 	void __iomem *base;
+	int irq;
 };
 
 struct mi2s_hw_params {

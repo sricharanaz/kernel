@@ -764,8 +764,6 @@ static void ipq_lpaif_dai_ch_free(void)
 		kfree(dai[i]);
 }
 
-static struct resource *lpa_irq;
-
 static const struct of_device_id ipq_lpaif_match_table[] = {
 	{ .compatible = "qca,ipq806x-lpaif" },
 	{},
@@ -778,7 +776,6 @@ static int ipq_lpaif_dai_probe(struct platform_device *pdev)
 	struct resource *lpa_res;
 	struct device *lpaif_device;
 	const struct of_device_id *match;
-	int irq;
 
 	match = of_match_device(ipq_lpaif_match_table, &pdev->dev);
 	if (!match)
@@ -799,15 +796,15 @@ static int ipq_lpaif_dai_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
+	dai_info.irq = platform_get_irq(pdev, 0);
+	if (dai_info.irq < 0) {
 		dev_err(&pdev->dev, "%s: lpaif IRQ %d is not provided\n",
-						__func__, irq);
+						__func__, dai_info.irq);
 		rc = -ENODEV;
 		goto error;
 	}
 
-	rc = devm_request_irq(&pdev->dev, irq, dai_irq_handler, 0,
+	rc = devm_request_irq(&pdev->dev, dai_info.irq, dai_irq_handler, 0,
 				"ipq806x-lpaif", NULL);
 	if (rc) {
 		dev_err(&pdev->dev, "request_irq() failed with ret: %d\n", rc);
@@ -846,7 +843,7 @@ error_mem:
 	clk_put(lpaif_pcm_bit_clk);
 	ipq_lpaif_dai_ch_free();
 error_irq:
-	free_irq(lpa_irq->start, NULL);
+	devm_free_irq(&pdev->dev, dai_info.irq, NULL);
 error:
 	iounmap(dai_info.base);
 	return rc;
@@ -854,7 +851,7 @@ error:
 
 static int ipq_lpaif_dai_remove(struct platform_device *pdev)
 {
-	free_irq(lpa_irq->start, NULL);
+	devm_free_irq(&pdev->dev, dai_info.irq, NULL);
 	iounmap(dai_info.base);
 	ipq_lpaif_dai_ch_free();
 	return 0;
