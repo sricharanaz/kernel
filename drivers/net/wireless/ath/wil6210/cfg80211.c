@@ -27,6 +27,12 @@ bool disable_ap_sme;
 module_param(disable_ap_sme, bool, 0444);
 MODULE_PARM_DESC(disable_ap_sme, " let user space handle AP mode SME");
 
+#ifdef CONFIG_PM
+static struct wiphy_wowlan_support wil_wowlan_support = {
+	.flags = WIPHY_WOWLAN_ANY | WIPHY_WOWLAN_DISCONNECT,
+};
+#endif
+
 static unsigned short scan_dwell_time  = WMI_SCAN_DWELL_TIME_MS;
 module_param(scan_dwell_time, ushort, 0644);
 MODULE_PARM_DESC(scan_dwell_time, " Scan dwell time");
@@ -1967,6 +1973,10 @@ static void wil_wiphy_init(struct wiphy *wiphy)
 	wiphy->vendor_commands = wil_nl80211_vendor_commands;
 	wiphy->vendor_events = wil_nl80211_vendor_events;
 	wiphy->n_vendor_events = ARRAY_SIZE(wil_nl80211_vendor_events);
+
+#ifdef CONFIG_PM
+	wiphy->wowlan = &wil_wowlan_support;
+#endif
 }
 
 struct wireless_dev *wil_cfg80211_init(struct device *dev)
