@@ -401,7 +401,7 @@ static void wil_fw_error_worker(struct work_struct *work)
 
 	wil_dbg_misc(wil, "fw error worker\n");
 
-	if (!netif_running(ndev)) {
+	if (!(ndev->flags & IFF_UP)) {
 		wil_info(wil, "No recovery - interface is down\n");
 		return;
 	}
