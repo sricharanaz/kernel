@@ -810,6 +810,9 @@ static ssize_t wil_write_file_txmgmt(struct file *file, const char __user *buf,
 	if (!frame)
 		return -ENOMEM;
 
+	if (!len)
+		return -EINVAL;
+
 	if (copy_from_user(frame, buf, len)) {
 		kfree(frame);
 		return -EIO;
