@@ -1017,6 +1017,7 @@ static void wil_pre_fw_config(struct wil6210_priv *wil)
 int wil_reset(struct wil6210_priv *wil, bool load_fw)
 {
 	int rc;
+	unsigned long status_flags = BIT(wil_status_resetting);
 
 	wil_dbg_misc(wil, "reset\n");
 
@@ -1056,6 +1057,14 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	}
 
 	set_bit(wil_status_resetting, wil->status);
+	if (test_bit(wil_status_collecting_dumps, wil->status)) {
+		/* Device collects crash dump, cancel the reset.
+		 * following crash dump collection, reset would take place.
+		 */
+		wil_dbg_misc(wil, "reject reset while collecting crash dump\n");
+		rc = -EBUSY;
+		goto out;
+	}
 
 	cancel_work_sync(&wil->disconnect_worker);
 	wil6210_disconnect(wil, NULL, WLAN_REASON_DEAUTH_LEAVING, false);
@@ -1070,7 +1079,11 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 
 	/* prevent NAPI from being scheduled and prevent wmi commands */
 	mutex_lock(&wil->wmi_mutex);
-	bitmap_zero(wil->status, wil_status_last);
+	if (test_bit(wil_status_suspending, wil->status))
+		status_flags |= BIT(wil_status_suspending);
+	bitmap_and(wil->status, wil->status, &status_flags,
+		   wil_status_last);
+	wil_dbg_misc(wil, "wil->status (0x%lx)\n", *wil->status);
 	mutex_unlock(&wil->wmi_mutex);
 
 	wil_mask_irq(wil);
@@ -1088,14 +1101,14 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	wil_rx_fini(wil);
 	if (rc) {
 		wil_bl_crash_info(wil, true);
-		return rc;
+		goto out;
 	}
 
 	rc = wil_get_bl_info(wil);
 	if (rc == -EAGAIN && !load_fw) /* ignore RF error if not going up */
 		rc = 0;
 	if (rc)
-		return rc;
+		goto out;
 
 	wil_set_oob_mode(wil, oob_mode);
 	if (load_fw) {
@@ -1107,10 +1120,10 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		/* Loading f/w from the file */
 		rc = wil_request_firmware(wil, wil->wil_fw_name, true);
 		if (rc)
-			return rc;
+			goto out;
 		rc = wil_request_firmware(wil, wil_get_board_file(wil), true);
 		if (rc)
-			return rc;
+			goto out;
 
 		wil_pre_fw_config(wil);
 		wil_release_cpu(wil);
@@ -1121,6 +1134,8 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 	reinit_completion(&wil->wmi_ready);
 	reinit_completion(&wil->wmi_call);
 	reinit_completion(&wil->halp.comp);
+
+	clear_bit(wil_status_resetting, wil->status);
 
 	if (load_fw) {
 		wil_configure_interrupt_moderation(wil);
@@ -1154,6 +1169,10 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		}
 	}
 
+	return rc;
+
+out:
+	clear_bit(wil_status_resetting, wil->status);
 	return rc;
 }
 
@@ -1262,9 +1281,7 @@ int __wil_down(struct wil6210_priv *wil)
 	wil_abort_scan(wil, false);
 	mutex_unlock(&wil->p2p_wdev_mutex);
 
-	wil_reset(wil, false);
-
-	return 0;
+	return wil_reset(wil, false);
 }
 
 int wil_down(struct wil6210_priv *wil)
