@@ -1054,6 +1054,10 @@ void wil_halp_unvote(struct wil6210_priv *wil);
 void wil6210_set_halp(struct wil6210_priv *wil);
 void wil6210_clear_halp(struct wil6210_priv *wil);
 
+int wmi_start_sched_scan(struct wil6210_priv *wil,
+			 struct cfg80211_sched_scan_request *request);
+int wmi_stop_sched_scan(struct wil6210_priv *wil);
+
 void wil_ftm_init(struct wil6210_priv *wil);
 void wil_ftm_deinit(struct wil6210_priv *wil);
 void wil_ftm_stop_operations(struct wil6210_priv *wil);
