@@ -19,6 +19,7 @@
 #define SCM_CMD_TZ_CONFIG_HW_FOR_RAM_DUMP_ID	0x9
 #define SCM_CMD_TZ_FORCE_DLOAD_ID		0x10
 #define SCM_CMD_TZ_SET_DLOAD_FOR_SECURE_BOOT	0x14
+#define SCM_CMD_PSHOLD				0x15
 
 #define QCOM_SCM_BOOT_ADDR		0x1
 #define QCOM_SCM_BOOT_ADDR_MC		0x11
@@ -136,6 +137,10 @@ extern int __qcom_scm_tcsr(struct device *, u32 svc_id, u32 cmd_id,
 
 extern int __qcom_scm_sdi(struct device *, u32 svc_id, u32 cmd_id);
 extern int qcom_scm_sdi(u32 svc_id, u32 cmd_id);
+
+extern int __qcom_scm_pshold(struct device *);
+extern int qcom_scm_pshold(void);
+
 
 #define SCM_IO_READ	1
 #define SCM_IO_WRITE	2
