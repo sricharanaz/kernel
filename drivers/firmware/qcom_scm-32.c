@@ -927,6 +927,18 @@ static int __qcom_scm_dload_v8(struct device *dev, void *cmd_buf)
 	return le32_to_cpu(desc.ret[0]);
 }
 
+int __qcom_scm_pshold(struct device *dev)
+{
+	long ret;
+
+	if (is_scm_armv8())
+		return -ENOTSUPP;
+
+	ret = qcom_scm_call(dev, QCOM_SCM_SVC_BOOT, SCM_CMD_PSHOLD, NULL, 0, NULL, 0);
+
+	return ret;
+}
+
 int __qcom_scm_dload(struct device *dev, u32 svc_id, u32 cmd_id, void *cmd_buf)
 {
 	long ret;

@@ -531,6 +531,11 @@ int __qcom_scm_send_cache_dump_addr(struct device *dev, u32 cmd_id,
 	return -ENOTSUPP;
 }
 
+int __qcom_scm_pshold(struct device *dev)
+{
+	return -ENOTSUPP;
+}
+
 static int __qcom_scm_tz_hvc_log_v8(struct device *dev, u32 svc_id, u32 cmd_id,
 					u32 log_buf, u32 buf_size)
 {
