@@ -219,18 +219,21 @@
 		led@18 {
 			label = "led0_5g0";
 			gpios = <&tlmm 18 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "led_5g0";
 			default-state = "off";
 		};
 
 		led@19 {
 			label = "led1_5g1";
 			gpios = <&tlmm 19 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "led_5g1";
 			default-state = "off";
 		};
 
 		led@20 {
 			label = "led2_2g";
 			gpios = <&tlmm 20 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "led_2g";
 			default-state = "off";
 		};
 	};
