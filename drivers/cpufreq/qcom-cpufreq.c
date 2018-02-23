@@ -105,6 +105,7 @@ static int __init qcom_cpufreq_populate_opps(struct nvmem_cell *pvs_nvmem, struc
 
 	for (cpu = 0; cpu < num_possible_cpus(); cpu++) {
 		cpu_dev = get_cpu_device(cpu);
+		if (!cpu_dev)
 			return -ENODEV;
 
 		tbl[cpu] = dev_pm_opp_set_prop_name(cpu_dev, pvs_name);
@@ -121,25 +122,31 @@ static int __init qcom_cpufreq_populate_opps(struct nvmem_cell *pvs_nvmem, struc
 
 static int __init qcom_cpufreq_driver_init(void)
 {
+	struct platform_device *pdev;
 	struct device *cpu_dev;
 	struct device_node *np;
 	struct nvmem_cell *pvs_nvmem;
 	struct opp_table *tbl[NR_CPUS] = { NULL };
 	int ret, cpu = 0;
 
+	printk("freq: 1\n");
 	cpu_dev = get_cpu_device(0);
 	if (!cpu_dev)
 		return -ENODEV;
+
+	printk("freq: 2\n");
 
 	np = dev_pm_opp_of_get_opp_desc_node(cpu_dev);
 	if (!np)
 		return -ENOENT;
 
+	printk("freq: 3\n");
 	if (!of_device_is_compatible(np, "operating-points-v2-krait-cpu")) {
 		ret = -ENOENT;
 		goto free_np;
 	}
 
+	printk("freq: 3\n");
 	pvs_nvmem = of_nvmem_cell_get(np, NULL);
 	if (IS_ERR(pvs_nvmem)) {
 		dev_err(cpu_dev, "Could not get nvmem cell\n");
@@ -149,14 +156,23 @@ static int __init qcom_cpufreq_driver_init(void)
 
 	of_node_put(np);
 
+	printk("4\n");
+
 	ret = qcom_cpufreq_populate_opps(pvs_nvmem, tbl);
 	if (ret)
 		goto free_opp_name;
 
-	ret = PTR_ERR(platform_device_register_simple("cpufreq-dt", -1, NULL, 0));
-	if (!ret)
-		return 0;
+	printk("5\n");
 
+	pdev = platform_device_register_simple("cpufreq-dt", -1, NULL, 0);
+	if (IS_ERR(pdev)) {
+		ret = PTR_ERR(pdev);
+		goto free_opp_name;
+	}
+
+	return 0;
+
+	printk("6 %d \n", ret);
 free_opp_name:
 	while (tbl[cpu]) {
 		dev_pm_opp_put_prop_name(tbl[cpu]);
@@ -168,7 +184,7 @@ free_np:
 
 	return ret;
 }
-module_init(qcom_cpufreq_driver_init);
+late_initcall(qcom_cpufreq_driver_init);
 
 MODULE_DESCRIPTION("Qualcomm CPUfreq driver");
 MODULE_LICENSE("GPL v2");
