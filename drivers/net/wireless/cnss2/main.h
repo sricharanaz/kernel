@@ -151,6 +151,7 @@ struct cnss_plat_data {
 	struct cnss_fw_mem fw_mem;
 	struct cnss_fw_mem m3_mem;
 	int tgt_mem_cfg_mode;
+	struct notifier_block modem_atomic_nb;
 };
 
 void *cnss_bus_dev_to_bus_priv(struct device *dev);
