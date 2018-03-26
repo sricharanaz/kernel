@@ -29,6 +29,28 @@
 
 #include <asm/cacheflush.h>
 
+s64 alloc_time;
+s64 free_time;
+s64 map_time;
+s64 unmap_time;
+
+static struct kobject *example_kobject;
+static ssize_t foo_show(struct kobject *kobj, struct kobj_attribute *attr,
+                      char *buf)
+{
+	printk("alloc_time %lld free_time %lld map_time %lld unmap_time %lld \n", alloc_time, free_time, map_time, unmap_time);
+	return 0;
+
+}
+
+static ssize_t foo_store(struct kobject *kobj, struct kobj_attribute *attr,
+                      char *buf, size_t count)
+{
+	return 0;
+}
+
+static struct kobj_attribute foo_attribute =__ATTR(foo, 0660, foo_show, foo_store);
+
 static pgprot_t __get_dma_pgprot(struct dma_attrs *attrs, pgprot_t prot,
 				 bool coherent)
 {
@@ -143,6 +165,9 @@ static void *__dma_alloc(struct device *dev, size_t size,
 	void *ptr, *coherent_ptr;
 	bool coherent = is_device_dma_coherent(dev);
 	pgprot_t prot = __get_dma_pgprot(attrs, PAGE_KERNEL, false);
+	s64 start, end;
+
+	start = ktime_get_ns();
 
 	size = PAGE_ALIGN(size);
 
@@ -174,6 +199,10 @@ static void *__dma_alloc(struct device *dev, size_t size,
 	if (!coherent_ptr)
 		goto no_map;
 
+	end = ktime_get_ns();
+
+	alloc_time += (end - start);
+
 	return coherent_ptr;
 
 no_map:
@@ -188,6 +217,9 @@ static void __dma_free(struct device *dev, size_t size,
 		       struct dma_attrs *attrs)
 {
 	void *swiotlb_addr = phys_to_virt(dma_to_phys(dev, dma_handle));
+	s64 start, end;
+
+	start = ktime_get_ns();
 
 	size = PAGE_ALIGN(size);
 
@@ -197,6 +229,10 @@ static void __dma_free(struct device *dev, size_t size,
 		vunmap(vaddr);
 	}
 	__dma_free_coherent(dev, size, swiotlb_addr, dma_handle, attrs);
+
+	end = ktime_get_ns();
+
+	free_time += (end - start);
 }
 
 static dma_addr_t __swiotlb_map_page(struct device *dev, struct page *page,
@@ -205,10 +241,17 @@ static dma_addr_t __swiotlb_map_page(struct device *dev, struct page *page,
 				     struct dma_attrs *attrs)
 {
 	dma_addr_t dev_addr;
+	s64 start, end;
+
+	start = ktime_get_ns();
 
 	dev_addr = swiotlb_map_page(dev, page, offset, size, dir, attrs);
 	if (!is_device_dma_coherent(dev))
 		__dma_map_area(phys_to_virt(dma_to_phys(dev, dev_addr)), size, dir);
+
+	end = ktime_get_ns();
+
+	map_time += (end - start);
 
 	return dev_addr;
 }
@@ -218,9 +261,16 @@ static void __swiotlb_unmap_page(struct device *dev, dma_addr_t dev_addr,
 				 size_t size, enum dma_data_direction dir,
 				 struct dma_attrs *attrs)
 {
+	s64 start, end;
+
+	start = ktime_get_ns();
 	if (!is_device_dma_coherent(dev))
 		__dma_unmap_area(phys_to_virt(dma_to_phys(dev, dev_addr)), size, dir);
 	swiotlb_unmap_page(dev, dev_addr, size, dir, attrs);
+
+	end = ktime_get_ns();
+
+	unmap_time += (end - start);
 }
 
 static int __swiotlb_map_sg_attrs(struct device *dev, struct scatterlist *sgl,
@@ -521,7 +571,20 @@ arch_initcall(arm64_dma_init);
 
 static int __init dma_debug_do_init(void)
 {
+	int error;
+
 	dma_debug_init(PREALLOC_DMA_DEBUG_ENTRIES);
+
+        example_kobject = kobject_create_and_add("kobject_example",
+                                                 kernel_kobj);
+        if(!example_kobject)
+                return -ENOMEM;
+
+        error = sysfs_create_file(example_kobject, &foo_attribute.attr);
+        if (error) {
+                pr_debug("failed to create the foo file in /sys/kernel/kobject_example \n");
+        }
+ 
 	return 0;
 }
 fs_initcall(dma_debug_do_init);
@@ -546,6 +609,9 @@ static void *__iommu_alloc_attrs(struct device *dev, size_t size,
 	int ioprot = dma_direction_to_prot(DMA_BIDIRECTIONAL, coherent);
 	size_t iosize = size;
 	void *addr;
+	s64 start, end;
+
+	start = ktime_get_ns();
 
 	if (WARN(!dev, "cannot create IOMMU mapping for unknown device\n"))
 		return NULL;
@@ -596,6 +662,11 @@ static void *__iommu_alloc_attrs(struct device *dev, size_t size,
 			addr = NULL;
 		}
 	}
+
+	end = ktime_get_ns();
+
+	alloc_time += (end - start);
+
 	return addr;
 }
 
@@ -603,6 +674,9 @@ static void __iommu_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 			       dma_addr_t handle, struct dma_attrs *attrs)
 {
 	size_t iosize = size;
+	s64 start, end;
+
+	start = ktime_get_ns();
 
 	size = PAGE_ALIGN(size);
 	/*
@@ -629,6 +703,10 @@ static void __iommu_free_attrs(struct device *dev, size_t size, void *cpu_addr,
 		iommu_dma_unmap_page(dev, handle, iosize, 0, NULL);
 		__free_pages(virt_to_page(cpu_addr), get_order(size));
 	}
+
+	end = ktime_get_ns();
+
+	free_time += (end - start);
 }
 
 static int __iommu_mmap_attrs(struct device *dev, struct vm_area_struct *vma,
@@ -698,11 +776,19 @@ static dma_addr_t __iommu_map_page(struct device *dev, struct page *page,
 {
 	bool coherent = is_device_dma_coherent(dev);
 	int prot = dma_direction_to_prot(dir, coherent);
+	s64 start, end;
+
+	start = ktime_get_ns();
+
 	dma_addr_t dev_addr = iommu_dma_map_page(dev, page, offset, size, prot);
 
 	if (!iommu_dma_mapping_error(dev, dev_addr) &&
 	    !dma_get_attr(DMA_ATTR_SKIP_CPU_SYNC, attrs))
 		__iommu_sync_single_for_device(dev, dev_addr, size, dir);
+
+	end = ktime_get_ns();
+
+	map_time += (end - start);
 
 	return dev_addr;
 }
@@ -711,10 +797,17 @@ static void __iommu_unmap_page(struct device *dev, dma_addr_t dev_addr,
 			       size_t size, enum dma_data_direction dir,
 			       struct dma_attrs *attrs)
 {
+	s64 start, end;
+
+	start = ktime_get_ns();
+
 	if (!dma_get_attr(DMA_ATTR_SKIP_CPU_SYNC, attrs))
 		__iommu_sync_single_for_cpu(dev, dev_addr, size, dir);
 
 	iommu_dma_unmap_page(dev, dev_addr, size, dir, attrs);
+
+	end = ktime_get_ns();
+	unmap_time += (end - start);
 }
 
 static void __iommu_sync_sg_for_cpu(struct device *dev,
@@ -814,6 +907,7 @@ static bool do_iommu_attach(struct device *dev, const struct iommu_ops *ops,
 			   u64 dma_base, u64 size)
 {
 	struct iommu_domain *domain = iommu_get_domain_for_dev(dev);
+	int error;
 
 	/*
 	 * Best case: The device is either part of a group which was
@@ -844,6 +938,7 @@ static bool do_iommu_attach(struct device *dev, const struct iommu_ops *ops,
 		goto out_detach;
 
 	dev->archdata.dma_ops = &iommu_dma_ops;
+
 	return true;
 
 out_detach:
