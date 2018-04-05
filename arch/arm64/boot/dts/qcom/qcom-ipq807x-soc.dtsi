@@ -201,8 +201,8 @@
 		};
 		qfprom {
 			compatible = "qcom,qfprom-sec";
-			img-addr = <0x40000000>;
-			img-size = <0x01000000>;
+			img-addr = <0x4A600000>;
+			img-size = <0x00500000>;
 		};
 	};
 
@@ -302,6 +302,7 @@
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
 			status = "disabled";
+			tx-watermark = <0>;
 		};
 
 		serial_blsp2: serial@78B1000 {
