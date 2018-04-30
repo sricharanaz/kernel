@@ -452,8 +452,7 @@ int cnss_wlfw_load_bdf(struct wlfw_bdf_download_req_msg_v01 *req,
 	}
 	iounmap(bdf_addr);
 out:
-	if (fw)
-		release_firmware(fw);
+	release_firmware(fw);
 	return ret;
 }
 
