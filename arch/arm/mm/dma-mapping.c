@@ -10,6 +10,7 @@
  *  DMA uncached mapping support.
  */
 #include <linux/bootmem.h>
+#include <linux/dma-mapping-fast.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/genalloc.h>
@@ -2020,15 +2021,26 @@ void arm_iommu_release_mapping(struct dma_iommu_mapping *mapping)
 }
 EXPORT_SYMBOL_GPL(arm_iommu_release_mapping);
 
+/* fast mapping is always true for now */
+static bool fast = true;
+
 static int __arm_iommu_attach_device(struct device *dev,
 				     struct dma_iommu_mapping *mapping)
 {
 	int err;
-#if 0
-	err = iommu_attach_device(mapping->domain, dev);
-	if (err)
-		return err;
-#endif
+
+	if (fast & !dev->archdata.mapping) {
+		/* detach the existing and attach to fast mapping domain */
+		iommu_detach_device(mapping->domain, dev);
+		err = fast_smmu_attach_device(dev, mapping);
+		if (err)
+			return err;
+	} else {
+		err = iommu_attach_device(mapping->domain, dev);
+		if (err)
+			return err;
+	}
+
 	kref_get(&mapping->kref);
 	to_dma_iommu_mapping(dev) = mapping;
 

@@ -13,6 +13,8 @@
 #ifndef __LINUX_DMA_MAPPING_FAST_H
 #define __LINUX_DMA_MAPPING_FAST_H
 
+#define CONFIG_IOMMU_IO_PGTABLE_FAST
+
 #include <linux/iommu.h>
 #include <linux/io-pgtable-fast.h>
 

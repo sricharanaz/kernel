@@ -24,6 +24,8 @@
 
 #include "io-pgtable.h"
 
+extern struct io_pgtable_init_fns io_pgtable_av8l_fast_init_fns;
+
 static const struct io_pgtable_init_fns *
 io_pgtable_init_table[IO_PGTABLE_NUM_FMTS] =
 {
@@ -33,6 +35,7 @@ io_pgtable_init_table[IO_PGTABLE_NUM_FMTS] =
 	[ARM_64_LPAE_S1] = &io_pgtable_arm_64_lpae_s1_init_fns,
 	[ARM_64_LPAE_S2] = &io_pgtable_arm_64_lpae_s2_init_fns,
 #endif
+	[ARM_V8L_FAST] = &io_pgtable_av8l_fast_init_fns,
 };
 
 struct io_pgtable_ops *alloc_io_pgtable_ops(enum io_pgtable_fmt fmt,
