@@ -13,6 +13,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/iommu.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/err.h>
@@ -880,6 +881,8 @@ static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
 	struct rproc *rproc = pdata->rproc;
 	int ret = 0;
 
+	size_t size;
+
 	if (!subsys_get_crash_status(pdata->subsys) && force_stop) {
 		qcom_smem_state_update_bits(pdata->state,
 			BIT(pdata->stop_bit), BIT(pdata->stop_bit));
@@ -896,6 +899,27 @@ static int stop_q6(const struct subsys_desc *subsys, bool force_stop)
 
 	rproc_shutdown(rproc);
 	rproc_del(rproc);
+
+	if (rproc->domain) {
+		iommu_unmap(rproc->domain, 0x000A0000, 64 * 1024);
+		iommu_unmap(rproc->domain, 0x000E4000, 4 * 1024);
+		iommu_unmap(rproc->domain, 0x004A0000, 80 * 1024);
+		iommu_unmap(rproc->domain, 0x00500000, 68 * 1024);
+		iommu_unmap(rproc->domain, 0x00580000, 84 * 1024);
+		iommu_unmap(rproc->domain, 0x00700000, 256 * 1024);
+		iommu_unmap(rproc->domain, 0x01000000, 4 * 1024 * 1024);
+		iommu_unmap(rproc->domain, 0x01800000, 2 * 1024 * 1024);
+		iommu_unmap(rproc->domain, 0x02000000, 28 * 1024 * 1024);
+		iommu_unmap(rproc->domain, 0x06000000, 192 * 1024);
+		iommu_unmap(rproc->domain, 0x06040000, 128 * 1024);
+		iommu_unmap(rproc->domain, 0x07880000, 256 * 1024);
+		iommu_unmap(rproc->domain, 0x0C000000, 32 * 1024 * 1024);
+		iommu_unmap(rproc->domain, 0x0, 4 * 1024);
+		iommu_unmap(rproc->domain, 0x2cbca000, 4 * 1024);
+		iommu_unmap(rproc->domain, 0x2cbcb000, 4 * 1024);
+		iommu_unmap(rproc->domain, 0x4b000000, 55 * 1024 * 1024);
+		iommu_unmap(rproc->domain, 0x4ab00000, 1 * 1024 * 1024);
+	}
 
 	return 0;
 }
@@ -1006,6 +1030,60 @@ static int q6v5_load(struct rproc *rproc, const struct firmware *fw)
 
 		iounmap(ptr);
 	}
+
+	/*
+	 * Do identity iommu mappings.
+	 * The Q6/WIFI combo reserves 85MB at address 0x4b000000 (in ipq8074)
+	 * Some more additional device register mappings are required.
+	 * So if Q6/WIFI touches anything apart from what is mapped below,
+	 * that will be an access violation and would be trapped to the kernel.
+	 * The objective is protect HLOS/OTHERS from being corrupted by
+	 * Q6/WIFI.
+	 */
+	if (rproc->domain) {
+		/*
+		 * Map a page with address '0x0', because of a BUG
+		 * in WIFI microcode
+		 */
+		iommu_map(rproc->domain, 0x0, 0x0, 4 * 1024,
+			  IOMMU_READ | IOMMU_WRITE);
+		/* DDR MAPPINGS */
+		iommu_map(rproc->domain, 0x4ab00000, 0x4ab00000,
+			  1 * 1024 * 1024, IOMMU_READ | IOMMU_WRITE);
+		iommu_map(rproc->domain, 0x4b000000, 0x4b000000,
+			  0x03700000, IOMMU_READ | IOMMU_WRITE);
+		iommu_map(rproc->domain, 0x2cbca000, 0x2cbcb000,
+			  4 * 1024, IOMMU_READ | IOMMU_WRITE);
+		iommu_map(rproc->domain, 0x2cbcb000, 0x2cbcc000,
+			  4 * 1024, IOMMU_READ | IOMMU_WRITE);
+		iommu_map(rproc->domain, 0x000A0000, 0x000A0000,
+			  64 * 1024, IOMMU_READ | IOMMU_WRITE);
+		iommu_map(rproc->domain, 0x000E4000, 0x000E4000,
+			  4 * 1024,  IOMMU_READ | IOMMU_WRITE);
+		iommu_map(rproc->domain, 0x004A0000, 0x004A0000,
+			  80 * 1024, IOMMU_READ | IOMMU_WRITE);
+		iommu_map(rproc->domain, 0x00500000, 0x00500000,
+			  68 * 1024, IOMMU_READ | IOMMU_WRITE);
+		iommu_map(rproc->domain, 0x00580000, 0x00580000,
+			  84 * 1024,  IOMMU_READ | IOMMU_WRITE);
+		iommu_map(rproc->domain, 0x00700000, 0x00700000,
+			  256 * 1024, IOMMU_READ | IOMMU_WRITE);
+		iommu_map(rproc->domain, 0x01000000, 0x01000000,
+			  4 * 1024 * 1024, IOMMU_READ | IOMMU_WRITE);
+		iommu_map(rproc->domain, 0x01800000, 0x01800000,
+			  2 * 1024 * 1024, IOMMU_READ | IOMMU_WRITE);
+		iommu_map(rproc->domain, 0x02000000, 0x02000000,
+			  28 * 1024 * 1024, IOMMU_READ | IOMMU_WRITE);
+		iommu_map(rproc->domain, 0x06000000, 0x06000000,
+			  192 * 1024, IOMMU_READ | IOMMU_WRITE);
+		iommu_map(rproc->domain, 0x06040000, 0x06040000,
+			  128 * 1024, IOMMU_READ | IOMMU_WRITE);
+		iommu_map(rproc->domain, 0x07880000, 0x07880000,
+			  256 * 1024, IOMMU_READ | IOMMU_WRITE);
+		iommu_map(rproc->domain, 0x0C000000, 0x0C000000,
+			  32 * 1024 * 1024, IOMMU_READ | IOMMU_WRITE);
+	}
+
 	kfree(segment_name);
 	return ret;
 }
@@ -1026,13 +1104,15 @@ static int q6_rproc_probe(struct platform_device *pdev)
 		return -EPROBE_DEFER;
 	}
 
+	/* This looks redundant, so remove from the driver ? */
+#if 0
 	ret = dma_set_coherent_mask(&pdev->dev,
 			DMA_BIT_MASK(sizeof(dma_addr_t) * 8));
 	if (ret) {
 		dev_err(&pdev->dev, "dma_set_coherent_mask: %d\n", ret);
 		return ret;
 	}
-
+#endif
 	ret = of_property_read_string(pdev->dev.of_node, "firmware",
 			&firmware_name);
 	if (ret) {
