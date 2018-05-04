@@ -86,6 +86,19 @@ static int __iommu_attach_group(struct iommu_domain *domain,
 static void __iommu_detach_group(struct iommu_domain *domain,
 				 struct iommu_group *group);
 
+/**
+ * iommu_group_ref_get - Increment reference on a group
+ * @group: the group to use, must not be NULL
+ *
+ * This function is called by iommu drivers to take additional references on an
+ * existing group.  Returns the given group for convenience.
+ */
+struct iommu_group *iommu_group_ref_get(struct iommu_group *group)
+{
+        kobject_get(group->devices_kobj);
+        return group;
+}
+
 static ssize_t iommu_group_attr_show(struct kobject *kobj,
 				     struct attribute *__attr, char *buf)
 {
@@ -914,8 +927,8 @@ static int iommu_bus_notifier(struct notifier_block *nb,
 	 * result in ADD/DEL notifiers to group->notifier
 	 */
 	if (action == BUS_NOTIFY_ADD_DEVICE) {
-		if (ops->add_device)
-			return ops->add_device(dev);
+		//if (ops->add_device)
+		//	return ops->add_device(dev);
 	} else if (action == BUS_NOTIFY_REMOVED_DEVICE) {
 		if (ops->remove_device && dev->iommu_group) {
 			ops->remove_device(dev);

@@ -1016,11 +1016,13 @@ static struct iommu_domain *arm_smmu_domain_alloc(unsigned type)
 	if (!smmu_domain)
 		return NULL;
 
+#if CONFIG_64BIT
 	if (type == IOMMU_DOMAIN_DMA && (using_legacy_binding ||
 	    iommu_get_dma_cookie(&smmu_domain->domain))) {
 		kfree(smmu_domain);
 		return NULL;
 	}
+#endif
 
 	mutex_init(&smmu_domain->init_mutex);
 	spin_lock_init(&smmu_domain->pgtbl_lock);

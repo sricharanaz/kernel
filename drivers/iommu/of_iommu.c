@@ -139,7 +139,7 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 	struct of_phandle_args iommu_spec;
 	struct device_node *np;
 	const struct iommu_ops *ops = NULL;
-	int idx = 0;
+	int idx = 0, err;
 
 	/*
 	 * We can't do much for PCI devices without knowing how
@@ -165,6 +165,15 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 		of_node_put(np);
 		idx++;
 	}
+
+	/*
+	 * If we have reason to believe the IOMMU driver missed the initial
+	 * add_device callback for dev, replay it to get things in order.
+	 */
+        if (ops && ops->add_device && dev->bus && !dev->iommu_group)
+                err = ops->add_device(dev);
+
+	printk("%s add_device returned %d\n", __func__, err);
 
 	return ops;
 

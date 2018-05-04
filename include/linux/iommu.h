@@ -321,6 +321,7 @@ extern struct iommu_group *pci_device_group(struct device *dev);
 /* Generic device grouping function */
 extern struct iommu_group *generic_device_group(struct device *dev);
 
+extern struct iommu_group *iommu_group_ref_get(struct iommu_group *group);
 #else /* CONFIG_IOMMU_API */
 
 struct iommu_ops {};
