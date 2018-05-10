@@ -1227,6 +1227,12 @@ int cnss_pci_probe(struct pci_dev *pci_dev,
 	plat_priv = cnss_bus_dev_to_plat_priv(&pci_dev->dev);
 	cnss_pr_dbg("PCI is probing, vendor ID: 0x%x, device ID: 0x%x\n",
 		    id->vendor, pci_dev->device);
+
+	if (!plat_priv) {
+		cnss_pr_err("%s +%d plat_priv is NULL\n", __func__, __LINE__);
+		return -EINVAL;
+	}
+
 #ifdef CONFIG_MSM_MHI
 	if (pci_dev->device == QCA6290_DEVICE_ID &&
 	    !mhi_is_device_ready(&plat_priv->plat_dev->dev, MHI_NODE_NAME)) {

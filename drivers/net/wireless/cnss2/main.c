@@ -748,7 +748,7 @@ int cnss_power_down(struct device *dev)
 }
 EXPORT_SYMBOL(cnss_power_down);
 
-int cnss_unregister_qca8074_cb(struct cnss_plat_data *plat_priv)
+void cnss_unregister_qca8074_cb(struct cnss_plat_data *plat_priv)
 {
 	void *handler = plat_priv->esoc_info.modem_notify_handler;
 
