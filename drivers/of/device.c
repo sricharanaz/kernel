@@ -70,6 +70,14 @@ int of_device_add(struct platform_device *ofdev)
 	return device_add(&ofdev->dev);
 }
 
+static bool enable_iommu;
+static int __init enable_iommu_setup(char *__unused)
+{
+	enable_iommu = true;
+	return 1;
+}
+early_param("enable_iommu", enable_iommu_setup);
+
 /**
  * of_dma_configure - Setup DMA configuration
  * @dev:	Device to apply DMA configuration
@@ -88,7 +96,7 @@ void of_dma_configure(struct device *dev, struct device_node *np)
 	int ret;
 	bool coherent;
 	unsigned long offset;
-	const struct iommu_ops *iommu;
+	const struct iommu_ops *iommu = NULL;
 
 	/*
 	 * Set default coherent_dma_mask to 32 bit.  Drivers are expected to
@@ -143,7 +151,9 @@ void of_dma_configure(struct device *dev, struct device_node *np)
 	dev_dbg(dev, "device is%sdma coherent\n",
 		coherent ? " " : " not ");
 
-	iommu = of_iommu_configure(dev, np);
+	if (enable_iommu)
+		iommu = of_iommu_configure(dev, np);
+
 	dev_dbg(dev, "device is%sbehind an iommu\n",
 		iommu ? " " : " not ");
 
